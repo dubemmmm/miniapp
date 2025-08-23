@@ -39,7 +39,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'properties',
+ 
 ]
 
 MIDDLEWARE = [
@@ -119,6 +121,9 @@ USE_TZ = True
 STORAGES = {
     # Enable WhiteNoise's GZip (and Brotli, if installed) compression of static assets:
     # https://whitenoise.readthedocs.io/en/latest/django.html#add-compression-and-caching-support
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
@@ -131,11 +136,46 @@ STATIC_URL = 'static/'
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'landing'
 LOGOUT_REDIRECT_URL = 'landing'
 LOGIN_URL = 'login'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'airtable-cache',
+    }
+}
+# PDF Generation Settings
+PDF_SETTINGS = {
+    'MAX_IMAGE_WIDTH': 400,
+    'MAX_IMAGE_HEIGHT': 300,
+    'IMAGE_QUALITY': 85,
+    'REQUEST_TIMEOUT': 10,  # seconds for downloading remote images
+}
+
+# Security settings for file downloads
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None  # Allow PDF downloads
+SECURE_REFERRER_POLICY = "same-origin"
+
+# Content Security Policy (if using django-csp)
+CSP_DEFAULT_SRC = ["'self'"]
+CSP_SCRIPT_SRC = ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"]
+CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"]
+CSP_IMG_SRC = ["'self'", "data:", "blob:"]
+CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
+
+# Allowed hosts (ensure your domain is included)
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'your-domain.com']  # Add your actual domain
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB

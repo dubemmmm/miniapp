@@ -1,23 +1,69 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title></title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="">
-    </head>
-    <body>
-        <h1>Home Page. You are logged in</h1>
-        <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
-                <i class="fas fa-sign-out-alt"></i>
-                <span class="hidden md:inline">Log Out</span>
-            </button>
-        </form>
-        
-        <script src="" async defer></script>
-    </body>
+  <head>
+    <meta charset="utf-8" />
+    <title>Home</title>
+  </head>
+  <body>
+    <h1>Home Page. You are logged in</h1>
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
+        <i class="fas fa-sign-out-alt"></i>
+        <span class="hidden md:inline">Log Out</span>
+      </button>
+    </form>
+
+    <button id="syncAirtableBtn" class="btn-primary text-white rounded font-semibold flex items-center gap-2" type="button">
+      <i class="fas fa-sync"></i>
+      <span class="hidden md:inline">Sync with Airtable</span>
+    </button>
+
+    <!-- add a place to show status -->
+    <p id="syncStatus"></p>
+
+    <script>
+      const syncAirtableBtn = document.getElementById('syncAirtableBtn');
+      const syncStatus = document.getElementById('syncStatus');
+
+      // Re-use the CSRF token from the logout form (since it already renders {% csrf_token %})
+      const csrfInput = document.querySelector('input[name=csrfmiddlewaretoken]');
+      const csrftoken = csrfInput ? csrfInput.value : '';
+
+      if (syncAirtableBtn) {
+        syncAirtableBtn.addEventListener('click', async () => {
+          syncStatus.textContent = 'Syncing with Airtable...';
+          syncAirtableBtn.disabled = true;
+
+          try {
+            const response = await fetch('{% url "sync_airtable" %}', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({}),
+            });
+
+            // Make sure we can parse JSON (even on errors)
+            const result = await response.json().catch(() => ({}));
+
+            if (response.ok && result.success) {
+              syncStatus.textContent = 'Sync completed successfully! Reloading page...';
+              setTimeout(() => window.location.reload(), 1200);
+            } else {
+              const msg = result.error || `Request failed with status ${response.status}`;
+              throw new Error(msg);
+            }
+          } catch (error) {
+            console.error('Error syncing Airtable:', error);
+            syncStatus.textContent = `Error: ${error.message}`;
+            syncAirtableBtn.disabled = false;
+          }
+        });
+      }
+    </script>
+  </body>
 </html>

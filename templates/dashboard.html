@@ -1,0 +1,1148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-dark: #2D3748;
+        --primary-light: #4A5568;
+        --accent: #718096;
+    }
+    .leaflet-container { height: 100vh; width: 100%; }
+    .custom-marker {
+        border: 2px solid var(--primary-light);
+        border-radius: 50%;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .custom-marker img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+    .logo-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        padding: 4px 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    .logo-container:hover {
+        transform: scale(1.05);
+    }
+    .logo-container img {
+        max-height: 100%;
+        width: auto;
+        display: block;
+    }
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 10px;
+        z-index: 2000;
+        overflow-y: auto;
+    }
+    .modal-content {
+        background: white;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        margin: 10px;
+        padding: 0;
+        position: relative;
+    }
+    .modal-close-button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+        line-height: 1;
+        text-align: center;
+        color: #4A5568;
+        background: rgba(255,255,255,0.8);
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 9999;
+        pointer-events: auto;
+    }
+    .modal-close-button:hover {
+        background: rgba(255,255,255,1);
+        color: #2D3748;
+    }
+    .image-gallery {
+        position: relative;
+        overflow: hidden;
+        border-radius: 8px;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .image-gallery img {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    .gallery-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border: none;
+        padding: 12px 16px;
+        font-size: 16px;
+        cursor: pointer;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    .gallery-nav:hover {
+        background: rgba(0,0,0,0.8);
+        transform: translateY(-50%) scale(1.1);
+    }
+    .gallery-nav.prev { left: 12px; }
+    .gallery-nav.next { right: 12px; }
+    .gallery-indicators {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 6px;
+    }
+    .gallery-indicator {
+        width: 8px;
+        height: 8px;
+        background: rgba(255,255,255,0.6);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .gallery-indicator.active {
+        background: rgba(255,255,255,1);
+        transform: scale(1.2);
+    }
+    .contact-display {
+        display: none;
+        margin-top: 16px;
+        padding: 12px;
+        background: #EDF2F7;
+        border-radius: 12px;
+        border: 1px solid rgba(45,55,72,0.1);
+    }
+    .contact-display.active {
+        display: block;
+    }
+    .whatsapp-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: 8px;
+        padding: 10px 18px;
+        font-size: 14px;
+        background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+    }
+    .whatsapp-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    .whatsapp-icon {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+    }
+    .contact-info {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .configurations-section {
+        margin: 24px 0;
+    }
+    .configurations-grid {
+        display: grid;
+        gap: 16px;
+        margin-top: 16px;
+    }
+    .configuration-card {
+        border: 2px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 16px;
+        background: #F9FAFB;
+        transition: all 0.3s ease;
+    }
+    .configuration-card:hover {
+        border-color: var(--primary-light);
+        box-shadow: 0 4px 12px rgba(45,55,72,0.1);
+    }
+    .configuration-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    .configuration-type {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+    .configuration-price {
+        font-size: 16px;
+        font-weight: 600;
+        color: #059669;
+        background: #D1FAE5;
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+    .configuration-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+    }
+    .detail-item {
+        background: white;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        border: 1px solid #E5E7EB;
+    }
+    .detail-label {
+        font-size: 12px;
+        color: #6B7280;
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    .detail-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary-dark);
+    }
+    .filter-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        width: 100%;
+        max-width: 320px;
+        height: 100%;
+        overflow-y: auto;
+        box-shadow: 4px 0 25px rgba(0,0,0,0.15);
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    .filter-sidebar.open {
+        transform: translateX(0);
+    }
+    .filter-header {
+        padding: 24px;
+        color: white;
+    }
+    .filter-content {
+        padding: 24px;
+    }
+    .filter-section {
+        margin-bottom: 24px;
+    }
+    .filter-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 12px;
+    }
+    .filter-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 14px;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    .filter-input:focus {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(59, 130, 246, 0.5);
+        outline: none;
+    }
+    .filter-input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+    }
+    .range-display {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 8px;
+        border-radius: 8px;
+    }
+    .control-button {
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        border: none;
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+        box-shadow: 0 8px 20px rgba(45,55,72,0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        display: block;
+    }
+    .control-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(45,55,72,0.4);
+    }
+    .control-button.apply {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    }
+    .control-button.apply:hover {
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+    }
+    .control-button.clear {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    }
+    .control-button a {
+        color: white;
+        text-decoration: none;
+        display: block;
+    }
+    .search-box {
+        position: fixed;
+        z-index: 1000;
+        padding: 8px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.95);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        cursor: move;
+    }
+    .search-input {
+        border: 2px solid rgba(45,55,72,0.2);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 14px;
+        width: 100%;
+        max-width: 300px;
+    }
+    .map-controls {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .currency-toggle {
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        border: none;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        display: block;
+    }
+    .currency-toggle:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+    }
+    .mobile-filter-overlay {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+        display: none;
+    }
+    .mobile-filter-overlay.active {
+        display: block;
+    }
+    @media (max-width: 1024px) {
+        .filter-sidebar {
+            width: 100%;
+            max-width: 320px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+    @media (max-width: 768px) {
+        .configurations-grid {
+            gap: 12px;
+        }
+        .configuration-card {
+            padding: 12px;
+        }
+        .configuration-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .configuration-type {
+            font-size: 16px;
+        }
+        .configuration-price {
+            font-size: 14px;
+        }
+        .configuration-details {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .detail-item {
+            padding: 8px;
+        }
+        .detail-value {
+            font-size: 14px;
+        }
+        .contact-info {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .whatsapp-button {
+            margin-left: 0;
+            margin-top: 8px;
+        }
+        .search-box {
+            width: calc(100% - 20px);
+            max-width: none;
+            left: 10px !important;
+        }
+    }
+    @media (max-width: 480px) {
+        .modal-content {
+            width: 95%;
+            margin: 5px;
+        }
+        .filter-sidebar {
+            width: 100vw;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="relative h-screen">
+    <div id="map" class="leaflet-container"></div>
+    <!-- Logo -->
+    <div class="absolute top-4 left-4 z-[1000]">
+        <a href="{% url 'landing' %}">
+            <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Real Estate Logo" class="h-10 md:h-12 w-auto">
+        </a>
+    </div>
+    
+    <!-- Mobile Filter Overlay -->
+    <div id="mobileFilterOverlay" class="mobile-filter-overlay"></div>
+
+    <!-- Search Box -->
+    <div id="searchBox" class="search-box">
+        <input
+            type="text" 
+            id="searchInput" 
+            placeholder="🔍 Search properties..."
+            class="search-input"
+        />
+    </div>
+    
+    <!-- Map Controls -->
+    <div class="map-controls">
+        <button id="toggleFiltersBtn" onclick="toggleFilters()" class="control-button"><i class="fas fa-filter mr-2"></i>Filters</button>
+        <button onclick="resetMap()" class="control-button"><i class="fas fa-home mr-2"></i>Reset View</button>
+        <button onclick="refreshData()" class="control-button"><i class="fas fa-refresh mr-2"></i>Refresh</button>
+        <button id="propertyCount" class="control-button"><i class="fas fa-chart-bar mr-2"></i>Loading...</button>
+        <a href="{% url 'landing' %}" class="control-button"><i class="fas fa-th mr-2"></i>Card View</a>
+        <button id="currencyToggle" class="currency-toggle"><i class="fas fa-money-bill-wave mr-2"></i>NGN</button>
+    </div>
+    
+    <!-- Filter Sidebar -->
+    <div id="filterSidebar" class="filter-sidebar">
+        <div class="filter-header flex justify-between items-center">
+            <div>
+                <h3 class="text-xl font-bold"><i class="fas fa-filter mr-2"></i>Property Filters</h3>
+                <p class="text-sm text-gray-300 mt-1">Refine your property search</p>
+            </div>
+            <button id="closeFiltersBtn" onclick="toggleFilters()" class="text-white p-2 hover:text-gray-200">X
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="filter-content">
+            <div class="filter-section">
+                <label class="filter-label">Search</label>
+                <input 
+                    type="text" 
+                    id="searchInputSidebar" 
+                    placeholder="Property name, address..."
+                    class="filter-input"
+                >
+            </div>
+            <div class="filter-section">
+                <label class="filter-label">Price Range ({{ currencyConverter.currentCurrency }})</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <input 
+                        type="number" 
+                        id="minPrice" 
+                        placeholder="Min Price" 
+                        class="filter-input"
+                        step="any"
+                    >
+                    <input 
+                        type="number" 
+                        id="maxPrice" 
+                        placeholder="Max Price" 
+                        class="filter-input"
+                        step="any"
+                    >
+                </div>
+                <div class="range-display" id="priceRangeDisplay">{{ currencyConverter.currentCurrency }}0 – No Max</div>
+            </div>
+            <div class="filter-section">
+                <label class="filter-label">Bedrooms</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <input 
+                        type="number" 
+                        id="minBedrooms" 
+                        placeholder="Min" 
+                        min="0" 
+                        class="filter-input"
+                    >
+                    <input 
+                        type="number" 
+                        id="maxBedrooms" 
+                        placeholder="Max" 
+                        min="0" 
+                        class="filter-input"
+                    >
+                </div>
+                <div class="range-display" id="bedroomsRangeDisplay">Any number of bedrooms</div>
+            </div>
+            <div class="filter-section">
+                <label class="filter-label">Bathrooms</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <input 
+                        type="number" 
+                        id="minBathrooms" 
+                        placeholder="Min" 
+                        min="0" 
+                        class="filter-input"
+                    >
+                    <input 
+                        type="number" 
+                        id="maxBathrooms" 
+                        placeholder="Max" 
+                        min="0" 
+                        class="filter-input"
+                    >
+                </div>
+                <div class="range-display" id="bathroomsRangeDisplay">Any number of bathrooms</div>
+            </div>
+            <!-- Completion Date Filter -->
+                <div class="mb-6">
+                    <label class="filter-label">Completion Date</label>
+                    <input 
+                        type="date" 
+                        name="completion_date" 
+                        {% comment %} value="{{ filters.completion_date }}" {% endcomment %}
+                        class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
+                    >
+                </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Luxury Status</label>
+                <select id="luxuryStatus" class="filter-input">
+                    <option value="all">All Types</option>
+                    <option value="Luxurious">Luxurious</option>
+                    <option value="Non-Luxurious">Non-Luxurious</option>
+                </select>
+                <div class="range-display" id="luxuryStatusDisplay">Any status</div>
+            </div>
+            <div class="space-y-3">
+                <button onclick="applyFilters()" class="control-button apply w-full"><i class="fas fa-search mr-2"></i>Apply Filters</button>
+                <button onclick="clearFilters()" class="control-button clear w-full"><i class="fas fa-refresh mr-2"></i>Clear All</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Property Modal -->
+    <div id="propertyModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <button id="modalCloseButton" onclick="closeModal()" class="modal-close-button">×</button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let map, properties = [], filteredProperties = [];
+    let currentImageIndex = 0;
+    let currencyConverter;
+
+    // Currency Converter Class
+    class CurrencyConverter {
+        constructor() {
+            this.currentCurrency = 'NGN';
+            this.exchangeRate = 1650; // Example rate: 1 USD = 1650 NGN (adjust as needed)
+            this.initListeners();
+        }
+
+        initListeners() {
+            document.getElementById('currencyToggle').addEventListener('click', () => {
+                this.toggleCurrency();
+                updatePriceDisplay();
+                applyFilters(); // Reapply filters with new currency
+            });
+        }
+
+        toggleCurrency() {
+            this.currentCurrency = this.currentCurrency === 'NGN' ? 'USD' : 'NGN';
+            document.getElementById('currencyToggle').textContent = `${this.currentCurrency}`;
+            document.querySelector('.filter-label[for="priceRange"]').textContent = `Price Range (${this.currentCurrency})`;
+            document.getElementById('priceRangeDisplay').textContent = `${this.currentCurrency}0 – No Max`;
+            // Clear input fields to avoid confusion with currency switch
+            document.getElementById('minPrice').value = '';
+            document.getElementById('maxPrice').value = '';
+        }
+
+        convert(price, toCurrency) {
+            if (toCurrency === 'USD') {
+                return price / this.exchangeRate;
+            } else {
+                return price * this.exchangeRate;
+            }
+        }
+    }
+
+    function initMap() {
+        map = L.map('map', { zoomControl: false }).setView([6.5244, 3.3792], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        L.control.scale().addTo(map);
+    }
+
+    async function fetchProperties() {
+        try {
+            const response = await fetch('{% url "properties_api" %}');
+            if (!response.ok) throw new Error('Failed to fetch properties');
+            properties = await response.json();
+            filteredProperties = properties;
+            updateMap();
+            updatePropertyCount();
+        } catch (error) {
+            console.error('Error fetching properties:', error);
+            alert('Error fetching properties. Please try again later.');
+        }
+    }
+
+    function updateMap() {
+        map.eachLayer(layer => {
+            if (layer instanceof L.Marker || layer instanceof L.MarkerClusterGroup) {
+                map.removeLayer(layer);
+            }
+        });
+        
+        const cluster = L.markerClusterGroup({
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            spiderfyOnMaxZoom: true,
+            removeOutsideVisibleBounds: true,
+            maxClusterRadius: 40
+        });
+        
+        const validMarkers = [];
+        filteredProperties.forEach(property => {
+            if (!property.latitude || !property.longitude || isNaN(property.latitude) || isNaN(property.longitude)) {
+                console.warn(`Invalid coordinates for ${property.name}`);
+                return;
+            }
+            const icon = L.divIcon({
+                html: `<div class="custom-marker"><img src="${property.thumbnail || 'https://via.placeholder.com/40'}" alt="${property.name}"/></div>`,
+                className: 'custom-marker-container',
+                iconSize: [44, 44],
+                iconAnchor: [22, 22]
+            });
+            const marker = L.marker([property.latitude, property.longitude], { icon });
+            marker.on('click', () => showPropertyModal(property));
+            cluster.addLayer(marker);
+            validMarkers.push(marker);
+        });
+        
+        map.addLayer(cluster);
+        if (validMarkers.length > 0) {
+            const group = new L.featureGroup(validMarkers);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+    }
+
+    function extractPhoneNumber(contact) {
+        if (contact && contact.includes(' - ')) {
+            return contact.split(' - ')[1].trim();
+        }
+        return contact;
+    }
+
+    function formatWhatsAppNumber(phoneNumber) {
+        let cleanNumber = phoneNumber.replace(/\D/g, '');
+        if (cleanNumber.startsWith('0')) {
+            cleanNumber = '234' + cleanNumber.substring(1);
+        }
+        if (!cleanNumber.startsWith('234')) {
+            cleanNumber = '234' + cleanNumber;
+        }
+        return cleanNumber;
+    }
+
+    function createModalHTML(property) {
+        console.log('Creating modal for property:', property.id, 'Images:', property.images);
+        currentImageIndex = 0;
+        
+        const amenities = property.amenities.map(a => 
+            `<span class="bg-blue-50 text-blue-700 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm border border-blue-200">${a}</span>`
+        ).join('');
+        
+        const images = Array.isArray(property.images) && property.images.length > 0 
+            ? property.images 
+            : [property.thumbnail || 'https://via.placeholder.com/200'];
+        
+        const configurationsHTML = property.configurations.length > 0 
+            ? property.configurations.map(config => {
+                let priceDisplay = config.price || 'TBD';
+                if (config.price && config.price !== 'TBD') {
+                    const cleanPrice = parseFloat(config.price.replace(/[₦,]/g, '')) || 0;
+                    priceDisplay = currencyConverter.currentCurrency === 'USD'
+                        ? `$${currencyConverter.convert(cleanPrice, 'USD').toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+                        : `₦${cleanPrice.toLocaleString()}`;
+                }
+                return `
+                    <div class="configuration-card">
+                        <div class="configuration-header">
+                            <div class="configuration-type">${config.type}</div>
+                            <div class="configuration-price">${priceDisplay}</div>
+                        </div>
+                        <div class="configuration-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Bedrooms</div>
+                                <div class="detail-value"><i class="fas fa-bed mr-1"></i>${config.bedrooms || 0}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Bathrooms</div>
+                                <div class="detail-value"><i class="fas fa-bath mr-1"></i>${config.bathrooms || 0}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Square Feet</div>
+                                <div class="detail-value"><i class="fas fa-ruler-combined mr-1"></i>${(config.square_footage || 0).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')
+            : '<div class="text-center text-gray-500 py-8">No configurations available</div>';
+        
+        const phoneNumber = extractPhoneNumber(property.contact);
+        const whatsappNumber = formatWhatsAppNumber(phoneNumber);
+        const whatsappMessage = encodeURIComponent(`Hi! I'm interested in the property: ${property.name} at ${property.address}. Could you please provide more information?`);
+        const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
+        
+        return `
+            <div class="bg-white rounded-lg p-8 shadow-lg">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">${property.name}</h2>
+                <div class="image-gallery">
+                    <img src="${images[currentImageIndex]}" alt="${property.name}" id="galleryImage"/>
+                    ${images.length > 1 ? `
+                    <button class="gallery-nav prev" onclick="changeImage(-1, ${property.id})"><i class="fas fa-chevron-left"></i></button>
+                    <button class="gallery-nav next" onclick="changeImage(1, ${property.id})"><i class="fas fa-chevron-right"></i></button>
+                    <div class="gallery-indicators">
+                        ${images.map((_, idx) => 
+                            `<div class="gallery-indicator ${idx === currentImageIndex ? 'active' : ''}" 
+                                  onclick="setImage(${idx}, ${property.id})"></div>`
+                        ).join('')}
+                    </div>` : ''}
+                </div>
+                <div class="space-y-2 mb-6">
+                    <p class="text-gray-600 text-sm md:text-base flex items-center"><i class="fas fa-map-marker-alt mr-2 text-blue-500"></i><strong>Address:</strong> ${property.address}</p>
+                    <p class="text-gray-700 text-sm md:text-base"><strong>Description:</strong>${property.description}</p>
+                    <p class="text-gray-700 text-sm md:text-base"><strong>Luxury Status:</strong> ${property.luxury_status}</p>
+                    <p class="text-gray-700 text-sm md:text-base"><strong>Completion Date:</strong> ${property.completion_date}</p>
+                </div>
+                
+                <div class="configurations-section">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Available Types</h3>
+                    <div class="configurations-grid">
+                        ${configurationsHTML}
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <span class="block text-xs md:text-sm text-gray-600 mb-2">Amenities</span>
+                    <div class="flex flex-wrap gap-2">${amenities}</div>
+                </div>
+                <div class="flex gap-3 md:gap-4">
+                    <button onclick="showContact()" class="flex-1 py-2 md:py-3 bg-gray-800 text-white rounded-lg text-sm md:text-base font-medium hover:bg-gray-700"><i class="fas fa-phone mr-2"></i>Contact Agent</button>
+                    <button onclick="downloadBrochure('${property.brochure}')" class="flex-1 py-2 md:py-3 bg-gray-200 text-gray-800 rounded-lg text-sm md:text-base font-medium hover:bg-gray-300"><i class="fas fa-download mr-2"></i>Download Brochure</button>
+                </div>
+                <div id="contactDisplay" class="contact-display">
+                    <div class="contact-info">
+                        <span>Contact: ${property.contact}</span>
+                        <a href="${whatsappLink}" target="_blank" class="whatsapp-button">
+                            <svg class="whatsapp-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.465 3.516"/>
+                            </svg>
+                            Message on WhatsApp
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function showPropertyModal(property) {
+        console.log('Showing modal for property:', property.id);
+        currentImageIndex = 0;
+        const modalContent = document.getElementById('modalContent');
+        modalContent.parentElement.dataset.propertyId = property.id;
+        modalContent.innerHTML = createModalHTML(property);
+        document.getElementById('propertyModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        console.log('Closing modal');
+        const modal = document.getElementById('propertyModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        } else {
+            console.error('Modal element not found');
+        }
+    }
+
+    function changeImage(delta, propertyId) {
+        console.log('Changing image:', { delta, propertyId, currentImageIndex });
+        const property = filteredProperties.find(p => p.id === parseInt(propertyId));
+        if (!property) {
+            console.error('Property not found:', propertyId);
+            return;
+        }
+        const images = Array.isArray(property.images) && property.images.length > 0 
+            ? property.images 
+            : [property.thumbnail || 'https://via.placeholder.com/200'];
+        currentImageIndex = (currentImageIndex + delta + images.length) % images.length;
+        const galleryImage = document.getElementById('galleryImage');
+        if (galleryImage) {
+            galleryImage.style.opacity = '0.7';
+            setTimeout(() => {
+                galleryImage.src = images[currentImageIndex];
+                galleryImage.style.opacity = '1';
+                updateGalleryIndicators();
+            }, 200);
+        } else {
+            console.error('Gallery image element not found');
+        }
+    }
+
+    function setImage(index, propertyId) {
+        console.log('Setting image:', { index, propertyId });
+        const property = filteredProperties.find(p => p.id === parseInt(propertyId));
+        if (!property) {
+            console.error('Property not found:', propertyId);
+            return;
+        }
+        const images = Array.isArray(property.images) && property.images.length > 0 
+            ? property.images 
+            : [property.thumbnail || 'https://via.placeholder.com/200'];
+        currentImageIndex = Math.max(0, Math.min(index, images.length - 1));
+        const galleryImage = document.getElementById('galleryImage');
+        if (galleryImage) {
+            galleryImage.style.opacity = '0.7';
+            setTimeout(() => {
+                galleryImage.src = images[currentImageIndex];
+                galleryImage.style.opacity = '1';
+                updateGalleryIndicators();
+            }, 200);
+        } else {
+            console.error('Gallery image element not found');
+        }
+    }
+
+    function updateGalleryIndicators() {
+        const indicators = document.querySelectorAll('.gallery-indicator');
+        indicators.forEach((indicator, idx) => {
+            indicator.classList.toggle('active', idx === currentImageIndex);
+        });
+    }
+
+    function showContact() {
+        const contactDisplay = document.getElementById('contactDisplay');
+        if (contactDisplay) {
+            contactDisplay.classList.add('active');
+        }
+    }
+
+    function downloadBrochure(url) {
+        if (url) {
+            window.location.href = url;
+        } else {
+            alert('No brochure available for this property.');
+        }
+    }
+
+    function handleSearch() {
+        const term = document.getElementById('searchInput').value.toLowerCase() || 
+                     document.getElementById('searchInputSidebar').value.toLowerCase();
+        filteredProperties = properties.filter(p => 
+            p.name.toLowerCase().includes(term) || 
+            p.address.toLowerCase().includes(term)
+        );
+        updateMap();
+        updatePropertyCount();
+    }
+
+    function updatePropertyCount() {
+        const propertyCount = document.getElementById('propertyCount');
+        if (propertyCount) {
+            propertyCount.innerHTML = `<i class="fas fa-chart-bar mr-2"></i>${filteredProperties.length} Properties`;
+        }
+    }
+
+    function resetMap() {
+        map.setView([6.5244, 3.3792], 12);
+    }
+
+    function refreshData() {
+        fetchProperties();
+    }
+
+    function toggleFilters() {
+        const sidebar = document.getElementById('filterSidebar');
+        const overlay = document.getElementById('mobileFilterOverlay');
+        if (sidebar) {
+            const isOpen = sidebar.classList.contains('open');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active', !isOpen);
+            document.body.style.overflow = isOpen ? '' : 'hidden';
+        }
+    }
+
+    function updateRangeDisplay(type) {
+        const minField = document.getElementById(`min${type}`);
+        const maxField = document.getElementById(`max${type}`);
+        const display = document.getElementById(`${type.toLowerCase()}RangeDisplay`);
+        
+        const minVal = parseInt(minField.value) || null;
+        const maxVal = parseInt(maxField.value) || null;
+        
+        let displayText = `Any number of ${type.toLowerCase()}`;
+        
+        if (minVal && maxVal) {
+            displayText = `${minVal} - ${maxVal} ${type.toLowerCase()}`;
+        } else if (minVal) {
+            displayText = `${minVal}+ ${type.toLowerCase()}`;
+        } else if (maxVal) {
+            displayText = `Up to ${maxVal} ${type.toLowerCase()}`;
+        }
+        
+        display.textContent = displayText;
+    }
+
+    function updateLuxuryStatusDisplay() {
+        const luxuryStatus = document.getElementById('luxuryStatus').value;
+        const display = document.getElementById('luxuryStatusDisplay');
+        display.textContent = luxuryStatus === 'all' ? 'Any status' : luxuryStatus;
+    }
+
+    function updatePriceDisplay() {
+        const minPrice = parseFloat(document.getElementById('minPrice').value) || 0;
+        const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity;
+        const display = document.getElementById('priceRangeDisplay');
+        const convertedMin = currencyConverter.currentCurrency === 'USD' 
+            ? currencyConverter.convert(minPrice, 'USD') 
+            : minPrice;
+        const convertedMax = currencyConverter.currentCurrency === 'USD' 
+            ? currencyConverter.convert(maxPrice, 'USD') 
+            : maxPrice;
+        display.textContent = `${currencyConverter.currentCurrency}${convertedMin.toLocaleString('en-US', { maximumFractionDigits: 0 })} – ${maxPrice === Infinity ? 'No Max' : currencyConverter.currentCurrency + convertedMax.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    }
+
+    function applyFilters() {
+        const minPriceInput = parseFloat(document.getElementById('minPrice').value) || 0;
+        const maxPriceInput = parseFloat(document.getElementById('maxPrice').value) || Infinity;
+        const minBedrooms = parseInt(document.getElementById('minBedrooms').value) || null;
+        const maxBedrooms = parseInt(document.getElementById('maxBedrooms').value) || null;
+        const minBathrooms = parseInt(document.getElementById('minBathrooms').value) || null;
+        const maxBathrooms = parseInt(document.getElementById('maxBathrooms').value) || null;
+        const luxuryStatus = document.getElementById('luxuryStatus').value;
+        // ✅ Get selected completion date (YYYY-MM-DD)
+        const completionDateInputEl = document.querySelector('input[name="completion_date"]');
+        const completionDateSelectedStr = completionDateInputEl && completionDateInputEl.value ? completionDateInputEl.value : null;
+        const completionDateSelected = completionDateSelectedStr ? new Date(completionDateSelectedStr) : null;
+        console.log(completionDateSelected)
+        if (completionDateSelected) completionDateSelected.setHours(0, 0, 0, 0);
+
+        // Convert input prices to NGN (base currency) for filtering
+        const minPriceNGN = currencyConverter.currentCurrency === 'USD'
+            ? currencyConverter.convert(minPriceInput, 'NGN')
+            : minPriceInput;
+        const maxPriceNGN = currencyConverter.currentCurrency === 'USD'
+            ? currencyConverter.convert(maxPriceInput, 'NGN')
+            : maxPriceInput;
+
+        filteredProperties = properties.filter(p => {
+            // ✅ Completion date check (only if user selected a date)
+        let matchesCompletionDate = true;
+            if (completionDateSelected) {
+                if (!p.completion_date) {
+                    matchesCompletionDate = false; // no date -> exclude when filter is active
+                } else {
+                    const propDate = new Date(p.completion_date);
+                    if (isNaN(propDate.getTime())) {
+                        matchesCompletionDate = false; // invalid date -> exclude when filter is active
+                    } else {
+                        propDate.setHours(0, 0, 0, 0);
+                        matchesCompletionDate = propDate.getTime() <= completionDateSelected.getTime();
+                    }
+                }
+            }
+            let matchesLuxury = true;
+            if (luxuryStatus !== 'all') {
+                matchesLuxury = p.luxury_status && p.luxury_status.toLowerCase() === luxuryStatus.toLowerCase();
+            }
+
+            const matchesConfig = p.configurations.some(c => {
+            const price = c.price === 'TBD' ? Infinity : parseFloat(c.price.replace(/[₦,]/g, '')) || 0;
+            const matchesPrice = price >= minPriceNGN && price <= maxPriceNGN;
+
+            let matchesBedrooms = true;
+            if (minBedrooms !== null) matchesBedrooms = c.bedrooms >= minBedrooms;
+            if (maxBedrooms !== null) matchesBedrooms = matchesBedrooms && c.bedrooms <= maxBedrooms;
+
+            let matchesBathrooms = true;
+            if (minBathrooms !== null) matchesBathrooms = c.bathrooms >= minBathrooms;
+            if (maxBathrooms !== null) matchesBathrooms = matchesBathrooms && c.bathrooms <= maxBathrooms;
+
+            return matchesPrice && matchesBedrooms && matchesBathrooms;
+        });
+
+        return matchesCompletionDate && matchesLuxury && matchesConfig;
+    });
+        updateMap();
+        updatePropertyCount();
+        
+        updatePriceDisplay();
+        updateRangeDisplay('Bedrooms');
+        updateRangeDisplay('Bathrooms');
+        updateLuxuryStatusDisplay();
+        toggleFilters();
+    }
+
+    function clearFilters() {
+        document.getElementById('minPrice').value = '';
+        document.getElementById('maxPrice').value = '';
+        document.getElementById('minBedrooms').value = '';
+        document.getElementById('maxBedrooms').value = '';
+        document.getElementById('minBathrooms').value = '';
+        document.getElementById('maxBathrooms').value = '';
+        document.getElementById('luxuryStatus').value = 'all';
+        document.getElementById('searchInputSidebar').value = '';
+        const completionDateInputEl = document.querySelector('input[name="completion_date"]');
+        if (completionDateInputEl) completionDateInputEl.value = '';
+        
+        filteredProperties = properties;
+        updateMap();
+        updatePropertyCount();
+        
+        document.getElementById('priceRangeDisplay').textContent = `${currencyConverter.currentCurrency}0 – No Max`;
+        document.getElementById('bedroomsRangeDisplay').textContent = 'Any number of bedrooms';
+        document.getElementById('bathroomsRangeDisplay').textContent = 'Any number of bathrooms';
+        document.getElementById('luxuryStatusDisplay').textContent = 'Any status';
+        toggleFilters();
+    }
+
+    // Draggable Search Box
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    const searchBox = document.getElementById('searchBox');
+
+    function handleDragStart(e) {
+        if (e.target.closest('input')) return;
+        e.preventDefault();
+        isDragging = true;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        dragOffset = {
+            x: clientX - parseInt(searchBox.style.left || 0),
+            y: clientY - parseInt(searchBox.style.top || 0)
+        };
+    }
+
+    function handleDragMove(e) {
+        if (!isDragging) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        searchBox.style.left = Math.max(0, Math.min(window.innerWidth - 320, clientX - dragOffset.x)) + 'px';
+        searchBox.style.top = Math.max(0, Math.min(window.innerHeight - 50, clientY - dragOffset.y)) + 'px';
+    }
+
+    function handleDragEnd() {
+        isDragging = false;
+    }
+
+    searchBox.addEventListener('mousedown', handleDragStart);
+    searchBox.addEventListener('touchstart', handleDragStart);
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+        currencyConverter = new CurrencyConverter();
+        fetchProperties();
+        document.getElementById('searchInput').addEventListener('input', handleSearch);
+        document.getElementById('searchInputSidebar').addEventListener('input', handleSearch);
+        document.getElementById('luxuryStatus').addEventListener('change', updateLuxuryStatusDisplay);
+        searchBox.style.left = (window.innerWidth / 2 - (window.innerWidth < 768 ? window.innerWidth / 2 - 10 : 150)) + 'px';
+        searchBox.style.top = '10px';
+        
+        const closeButton = document.getElementById('modalCloseButton');
+        if (closeButton) {
+            closeButton.addEventListener('click', closeModal);
+        }
+    });
+</script>
+{% endblock %}

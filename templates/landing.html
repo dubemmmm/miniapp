@@ -1,14 +1,1689 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title></title>
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="">
-    </head>
-    <body>
-        <h1>Landing page. <a href={% url 'login' %}>Login</a></h1>
-    </body>
+{% load static %}
+{% load static humanize %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Properties</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .property-card {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        }
+        .property-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+        .price-tag {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+            position: relative;
+        }
+        .price-tag.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            transform: translateY(-50%);
+        }
+        @keyframes spin {
+            to { transform: translateY(-50%) rotate(360deg); }
+        }
+        .luxury-badge {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4);
+        }
+        .filter-sidebar {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            box-shadow: 4px 0 25px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease;
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #4b5563 100%);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        .logo-img {
+            max-height: 50px;
+            width: auto;
+            object-fit: contain;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        .image-gallery {
+            position: relative;
+            overflow: hidden;
+            border-radius: 15px;
+            height: 220px;
+        }
+        .modal-image-container {
+            position: relative;
+            width: 100%;
+            max-height: 50vh;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        .modal-image {
+            width: 100%;
+            height: auto;
+            max-height: 50vh;
+            object-fit: contain;
+            display: block;
+        }
+        .gallery-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .gallery-nav:hover {
+            background: rgba(0,0,0,0.8);
+            transform: translateY(-50%) scale(1.1);
+        }
+        .gallery-nav.prev { left: 12px; }
+        .gallery-nav.next { right: 12px; }
+        .property-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 30px;
+        }
+        .whatsapp-button {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+        }
+        .whatsapp-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+            color: white;
+        }
+        .pdf-button {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+        .pdf-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
+            color: white;
+        }
+        .filter-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .filter-input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(59, 130, 246, 0.5);
+            outline: none;
+        }
+        .filter-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .mobile-filter-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        .hamburger-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+        }
+        .hamburger-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+        /* Currency Toggle Styles */
+        .currency-toggle {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .currency-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+        }
+        .currency-toggle.loading {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .currency-toggle.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            transform: translateY(-50%);
+        }
+        .currency-info {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 8px;
+        }
+        .currency-info-text {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 11px;
+        }
+        /* Enhanced Modal Styling */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            max-width: 600px;
+            width: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+            position: relative;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            color: white;
+            padding: 20px 24px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .modal-close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(85vh - 80px);
+        }
+        .modal-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .modal-info-item {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+        .modal-info-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .modal-info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .modal-section {
+            margin-bottom: 24px;
+        }
+        .modal-section:last-child {
+            margin-bottom: 0;
+        }
+        .modal-section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .config-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 16px;
+            border-radius: 12px;
+            border: 2px solid #bae6fd;
+            margin-bottom: 12px;
+        }
+        .amenity-tag {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #93c5fd;
+        }
+        /* Updated Header Actions Styling */
+        .header-actions {
+            display: flex;
+            flex-wrap: nowrap; /* Prevent wrapping on desktop/laptop */
+            align-items: center;
+            gap: 8px; /* Reduced gap for tighter spacing */
+            justify-content: flex-end; /* Align to the right */
+        }
+        .header-actions > * {
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+            min-width: 0; /* Allow text truncation if needed */
+        }
+        /* Ensure buttons are compact and aligned */
+        .header-actions .btn-primary,
+        .header-actions .currency-toggle,
+        .header-actions a,
+        .header-actions button {
+            padding: 8px 12px; /* Consistent padding for all buttons */
+            font-size: 14px; /* Slightly smaller font for better fit */
+            border-radius: 12px; /* Consistent border radius */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        /* Specific adjustments for Sync Airtable button */
+        .header-actions #syncAirtableBtn {
+            padding: 8px 12px; /* Match other buttons */
+        }
+        /* Mobile Styles */
+        @media (max-width: 1024px) {
+            .filter-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 50;
+                transform: translateX(-100%);
+                width: 320px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .filter-sidebar.open {
+                transform: translateX(0);
+            }
+            .property-grid {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 20px;
+            }
+            .main-content {
+                width: 100%;
+                margin-left: 0;
+            }
+            /* Adjust header-actions for laptop screens */
+            .header-actions {
+                flex-wrap: wrap; /* Allow wrapping on smaller laptop screens */
+                gap: 6px; /* Slightly smaller gap */
+                justify-content: flex-end;
+            }
+        }
+        @media (max-width: 768px) {
+            .property-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            .header-actions {
+                flex-wrap: wrap; /* Allow wrapping for mobile */
+                justify-content: center;
+                gap: 8px;
+            }
+            .modal-content {
+                max-width: 95vw;
+                margin: 10px;
+            }
+            .modal-overlay {
+                padding: 10px;
+            }
+            .modal-info-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-image-container {
+                max-height: 40vh;
+            }
+        }
+        @media (max-width: 480px) {
+            .property-card {
+                margin: 0 10px;
+            }
+            .filter-sidebar {
+                width: 100vw;
+            }
+            .modal-image-container {
+                max-height: 30vh;
+            }
+            .header-actions {
+                gap: 6px; /* Tighter gap for very small screens */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="header-gradient text-white shadow-lg sticky top-0 z-40">
+        <div class="container mx-auto px-4 lg:px-6 py-4">
+            <div class="flex justify-between items-center header-content">
+                <div class="flex items-center gap-4">
+                    <!-- Mobile Hamburger Menu -->
+                    <button id="mobileMenuBtn" class="lg:hidden hamburger-btn text-white p-3 rounded-lg">
+                        <i class="fas fa-bars text-lg"></i>
+                    </button>
+                    <!-- Logo -->
+                    <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Company Logo" class="logo-img">
+                    <div>
+                        <h1 class="text-2xl lg:text-3xl font-bold">Real Estate Properties</h1>
+                        <p class="text-gray-300 text-sm">Find your perfect home</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 header-actions">
+                    <!-- Currency Toggle -->
+                    <button id="currencyToggle" class="currency-toggle flex items-center gap-2">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span id="currentCurrency">₦ NGN</span>
+                    </button>
+                    {% if is_employee %}
+                        <a href="{% url 'dashboard' %}" class="btn-primary text-white rounded-lg no-underline font-semibold flex items-center gap-2">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <span class="hidden md:inline">Map View</span>
+                        </a>
+                        <a href="{% url 'manage_shared_lists' %}" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
+                            <i class="fas fa-share-alt"></i>
+                            <span class="hidden md:inline ml-1">Manage Shares</span>
+                        </a>
+                        <!-- Sync Button (Visible to Employees Only) -->
+                        {% if can_sync_airtable %}
+                            <button id="syncAirtableBtn" class="btn-primary text-white rounded font-semibold flex items-center gap-2">
+                                <i class="fas fa-sync"></i>
+                                <span class="hidden md:inline">Sync with Airtable</span>
+                            </button>
+                            <span id="syncStatus" class="ml-2 text-gray-300 text-sm hidden md:block"></span>
+                        {% endif %}
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-300 text-sm hidden md:block">
+                                Hello, {{ user.get_full_name|default:user.username }}
+                            </span>
+                            <form method="post" action="{% url 'logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span class="hidden md:inline">Log Out</span>
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="flex items-center gap-2">
+                            <a href="{% url 'login' %}" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
+                                <i class="fas fa-sign-in-alt"></i>
+                                <span class="hidden md:inline">Login</span>
+                            </a>
+                            <a href="{% url 'register' %}" class="btn-primary text-white rounded-lg no-underline font-semibold flex items-center gap-2">
+                                <i class="fas fa-user-plus"></i>
+                                Register
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Filter Overlay -->
+    <div id="mobileFilterOverlay" class="mobile-filter-overlay fixed inset-0 z-40 hidden lg:hidden"></div>
+
+    <div class="flex">
+        <!-- Filter Sidebar -->
+        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6 text-white">
+            <!-- Mobile Close Button -->
+            <div class="lg:hidden flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">Filter Properties</h3>
+                <button id="closeMobileMenu" class="text-white p-2">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="mb-6 hidden lg:block">
+                <h3 class="text-xl font-bold mb-4">
+                    <i class="fas fa-filter mr-2"></i>Filter Properties
+                </h3>
+            </div>
+            <!-- Currency Info -->
+            <div class="currency-info mb-6">
+                <div class="currency-info-text">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    <span id="currencyInfoText">Filtering in Nigerian Naira (₦)</span>
+                </div>
+                <div class="currency-info-text mt-1" id="exchangeRateInfo">
+                    Exchange rate: ₦1,650 = $1 USD
+                </div>
+            </div>
+            <!-- Search -->
+            <form method="GET" id="filterForm">
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-3">Search</label>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        value="{{ search_query }}"
+                        placeholder="Property name, address..."
+                        class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
+                    >
+                </div>
+                <!-- Price Range with Currency -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-3">
+                        Price Range (<span id="priceRangeCurrency">₦</span>)
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input 
+                            type="number" 
+                            name="min_price" 
+                            id="minPriceInput"
+                            value="{{ filters.min_price }}"
+                            placeholder="Min Price"
+                            class="filter-input px-4 py-3 rounded-lg focus:outline-none"
+                        >
+                        <input 
+                            type="number" 
+                            name="max_price" 
+                            id="maxPriceInput"
+                            value="{{ filters.max_price }}"
+                            placeholder="Max Price"
+                            class="filter-input px-4 py-3 rounded-lg focus:outline-none"
+                        >
+                    </div>
+                    <!-- Currency conversion hint -->
+                    <div id="priceConversionHint" class="text-xs text-gray-300 mt-2 bg-gray-700/30 p-2 rounded hidden">
+                        <i class="fas fa-calculator mr-1"></i>
+                        <span id="conversionHintText"></span>
+                    </div>
+                    {% if filter_ranges.price_range.min_price and filter_ranges.price_range.max_price %}
+                        <p class="text-xs text-gray-300 mt-2 bg-gray-700/50 p-2 rounded" id="priceRangeDisplay">
+                            Range: ₦{{ filter_ranges.price_range.min_price|floatformat:0 }} - ₦{{ filter_ranges.price_range.max_price|floatformat:0 }}
+                        </p>
+                    {% endif %}
+                </div>
+                <!-- Bedrooms & Bathrooms -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-3">Bedrooms</label>
+                        <div class="space-y-2">
+                            <input 
+                                type="number" 
+                                name="min_bedrooms" 
+                                value="{{ filters.min_bedrooms }}"
+                                placeholder="Min"
+                                min="0"
+                                class="filter-input w-full px-3 py-2 rounded-lg focus:outline-none"
+                            >
+                            <input 
+                                type="number" 
+                                name="max_bedrooms" 
+                                value="{{ filters.max_bedrooms }}"
+                                placeholder="Max"
+                                min="0"
+                                class="filter-input w-full px-3 py-2 rounded-lg focus:outline-none"
+                            >
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-3">Bathrooms</label>
+                        <div class="space-y-2">
+                            <input 
+                                type="number" 
+                                name="min_bathrooms" 
+                                value="{{ filters.min_bathrooms }}"
+                                placeholder="Min"
+                                min="0"
+                                class="filter-input w-full px-3 py-2 rounded-lg focus:outline-none"
+                            >
+                            <input 
+                                type="number" 
+                                name="max_bathrooms" 
+                                value="{{ filters.max_bathrooms }}"
+                                placeholder="Max"
+                                min="0"
+                                class="filter-input w-full px-3 py-2 rounded-lg focus:outline-none"
+                            >
+                        </div>
+                    </div>
+                </div>
+                <!-- Completion Date Filter -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-3">Completion Date</label>
+                    <input 
+                        type="date" 
+                        name="completion_date" 
+                        value="{{ filters.completion_date }}"
+                        class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
+                    >
+                </div>
+                <!-- Luxury Status -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-3">Luxury Status</label>
+                    <select 
+                        name="luxury_status"
+                        class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
+                    >
+                        <option value="">All Types</option>
+                        <option value="luxurious" {% if filters.luxury_status == 'luxurious' %}selected{% endif %}>Luxurious</option>
+                        <option value="non_luxurious" {% if filters.luxury_status == 'non_luxurious' %}selected{% endif %}>Non-Luxurious</option>
+                    </select>
+                </div>
+                <!-- Filter Buttons -->
+                <div class="space-y-3 mb-6">
+                    <button type="submit" class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all font-semibold">
+                        <i class="fas fa-search mr-2"></i>Apply Filters
+                    </button>
+                    <a href="{% url 'landing' %}" class="block w-full bg-gray-600 hover:bg-gray-500 text-white py-3 px-4 rounded-lg text-center transition-all font-medium">
+                        <i class="fas fa-refresh mr-2"></i>Clear All
+                    </a>
+                </div>
+            </form>
+            {% if is_employee %}
+                <!-- Property Selection for Sharing -->
+                <div class="border-t border-gray-600 pt-6">
+                    <h4 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-share-alt"></i>Share Properties
+                    </h4>
+                    <div class="space-y-4">
+                        <input 
+                            type="text" 
+                            id="shareListName" 
+                            placeholder="Share list name..."
+                            class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
+                        >
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Duration</label>
+                            <select id="shareDuration" class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none">
+                                <option value="24">24 hours</option>
+                                <option value="72" selected>3 days</option>
+                                <option value="168">1 week</option>
+                                <option value="720">1 month</option>
+                            </select>
+                        </div>
+                        <button 
+                            id="createShareBtn" 
+                            class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                            disabled
+                        >
+                            <i class="fas fa-link mr-2"></i>Create Share (<span class="selected-count" id="selectedCount">0</span>)
+                        </button>
+                        <button 
+                            id="compareSelectedBtn" 
+                            class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                            disabled
+                        >
+                            <i class="fas fa-balance-scale mr-2"></i>Compare (<span class="selected-count">0</span>)
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-4 lg:p-8 main-content">
+            {% if not is_employee and not is_shared_view %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-yellow-600 mr-2"></i>
+                        <p class="text-yellow-800">
+                            You are viewing as a guest. <a href="{% url 'login' %}" class="text-blue-600 hover:underline font-semibold">Login</a> to access full features.
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+            <div class="mb-8">
+                <h2 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">Available Properties</h2>
+                <p class="text-gray-600">{{ properties|length }} propert{{ properties|length|pluralize:"y,ies" }} found</p>
+            </div>
+            <!-- Properties Grid -->
+            <div class="property-grid">
+                {% for property in properties %}
+                    <div class="property-card bg-white rounded-2xl shadow-lg overflow-hidden">
+                        {% if is_employee %}
+                            <div class="absolute top-4 left-4 z-10">
+                                <label class="inline-flex items-center bg-white bg-opacity-90 backdrop-blur-sm px-3 py-2 rounded-lg cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        class="property-checkbox form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2" 
+                                        value="{{ property.id }}"
+                                    >
+                                    <span class="ml-2 text-sm font-semibold">Select</span>
+                                </label>
+                            </div>
+                        {% endif %}
+                        <!-- Property Image Gallery -->
+                        <div class="image-gallery relative">
+                            {% if property.images.all %}
+                                <img 
+                                    src="{{ property.images.first.image.url }}" 
+                                    alt="{{ property.name }}"
+                                    class="w-full h-full object-cover gallery-image transition-all duration-300"
+                                    data-property-id="{{ property.id }}"
+                                >
+                                {% if property.images.all|length > 1 %}
+                                    <button class="gallery-nav prev" onclick="changePropertyImage({{ property.id }}, -1)">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+                                    <button class="gallery-nav next" onclick="changePropertyImage({{ property.id }}, 1)">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                {% endif %}
+                            {% elif property.thumbnail %}
+                                <img 
+                                    src="{{ property.thumbnail.url }}" 
+                                    alt="{{ property.name }}"
+                                    class="w-full h-full object-cover transition-all duration-300"
+                                >
+                            {% else %}
+                                <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                                    <i class="fas fa-home text-gray-400 text-4xl"></i>
+                                </div>
+                            {% endif %}
+                            <!-- Luxury Badge -->
+                            {% if property.luxury_status == 'luxurious' %}
+                                <div class="absolute top-4 right-4">
+                                    <span class="luxury-badge flex items-center gap-1">
+                                        <i class="fas fa-crown"></i>Luxury
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <!-- Property Details -->
+                        <div class="p-6">
+                            <div class="mb-4">
+                                <h3 class="text-xl font-bold text-gray-800 mb-2">{{ property.name }}</h3>
+                                <p class="text-gray-600 text-sm mb-2 flex items-center">
+                                    <i class="fas fa-map-marker-alt mr-2 text-blue-500"></i>{{ property.address }}
+                                </p>
+                                <p class="text-gray-700 text-sm">{{ property.description|truncatewords:20 }}</p>
+                            </div>
+                            <!-- Configurations -->
+                            {% if property.configurations.all %}
+                                <div class="mb-4">
+                                    <div class="flex flex-wrap gap-2 mb-3">
+                                        {% for config in property.configurations.all|slice:":2" %}
+                                            <div class="bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">
+                                                <i class="fas fa-bed mr-1"></i>{{ config.bedrooms }} 
+                                                <i class="fas fa-bath ml-2 mr-1"></i>{{ config.bathrooms }}
+                                            </div>
+                                        {% endfor %}
+                                        {% if property.configurations.all|length > 2 %}
+                                            <span class="text-sm text-gray-500">+{{ property.configurations.all|length|add:"-2" }} more</span>
+                                        {% endif %}
+                                    </div>
+                                    <!-- Price with Currency Conversion -->
+                                    {% with property.get_min_price as min_price %}
+                                        {% if min_price %}
+                                            <div class="price-tag" data-naira-price="{{ min_price }}" data-property-id="{{ property.id }}">
+                                                <i class="fas fa-tag"></i>
+                                                
+                                                <span class="price-display">₦{{ min_price|floatformat:0|intcomma }}</span>{% if property.configurations.all|length > 1 %}+{% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div class="price-tag">
+                                                <i class="fas fa-phone mr-2"></i>Price on Request
+                                            </div>
+                                        {% endif %}
+                                    {% endwith %}
+                                </div>
+                            {% endif %}
+                            <!-- Amenities -->
+                            {% if property.amenities.all %}
+                                <div class="mb-4">
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for amenity in property.amenities.all|slice:":3" %}
+                                            <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium border border-blue-200">{{ amenity.name }}</span>
+                                        {% endfor %}
+                                        {% if property.amenities.all|length > 3 %}
+                                            <span class="text-xs text-gray-500">+{{ property.amenities.all|length|add:"-3" }} more</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                            <!-- Actions -->
+                            <div class="flex gap-3">
+                                <button 
+                                    onclick="showPropertyModal({{ property.id }})"
+                                    class="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 px-4 rounded-lg transition-all font-semibold"
+                                >
+                                    <i class="fas fa-eye mr-2"></i>View Details
+                                </button>
+                                <button 
+                                    onclick="downloadPropertyPDF({{ property.id }})"
+                                    class="pdf-button flex-shrink-0"
+                                    title="Download Property Details PDF"
+                                >
+                                    <i class="fas fa-file-pdf"></i>
+                                    Download PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-span-full text-center py-12">
+                        <div class="bg-white rounded-2xl shadow-lg p-8">
+                            <i class="fas fa-home text-gray-300 text-6xl mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-600 mb-2">No Properties Found</h3>
+                            <p class="text-gray-500 mb-4">Try adjusting your filters or search terms.</p>
+                            <a href="{% url 'landing' %}" class="btn-primary text-white px-6 py-3 rounded-lg no-underline font-semibold">
+                                <i class="fas fa-refresh mr-2"></i>Reset Filters
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Property Modal -->
+    <div id="propertyModal" class="modal-overlay fixed inset-0 hidden z-50">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle" class="text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-home"></i>
+                    <span>Property Details</span>
+                </h2>
+                <button onclick="closePropertyModal()" class="modal-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Modal content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Link Modal -->
+    <div id="shareLinkModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Share Link Created</h3>
+                <button onclick="closeShareModal()" class="text-gray-500 hover:text-gray-700 p-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="shareModalContent">
+                <!-- Share modal content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="modal-overlay fixed inset-0 hidden z-50">
+        <div class="modal-content max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-balance-scale"></i>
+                    <span>Property Comparison</span>
+                </h2>
+                <button onclick="closeComparisonModal()" class="modal-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto max-h-[calc(90vh-120px)]" id="comparisonContent">
+                <!-- Comparison content will be loaded here -->
+            </div>
+            <div class="sticky bottom-0 bg-white border-t p-4 flex justify-end gap-4">
+                <a id="downloadComparisonPdf" href="#" class="btn-primary text-white px-6 py-2 rounded-lg font-semibold no-underline">
+                    <i class="fas fa-download mr-2"></i>Download PDF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Currency System
+        class CurrencyConverter {
+            constructor() {
+                this.currentCurrency = 'NGN'; // NGN or USD
+                this.exchangeRate = 1650; // Default NGN to USD rate
+                this.isLoading = false;
+                this.lastUpdated = null;
+                this.init();
+            }
+            async init() {
+                await this.fetchExchangeRate();
+                this.setupEventListeners();
+                this.updateUI();
+            }
+            async fetchExchangeRate() {
+                try {
+                    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                    const data = await response.json();
+                    if (data && data.rates && data.rates.NGN) {
+                        this.exchangeRate = Math.round(data.rates.NGN);
+                        this.lastUpdated = new Date();
+                    }
+                } catch (error) {
+                    console.log('Using fallback exchange rate:', this.exchangeRate);
+                }
+                this.updateExchangeRateDisplay();
+            }
+            setupEventListeners() {
+                const toggleBtn = document.getElementById('currencyToggle');
+                const minPriceInput = document.getElementById('minPriceInput');
+                const maxPriceInput = document.getElementById('maxPriceInput');
+                const filterForm = document.getElementById('filterForm');
+                toggleBtn.addEventListener('click', () => {
+                    if (!this.isLoading) {
+                        this.toggleCurrency();
+                    }
+                });
+                minPriceInput.addEventListener('input', () => this.updateConversionHint());
+                maxPriceInput.addEventListener('input', () => this.updateConversionHint());
+                // Intercept form submission to convert USD to NGN
+                filterForm.addEventListener('submit', (e) => {
+                    if (this.currentCurrency === 'USD') {
+                        const minPrice = parseFloat(minPriceInput.value);
+                        const maxPrice = parseFloat(maxPriceInput.value);
+                        if (!isNaN(minPrice)) {
+                            minPriceInput.value = Math.round(minPrice * this.exchangeRate);
+                        }
+                        if (!isNaN(maxPrice)) {
+                            maxPriceInput.value = Math.round(maxPrice * this.exchangeRate);
+                        }
+                    }
+                });
+            }
+            toggleCurrency() {
+                this.isLoading = true;
+                const toggleBtn = document.getElementById('currencyToggle');
+                toggleBtn.classList.add('loading');
+                setTimeout(() => {
+                    this.currentCurrency = this.currentCurrency === 'NGN' ? 'USD' : 'NGN';
+                    this.updateUI();
+                    this.convertAllPrices();
+                    this.convertFilterInputs();
+                    this.isLoading = false;
+                    toggleBtn.classList.remove('loading');
+                }, 500);
+            }
+            updateUI() {
+                const currencyDisplay = document.getElementById('currentCurrency');
+                const priceRangeCurrency = document.getElementById('priceRangeCurrency');
+                const currencyInfoText = document.getElementById('currencyInfoText');
+                const priceRangeDisplay = document.getElementById('priceRangeDisplay');
+                if (this.currentCurrency === 'NGN') {
+                    currencyDisplay.textContent = '₦ NGN';
+                    priceRangeCurrency.textContent = '₦';
+                    currencyInfoText.textContent = 'Filtering in Nigerian Naira (₦)';
+                } else {
+                    currencyDisplay.textContent = '$ USD';
+                    priceRangeCurrency.textContent = '$';
+                    currencyInfoText.textContent = 'Filtering in US Dollars ($)';
+                }
+                // Update price range display
+                if (priceRangeDisplay) {
+                    const minPrice = parseFloat(priceRangeDisplay.textContent.match(/[\d,]+/g)?.[0]?.replace(/,/g, ''));
+                    const maxPrice = parseFloat(priceRangeDisplay.textContent.match(/[\d,]+/g)?.[1]?.replace(/,/g, ''));
+                    if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+                        if (this.currentCurrency === 'USD') {
+                            priceRangeDisplay.textContent = `Range: $${(minPrice / this.exchangeRate).toLocaleString('en-US', {maximumFractionDigits: 0})} - $${(maxPrice / this.exchangeRate).toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+                        } else {
+                            priceRangeDisplay.textContent = `Range: ₦${minPrice.toLocaleString()} - ₦${maxPrice.toLocaleString()}`;
+                        }
+                    }
+                }
+            }
+            updateExchangeRateDisplay() {
+                const exchangeRateInfo = document.getElementById('exchangeRateInfo');
+                const timeStr = this.lastUpdated ? 
+                    `(Updated: ${this.lastUpdated.toLocaleTimeString()})` : '(Using default rate)';
+                exchangeRateInfo.textContent = `Exchange rate: ₦${this.exchangeRate.toLocaleString()} = $1 USD ${timeStr}`;
+            }
+            convertPrice(nairaPrice, toUSD = false) {
+                if (!nairaPrice || nairaPrice === 'Price on Request') return nairaPrice;
+                const numPrice = parseFloat(nairaPrice.toString().replace(/,/g, ''));
+                if (isNaN(numPrice)) return nairaPrice;
+                if (toUSD) {
+                    const usdPrice = numPrice / this.exchangeRate;
+                    return usdPrice < 1000 ? 
+                        `$${usdPrice.toLocaleString('en-US', {maximumFractionDigits: 0})}` :
+                        `$${(usdPrice/1000).toFixed(1)}K`;
+                } else {
+                    return `₦${numPrice.toLocaleString()}`;
+                }
+            }
+            convertAllPrices() {
+                const priceTags = document.querySelectorAll('.price-tag[data-naira-price]');
+                priceTags.forEach(tag => {
+                    const nairaPrice = tag.getAttribute('data-naira-price');
+                    const priceDisplay = tag.querySelector('.price-display');
+                    if (priceDisplay && nairaPrice) {
+                        tag.classList.add('loading');
+                        setTimeout(() => {
+                            if (this.currentCurrency === 'USD') {
+                                const convertedPrice = this.convertPrice(nairaPrice, true);
+                                priceDisplay.innerHTML = `${convertedPrice}`;
+                            } else {
+                                priceDisplay.innerHTML = `₦${parseFloat(nairaPrice).toLocaleString()}`;
+                            }
+                            tag.classList.remove('loading');
+                        }, 300);
+                    }
+                });
+            }
+            convertFilterInputs() {
+                const minPriceInput = document.getElementById('minPriceInput');
+                const maxPriceInput = document.getElementById('maxPriceInput');
+                if (minPriceInput.value) {
+                    const currentValue = parseFloat(minPriceInput.value.replace(/,/g, ''));
+                    if (!isNaN(currentValue)) {
+                        if (this.currentCurrency === 'USD') {
+                            minPriceInput.value = Math.round(currentValue / this.exchangeRate);
+                        } else {
+                            minPriceInput.value = Math.round(currentValue * this.exchangeRate);
+                        }
+                    }
+                }
+                if (maxPriceInput.value) {
+                    const currentValue = parseFloat(maxPriceInput.value.replace(/,/g, ''));
+                    if (!isNaN(currentValue)) {
+                        if (this.currentCurrency === 'USD') {
+                            maxPriceInput.value = Math.round(currentValue / this.exchangeRate);
+                        } else {
+                            maxPriceInput.value = Math.round(currentValue * this.exchangeRate);
+                        }
+                    }
+                }
+                this.updateConversionHint();
+            }
+            updateConversionHint() {
+                const minPrice = document.getElementById('minPriceInput').value;
+                const maxPrice = document.getElementById('maxPriceInput').value;
+                const hintElement = document.getElementById('priceConversionHint');
+                const hintText = document.getElementById('conversionHintText');
+                if (minPrice || maxPrice) {
+                    let hintContent = '';
+                    if (this.currentCurrency === 'USD') {
+                        if (minPrice) {
+                            const nairaEquivalent = (parseFloat(minPrice) * this.exchangeRate).toLocaleString();
+                            hintContent += `$${parseFloat(minPrice).toLocaleString()} = ₦${nairaEquivalent}`;
+                        }
+                        if (maxPrice) {
+                            const nairaEquivalent = (parseFloat(maxPrice) * this.exchangeRate).toLocaleString();
+                            if (hintContent) hintContent += ' | ';
+                            hintContent += `$${parseFloat(maxPrice).toLocaleString()} = ₦${nairaEquivalent}`;
+                        }
+                    } else {
+                        if (minPrice) {
+                            const usdEquivalent = (parseFloat(minPrice) / this.exchangeRate).toLocaleString('en-US', {maximumFractionDigits: 0});
+                            hintContent += `₦${parseFloat(minPrice).toLocaleString()} = $${usdEquivalent}`;
+                        }
+                        if (maxPrice) {
+                            const usdEquivalent = (parseFloat(maxPrice) / this.exchangeRate).toLocaleString('en-US', {maximumFractionDigits: 0});
+                            if (hintContent) hintContent += ' | ';
+                            hintContent += `₦${parseFloat(maxPrice).toLocaleString()} = $${usdEquivalent}`;
+                        }
+                    }
+                    hintText.textContent = hintContent;
+                    hintElement.classList.remove('hidden');
+                } else {
+                    hintElement.classList.add('hidden');
+                }
+            }
+        }
+
+        // Initialize currency converter
+        const currencyConverter = new CurrencyConverter();
+
+        // Mobile menu functionality
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const closeMobileMenu = document.getElementById('closeMobileMenu');
+        const filterSidebar = document.getElementById('filterSidebar');
+        const mobileFilterOverlay = document.getElementById('mobileFilterOverlay');
+        function openMobileFilter() {
+            filterSidebar.classList.add('open');
+            mobileFilterOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeMobileFilter() {
+            filterSidebar.classList.remove('open');
+            mobileFilterOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        mobileMenuBtn?.addEventListener('click', openMobileFilter);
+        closeMobileMenu?.addEventListener('click', closeMobileFilter);
+        mobileFilterOverlay?.addEventListener('click', closeMobileFilter);
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 1024) {
+                closeMobileFilter();
+            }
+        });
+
+        // Property image gallery functionality
+        const propertyImages = {};
+        const propertyImageIndices = {};
+        {% for property in properties %}
+            propertyImages[{{ property.id }}] = [
+                {% for image in property.images.all %}
+                    "{{ image.image.url }}"{% if not forloop.last %},{% endif %}
+                {% empty %}
+                    {% if property.thumbnail %}"{{ property.thumbnail.url }}"{% endif %}
+                {% endfor %}
+            ];
+            propertyImageIndices[{{ property.id }}] = 0;
+        {% endfor %}
+        function changePropertyImage(propertyId, direction) {
+            const images = propertyImages[propertyId];
+            if (!images || images.length <= 1) return;
+            propertyImageIndices[propertyId] = (propertyImageIndices[propertyId] + direction + images.length) % images.length;
+            const imgElement = document.querySelector(`img[data-property-id="${propertyId}"]`);
+            if (imgElement) {
+                imgElement.style.opacity = '0.7';
+                setTimeout(() => {
+                    imgElement.src = images[propertyImageIndices[propertyId]];
+                    imgElement.style.opacity = '1';
+                }, 200);
+            }
+        }
+
+        // Property selection for sharing
+        const propertyCheckboxes = document.querySelectorAll('.property-checkbox');
+        const createShareBtn = document.getElementById('createShareBtn');
+        const compareSelectedBtn = document.getElementById('compareSelectedBtn');
+        const shareListName = document.getElementById('shareListName');
+        const shareDuration = document.getElementById('shareDuration');
+        const syncAirtableBtn = document.getElementById('syncAirtableBtn');
+        function updateSelectionButtons() {
+            const selectedProperties = Array.from(propertyCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            const count = selectedProperties.length;
+            document.querySelectorAll('.selected-count').forEach(span => {
+                span.textContent = count;
+            });
+            createShareBtn.disabled = count === 0 || !shareListName.value.trim();
+            if (compareSelectedBtn) {
+                compareSelectedBtn.disabled = count < 2;
+            }
+        }
+        propertyCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectionButtons);
+        });
+        shareListName.addEventListener('input', updateSelectionButtons);
+
+        // Enhanced Property modal functionality with currency support
+        let currentModalImageIndex = 0;
+        let currentModalImages = [];
+        async function showPropertyModal(propertyId) {
+            const modal = document.getElementById('propertyModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+            // Show loading state
+            modalContent.innerHTML = `
+                <div class="flex items-center justify-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-600">Loading property details...</span>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            try {
+                const response = await fetch(`{% url 'property_detail_api' property_id=0 %}`.replace('0', propertyId));
+                if (!response.ok) throw new Error('Failed to fetch property details');
+                const property = await response.json();
+                // Set modal images
+                currentModalImages = property.images || [];
+                currentModalImageIndex = 0;
+                // Populate modal with enhanced content and currency conversion
+                modalTitle.innerHTML = `
+                    <i class="fas fa-home"></i>
+                    <span>${property.name || 'Property Details'}</span>
+                `;
+                modalContent.innerHTML = `
+                    <div class="space-y-6">
+                        <!-- Image Gallery -->
+                        <div class="modal-section">
+                            ${property.images?.length > 0 ? `
+                                <div class="modal-image-container">
+                                    <img src="${property.images[0]}" alt="${property.name}" class="modal-image" id="modalMainImage">
+                                    ${property.images.length > 1 ? `
+                                        <button class="gallery-nav prev" onclick="changeModalImage(-1)">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
+                                        <button class="gallery-nav next" onclick="changeModalImage(1)">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                                            <div class="bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm backdrop-blur-sm">
+                                                <span id="imageCounter">1</span> / ${property.images.length}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : `
+                                <div class="w-full h-64 bg-gray-100 flex items-center justify-center rounded-12">
+                                    <div class="text-center">
+                                        <i class="fas fa-image text-gray-400 text-4xl mb-2"></i>
+                                        <p class="text-gray-500">No images available</p>
+                                    </div>
+                                </div>
+                            `}
+                        </div>
+                        <!-- Property Information -->
+                        <div class="modal-section">
+                            <h3 class="modal-section-title">
+                                <i class="fas fa-info-circle text-blue-600"></i>
+                                Property Information
+                            </h3>
+                            <div class="modal-info-grid">
+                                <div class="modal-info-item">
+                                    <div class="modal-info-label">Address</div>
+                                    <div class="modal-info-value">${property.address || 'Not specified'}</div>
+                                </div>
+                                
+                                <div class="modal-info-item">
+                                    <div class="modal-info-label">Luxury Status</div>
+                                    <div class="modal-info-value">
+                                        ${property.luxury_status === 'luxurious' ? 
+                                            '<span class="text-amber-600"><i class="fas fa-crown mr-1"></i>Luxurious</span>' : 
+                                            'Standard'
+                                        }
+                                    </div>
+                                </div>
+                                <div class="modal-info-item">
+                                    <div class="modal-info-label">Completion Date</div>
+                                    <div class="modal-info-value">${property.completion_date || 'Not specified'}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        ${property.description ? `
+                            <div class="modal-section">
+                                <h3 class="modal-section-title">
+                                    <i class="fas fa-align-left text-blue-600"></i>
+                                    Description
+                                </h3>
+                                <div class="bg-gray-50 p-4 rounded-12 border-l-4 border-blue-600">
+                                    <p class="text-gray-700 leading-relaxed">${property.description}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                       <!-- Configurations with Currency -->
+                    ${property.configurations?.length > 0 ? `
+                        <div class="modal-section">
+                            <h3 class="modal-section-title">
+                                <i class="fas fa-bed text-blue-600"></i>
+                                Available Configurations
+                            </h3>
+                            <div class="space-y-3">
+                                ${property.configurations.map(config => {
+                                    let priceDisplay = 'Price on request';
+                                    if (config.price && config.price !== 'TBD') {
+                                        // Clean the price string by removing '₦' and commas
+                                        const cleanPrice = parseFloat(config.price.replace('₦', '').replace(/,/g, ''));
+                                        if (!isNaN(cleanPrice)) {
+                                            const nairaPrice = cleanPrice;
+                                            if (currencyConverter.currentCurrency === 'USD') {
+                                                const usdPrice = nairaPrice / currencyConverter.exchangeRate;
+                                                priceDisplay = usdPrice < 1000 ? 
+                                                    `$${usdPrice.toLocaleString('en-US', {maximumFractionDigits: 0})}` :
+                                                    `$${(usdPrice/1000).toFixed(1)}K`;
+                                            } else {
+                                                priceDisplay = `₦${nairaPrice.toLocaleString()}`;
+                                            }
+                                        }
+                                    }
+                                    return `
+                                        <div class="config-card">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <div class="flex items-center gap-4">
+                                                    <span class="flex items-center gap-1 text-gray-700">
+                                                        <i class="fas fa-bed"></i>
+                                                        <strong>${config.bedrooms || 'N/A'}</strong> Bed${(config.bedrooms && config.bedrooms !== 1) ? 's' : ''}
+                                                    </span>
+                                                    <span class="flex items-center gap-1 text-gray-700">
+                                                        <i class="fas fa-bath"></i>
+                                                        <strong>${config.bathrooms || 'N/A'}</strong> Bath${(config.bathrooms && config.bathrooms !== 1) ? 's' : ''}
+                                                    </span>
+                                                </div>
+                                                <div class="text-right">
+                                                    <div class="text-lg font-bold text-green-600">
+                                                        ${priceDisplay}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                        <!-- Amenities -->
+                        ${property.amenities?.length > 0 ? `
+                            <div class="modal-section">
+                                <h3 class="modal-section-title">
+                                    <i class="fas fa-star text-blue-600"></i>
+                                    Amenities & Features
+                                </h3>
+                                <div class="flex flex-wrap gap-2">
+                                    ${property.amenities.map(amenity => `
+                                        <span class="amenity-tag">${amenity}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        <!-- Contact Section -->
+                        <div class="modal-section">
+                            <h3 class="modal-section-title">
+                                <i class="fas fa-phone text-blue-600"></i>
+                                Contact Information
+                            </h3>
+                            <div class="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-12 border border-green-200">
+                                <div class="text-center mb-4">
+                                    <p class="text-gray-700 mb-4">Interested in this property? Get in touch with us!</p>
+                                    <a href="https://wa.me/${property.contact?.split(' - ')[1] || '2348000000000'}?text=Hi! I'm interested in ${property.name}"
+                                       class="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-12 font-semibold hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg"
+                                       target="_blank">
+                                        <i class="fab fa-whatsapp text-lg"></i>
+                                        Contact via WhatsApp
+                                    </a>
+                                </div>
+                                <div class="text-center text-sm text-gray-600">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    We typically respond within minutes
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            } catch (error) {
+                console.error('Error fetching property details:', error);
+                modalContent.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="bg-red-50 border border-red-200 rounded-12 p-6">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                            <h3 class="text-lg font-semibold text-red-800 mb-2">Error Loading Property</h3>
+                            <p class="text-red-600 mb-4">We couldn't load the property details. Please try again.</p>
+                            <button onclick="closePropertyModal()" 
+                                    class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        function closePropertyModal() {
+            const modal = document.getElementById('propertyModal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        function changeModalImage(direction) {
+            if (!currentModalImages || currentModalImages.length <= 1) return;
+            currentModalImageIndex = (currentModalImageIndex + direction + currentModalImages.length) % currentModalImages.length;
+            const modalImage = document.getElementById('modalMainImage');
+            const imageCounter = document.getElementById('imageCounter');
+            if (modalImage) {
+                modalImage.style.opacity = '0.7';
+                setTimeout(() => {
+                    modalImage.src = currentModalImages[currentModalImageIndex];
+                    modalImage.style.opacity = '1';
+                    if (imageCounter) {
+                        imageCounter.textContent = currentModalImageIndex + 1;
+                    }
+                }, 200);
+            }
+        }
+        // Close modal when clicking outside
+        document.getElementById('propertyModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePropertyModal();
+            }
+        });
+        // Keyboard navigation for modal
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('propertyModal');
+            if (!modal.classList.contains('hidden')) {
+                if (e.key === 'Escape') {
+                    closePropertyModal();
+                } else if (e.key === 'ArrowLeft') {
+                    changeModalImage(-1);
+                } else if (e.key === 'ArrowRight') {
+                    changeModalImage(1);
+                }
+            }
+        });
+        // Share link functionality
+        createShareBtn.addEventListener('click', async () => {
+            const selectedProperties = Array.from(propertyCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            const listName = shareListName.value.trim();
+            const duration = shareDuration.value;
+            if (selectedProperties.length === 0 || !listName) return;
+            try {
+                const response = await fetch('{% url "create_shared_list" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        name: listName,
+                        property_ids: selectedProperties,
+                        duration_hours: parseInt(duration)
+                    })
+                });
+                const result = await response.json();
+                const shareModalContent = document.getElementById('shareModalContent');
+                shareModalContent.innerHTML = `
+                    <div class="space-y-4">
+                        <p class="text-gray-600">Your shareable link has been created successfully!</p>
+                        <div class="bg-gray-100 p-3 rounded-lg">
+                            <input 
+                                type="text" 
+                                value="${result.share_url}" 
+                                id="shareLinkInput"
+                                class="w-full bg-transparent border-none focus:outline-none text-gray-700"
+                                readonly
+                            >
+                        </div>
+                        <button 
+                            onclick="copyShareLink()"
+                            class="btn-primary w-full text-white py-2 px-4 rounded-lg font-semibold"
+                        >
+                            <i class="fas fa-copy mr-2"></i>Copy Link
+                        </button>
+                    </div>
+                `;
+                document.getElementById('shareLinkModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                // Reset selection
+                propertyCheckboxes.forEach(checkbox => checkbox.checked = false);
+                shareListName.value = '';
+                updateSelectionButtons();
+            } catch (error) {
+                console.error('Error creating share link:', error);
+                alert('Error creating share link. Please try again.');
+            }
+        });
+        function copyShareLink() {
+            const shareLinkInput = document.getElementById('shareLinkInput');
+            shareLinkInput.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        }
+        function closeShareModal() {
+            const shareModal = document.getElementById('shareLinkModal');
+            shareModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        // Sync Airtable functionality
+        if (syncAirtableBtn) {
+            syncAirtableBtn.addEventListener('click', async () => {
+                syncStatus.textContent = 'Syncing with Airtable...';
+                syncAirtableBtn.disabled = true;
+                try {
+                    const response = await fetch('{% url "sync_airtable" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({})
+                    });
+                    const result = await response.json();
+                    console.log('Sync Response:', result);
+                    if (result.success) {
+                        syncStatus.textContent = 'Sync completed successfully! Reloading page...';
+                        setTimeout(() => {
+                            window.location.reload(); // Refresh to show new properties
+                        }, 2000);
+                    } else {
+                        throw new Error(result.error || 'Sync failed');
+                    }
+                } catch (error) {
+                    console.error('Error syncing Airtable:', error);
+                    syncStatus.textContent = `Error: ${error.message}`;
+                    syncAirtableBtn.disabled = false;
+                }
+            });
+        }
+        // PDF download functionality
+        async function downloadPropertyPDF(propertyId) {
+            try {
+                const response = await fetch(`{% url 'property_pdf' property_id=0 %}`.replace('0', propertyId));
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate PDF');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `property-${propertyId}-details.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+            } catch (error) {
+                alert('Error downloading PDF: ' + error.message);
+            }
+        }
+        // Comparison functionality
+        if (compareSelectedBtn) {
+            compareSelectedBtn.addEventListener('click', compareSelected);
+        }
+        async function compareSelected() {
+            const selectedProperties = Array.from(propertyCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            if (selectedProperties.length < 2) return;
+            const modal = document.getElementById('comparisonModal');
+            const content = document.getElementById('comparisonContent');
+            content.innerHTML = `
+                <div class="flex items-center justify-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-600">Loading comparison...</span>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            try {
+                const response = await fetch('{% url "compare_properties" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ property_ids: selectedProperties })
+                });
+                console.log(response.status)
+                if (!response.ok) throw new Error('Failed to fetch comparison data');
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
+                content.innerHTML = buildComparisonTable(data.properties);
+                const pdfLink = document.getElementById('downloadComparisonPdf');
+                pdfLink.href = data.comparison_url;
+            } catch (error) {
+                console.error('Error fetching comparison:', error);
+                content.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                            <h3 class="text-lg font-semibold text-red-800 mb-2">Error Loading Comparison</h3>
+                            <p class="text-red-600 mb-4">We couldn't load the comparison. Please try again.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        function buildComparisonTable(properties) {
+            let html = '<div class="overflow-x-auto"><table class="min-w-full border-collapse">';
+            // Headers
+            html += '<thead><tr class="bg-gray-100">';
+            html += '<th class="p-4 border text-left font-bold text-gray-800">Feature</th>';
+            properties.forEach(prop => {
+                html += `<th class="p-4 border text-center font-bold text-gray-800">${prop.name}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            // Features
+            const features = [
+                { key: 'address', label: 'Address', format: v => v || 'N/A' },
+                { key: 'luxury_status', label: 'Luxury Status', format: v => v === 'luxurious' ? '<span class="text-amber-600 font-semibold"><i class="fas fa-crown mr-1"></i>Luxurious</span>' : 'Non-Luxurious' },
+                { key: 'min_price', label: 'Min Price', format: v => {
+                    if (!v) return 'On Request';
+                    if (currencyConverter.currentCurrency === 'USD') {
+                        const usd = v / currencyConverter.exchangeRate;
+                        return `$${usd < 1000 ? usd.toLocaleString('en-US', {maximumFractionDigits: 0}) : (usd/1000).toFixed(1) + 'K'}`;
+                    } else {
+                        return `₦${v.toLocaleString()}`;
+                    }
+                }},
+                { key: 'description', label: 'Description', format: v => v || 'N/A' },
+                { key: 'contact_phone', label: 'Contact Phone', format: v => v || 'N/A' },
+                { key: 'amenities', label: 'Amenities', format: v => v.length > 0 ? v.join(', ') : 'None' },
+                { key: 'configurations', label: 'Configurations', format: v => v.map(c => {
+                    let price = c.price;
+                    if (price) {
+                        if (currencyConverter.currentCurrency === 'USD') {
+                            price = price / currencyConverter.exchangeRate;
+                            price = `$${price < 1000 ? price.toLocaleString('en-US', {maximumFractionDigits: 0}) : (price/1000).toFixed(1) + 'K'}`;
+                        } else {
+                            price = `₦${price.toLocaleString()}`;
+                        }
+                    } else {
+                        price = 'TBD';
+                    }
+                    return `${c.bedrooms} Bed, ${c.bathrooms} Bath - ${price}`;
+                }).join('<br>') || 'N/A' },
+                
+            ];
+            features.forEach(feature => {
+                html += `<tr class="hover:bg-gray-50"><td class="p-4 border font-semibold text-gray-700">${feature.label}</td>`;
+                properties.forEach(prop => {
+                    let value = prop[feature.key];
+                    value = feature.format(value);
+                    html += `<td class="p-4 border text-gray-600">${value}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            return html;
+        }
+        function closeComparisonModal() {
+            const modal = document.getElementById('comparisonModal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        document.getElementById('comparisonModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeComparisonModal();
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('comparisonModal');
+            if (!modal.classList.contains('hidden') && e.key === 'Escape') {
+                closeComparisonModal();
+            }
+        });
+    </script>
+</body>
 </html>
