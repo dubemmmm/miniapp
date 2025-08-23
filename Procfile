@@ -1,2 +1,2 @@
-web: gunicorn --config gunicorn.conf.py gettingstarted.wsgi
+web: gunicorn --config gunicorn.conf.py miniapp.wsgi
 release: ./manage.py migrate --no-input
