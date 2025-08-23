@@ -1,3 +1,7 @@
 Django==5.0.1
-gunicorn==23.0.0
-whitenoise>=6,<7
+Pillow==10.1.0
+Pillow==11.3.0
+pyairtable==3.2.0
+python-decouple==3.8
+reportlab==4.4.1
+Requests==2.32.5
