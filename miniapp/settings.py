@@ -24,9 +24,9 @@ TEMP_DIR = os.path.join(BASE_DIR, "templates")
 SECRET_KEY = 'django-insecure-r4=7+c&g-%ycfdwfwzj5_3-%4qq6ti=x!)%8j58pied_mk17kn'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*', "127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -135,3 +135,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'landing'
+LOGIN_URL = 'login'
