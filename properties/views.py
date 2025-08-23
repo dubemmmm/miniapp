@@ -15,7 +15,6 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth import login
 from datetime import datetime, timedelta
-from decouple import config
 from .forms import CustomUserCreationForm
 import json
 import logging
