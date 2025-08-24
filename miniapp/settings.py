@@ -173,8 +173,6 @@ CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"]
 CSP_IMG_SRC = ["'self'", "data:", "blob:"]
 CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
 
-# Allowed hosts (ensure your domain is included)
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'your-domain.com']  # Add your actual domain
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
