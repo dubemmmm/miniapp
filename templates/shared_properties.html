@@ -177,6 +177,28 @@
             box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
             color: white;
         }
+        /* thumbs (WebKit) */
+        #sqft-filter input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 16px; width: 16px; border-radius: 999px;
+            background: #ffffff; border: 2px solid rgba(59,130,246,.9);
+            box-shadow: 0 0 0 2px rgba(0,0,0,.15);
+            pointer-events: auto;
+        }
+        #sqft-filter input[type="range"]::-webkit-slider-runnable-track {
+            height: 0; background: transparent;
+        }
+        /* thumbs (Firefox) */
+        #sqft-filter input[type="range"]::-moz-range-thumb {
+            height: 16px; width: 16px; border-radius: 999px;
+            background: #ffffff; border: 2px solid rgba(59,130,246,.9);
+            box-shadow: 0 0 0 2px rgba(0,0,0,.15);
+            pointer-events: auto;
+        }
+        #sqft-filter input[type="range"]::-moz-range-track {
+            height: 0; background: transparent;
+        }
         .currency-toggle {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             border: none;
@@ -543,6 +565,57 @@
                         value="{{ filters.completion_date }}"
                         class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
                     >
+                </div>
+                <!-- Square Footage (Dual Slider) -->
+                <div class="mb-6" id="sqft-filter">
+                    <label class="block text-sm font-medium mb-3 text-white">Square Footage</label>
+
+                    <!-- Hidden fields submitted with the form -->
+                    <input type="hidden" name="min_square_footage" id="min_square_footage"
+                            value="{{ filters.min_square_footage|default:filter_ranges.square_footage_range.min_square_footage }}">
+                    <input type="hidden" name="max_square_footage" id="max_square_footage"
+                            value="{{ filters.max_square_footage|default:filter_ranges.square_footage_range.max_square_footage }}">
+
+                    <!-- Slider container -->
+                    <div class="relative h-8">
+                        <!-- Base track -->
+                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/20"></div>
+                        <!-- Selected range fill -->
+                        <div class="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-blue-400/70" id="sqft-range-fill"></div>
+
+                        <!-- Two overlapping range inputs -->
+                        <input
+                        type="range"
+                        id="sqft-min-range"
+                        class="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none"
+                        min="{{ filter_ranges.square_footage_range.min_square_footage|default:0 }}"
+                        max="{{ filter_ranges.square_footage_range.max_square_footage|default:5000 }}"
+                        step="5"
+                        value="{{ filters.min_square_footage|default:filter_ranges.square_footage_range.min_square_footage }}"
+                        aria-label="Minimum square footage"
+                        />
+                        <input
+                        type="range"
+                        id="sqft-max-range"
+                        class="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none"
+                        min="{{ filter_ranges.square_footage_range.min_square_footage|default:0 }}"
+                        max="{{ filter_ranges.square_footage_range.max_square_footage|default:5000 }}"
+                        step="5"
+                        value="{{ filters.max_square_footage|default:filter_ranges.square_footage_range.max_square_footage }}"
+                        aria-label="Maximum square footage"
+                        />
+                    </div>
+
+                    <!-- Readouts -->
+                    <div class="flex justify-between text-sm text-gray-200 mt-2">
+                        <span>Min: <strong id="sqft-min-readout" class="text-white"></strong> sqft</span>
+                        <span>Max: <strong id="sqft-max-readout" class="text-white"></strong> sqft</span>
+                    </div>
+                    {% if filter_ranges.square_footage_range.min_square_footage and filter_ranges.square_footage_range.max_square_footage %}
+                        <p class="text-xs text-gray-300 mt-2 bg-gray-700/50 p-2 rounded">
+                        Range: {{ filter_ranges.square_footage_range.min_square_footage|intcomma }} - {{ filter_ranges.square_footage_range.max_square_footage|intcomma }} sqft
+                        </p>
+                    {% endif %}
                 </div>
                 <!-- Luxury Status -->
                 <div class="mb-6">
@@ -1227,6 +1300,9 @@
                                                         <i class="fas fa-bath"></i>
                                                         <strong>${config.bathrooms || 'N/A'}</strong> Bath${(config.bathrooms && config.bathrooms !== 1) ? 's' : ''}
                                                     </span>
+                                                    <span class="flex items-center gap-1 text-gray-700">
+                                                        <strong>${config.square_footage || 'N/A'} sq ft</strong> 
+                                                    </span>
                                                 </div>
                                                 <div class="text-right">
                                                     <div class="text-lg font-bold text-green-600">
@@ -1364,6 +1440,66 @@
                 }
             }
         });
+    </script>
+    <script>
+        (function () {
+            const minRange = document.getElementById('sqft-min-range');
+            const maxRange = document.getElementById('sqft-max-range');
+            const minHidden = document.getElementById('min_square_footage');
+            const maxHidden = document.getElementById('max_square_footage');
+            const minReadout = document.getElementById('sqft-min-readout');
+            const maxReadout = document.getElementById('sqft-max-readout');
+            const rangeFill = document.getElementById('sqft-range-fill');
+
+            const step = parseInt(minRange.step || '5', 10);
+            const minGap = step; // keep handles from overlapping by at least one step
+
+            function format(n) { return Number(n).toLocaleString(); }
+
+            function clamp() {
+            let minVal = parseInt(minRange.value, 10);
+            let maxVal = parseInt(maxRange.value, 10);
+            if (maxVal - minVal < minGap) {
+                if (document.activeElement === minRange) {
+                minVal = maxVal - minGap;
+                minRange.value = minVal;
+                } else {
+                maxVal = minVal + minGap;
+                maxRange.value = maxVal;
+                }
+            }
+            sync();
+            }
+
+            function sync() {
+            const min = parseInt(minRange.min, 10);
+            const max = parseInt(maxRange.max, 10);
+            const minVal = parseInt(minRange.value, 10);
+            const maxVal = parseInt(maxRange.value, 10);
+
+            minReadout.textContent = format(minVal);
+            maxReadout.textContent = format(maxVal);
+            minHidden.value = minVal;
+            maxHidden.value = maxVal;
+
+            const pctMin = ((minVal - min) / (max - min)) * 100;
+            const pctMax = ((maxVal - min) / (max - min)) * 100;
+            rangeFill.style.left = pctMin + '%';
+            rangeFill.style.right = (100 - pctMax) + '%';
+            }
+
+            function initFromHidden() {
+            const minProvided = parseInt(minHidden.value || minRange.min, 10);
+            const maxProvided = parseInt(maxHidden.value || maxRange.max, 10);
+            minRange.value = isNaN(minProvided) ? minRange.min : minProvided;
+            maxRange.value = isNaN(maxProvided) ? maxRange.max : maxProvided;
+            sync();
+            }
+
+            minRange.addEventListener('input', clamp);
+            maxRange.addEventListener('input', clamp);
+            initFromHidden();
+        })();
     </script>
 </body>
 </html>

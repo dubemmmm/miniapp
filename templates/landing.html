@@ -334,6 +334,74 @@
             align-items: center;
             gap: 8px;
         }
+        #sqft-filter {
+            display: grid;
+            gap: .5rem;
+        }
+
+        #sqft-filter .sqft-slider {
+            position: relative;
+            height: 32px;
+            margin: .25rem 0 .5rem;
+        }
+
+        /* Two overlapping range inputs */
+        #sqft-filter input[type="range"] {
+            position: absolute;
+            left: 0;
+            right: 0;
+            width: 100%;
+            pointer-events: none; /* allow clicking through to the topmost handle */
+            -webkit-appearance: none;
+            background: none;
+            height: 32px;
+            margin: 0;
+        }
+        #sqft-filter input[type="range"]::-webkit-slider-thumb {
+            pointer-events: auto;
+            -webkit-appearance: none;
+            height: 16px; width: 16px; border-radius: 50%;
+            background: currentColor;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px rgba(0,0,0,.15);
+        }
+        #sqft-filter input[type="range"]::-moz-range-thumb {
+            pointer-events: auto;
+            height: 16px; width: 16px; border-radius: 50%;
+            background: currentColor;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px rgba(0,0,0,.15);
+        }
+        #sqft-filter input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: 999px;
+            background: transparent;
+        }
+        #sqft-filter input[type="range"]::-moz-range-track {
+            height: 4px;
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        /* Base track + selected range fill */
+        #sqft-filter .sqft-slider__track {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            left: 0; right: 0; height: 4px; border-radius: 999px;
+            background: rgba(0,0,0,.1);
+        }
+        #sqft-filter .sqft-slider__range {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            height: 4px; border-radius: 999px;
+            background: currentColor; opacity: .35;
+        }
+
+        #sqft-filter .sqft-readouts {
+            display: flex; justify-content: space-between; font-size: .9rem;
+        }
+
+        /* Inherit your theme color if the container defines it; fallback to a neutral */
+        #sqft-filter { color: var(--filter-accent, white); }
+        #sqft-filter .filter-label { font-weight: 600; }
         .config-card {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             padding: 16px;
@@ -655,6 +723,50 @@
                         class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
                     >
                 </div>
+                <!-- Square Footage Filter -->
+                <div class="filter-group" id="sqft-filter">
+                    <label class="filter-label" for="sqft-min-range">Square Footage</label>
+
+                    <div class="sqft-slider">
+                        <!-- Visible dual-range sliders -->
+                        <input
+                        type="range"
+                        id="sqft-min-range"
+                        min="{{ filter_ranges.square_footage_range.min_square_footage|default:0 }}"
+                        max="{{ filter_ranges.square_footage_range.max_square_footage|default:5000 }}"
+                        step="5"
+                        value="{{ filters.min_square_footage|default:filter_ranges.square_footage_range.min_square_footage }}"
+                        aria-label="Minimum square footage"
+                        />
+                        <input
+                        type="range"
+                        id="sqft-max-range"
+                        min="{{ filter_ranges.square_footage_range.min_square_footage|default:0 }}"
+                        max="{{ filter_ranges.square_footage_range.max_square_footage|default:5000 }}"
+                        step="5"
+                        value="{{ filters.max_square_footage|default:filter_ranges.square_footage_range.max_square_footage }}"
+                        aria-label="Maximum square footage"
+                        />
+
+                        <!-- Track fill -->
+                        <div class="sqft-slider__track"></div>
+                        <div class="sqft-slider__range"></div>
+                    </div>
+
+                    <!-- Readouts -->
+                    <div class="sqft-readouts">
+                        <span>Min: <strong id="sqft-min-readout"></strong> sqft</span>
+                        <span>Max: <strong id="sqft-max-readout"></strong> sqft</span>
+                    </div>
+
+                    <!-- Hidden fields that your view reads -->
+                    <input type="hidden" name="min_square_footage" id="min_square_footage"
+                            value="{{ filters.min_square_footage|default:filter_ranges.square_footage_range.min_square_footage }}">
+                    <input type="hidden" name="max_square_footage" id="max_square_footage"
+                            value="{{ filters.max_square_footage|default:filter_ranges.square_footage_range.max_square_footage }}">
+                </div>
+
+
                 <!-- Luxury Status -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium mb-3">Luxury Status</label>
@@ -667,6 +779,8 @@
                         <option value="non_luxurious" {% if filters.luxury_status == 'non_luxurious' %}selected{% endif %}>Non-Luxurious</option>
                     </select>
                 </div>
+
+
                 <!-- Filter Buttons -->
                 <div class="space-y-3 mb-6">
                     <button type="submit" class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all font-semibold">
@@ -1337,6 +1451,10 @@
                                                         <i class="fas fa-bath"></i>
                                                         <strong>${config.bathrooms || 'N/A'}</strong> Bath${(config.bathrooms && config.bathrooms !== 1) ? 's' : ''}
                                                     </span>
+                                                    <span class="flex items-center gap-1 text-gray-700">
+                                                        <strong>${config.square_footage || 'N/A'} sq ft</strong> 
+                                                    </span>
+
                                                 </div>
                                                 <div class="text-right">
                                                     <div class="text-lg font-bold text-green-600">
@@ -1684,6 +1802,70 @@
                 closeComparisonModal();
             }
         });
+    </script>
+    <script>
+    (function () {
+        const minRange = document.getElementById('sqft-min-range');
+        const maxRange = document.getElementById('sqft-max-range');
+        const minHidden = document.getElementById('min_square_footage');
+        const maxHidden = document.getElementById('max_square_footage');
+        const minReadout = document.getElementById('sqft-min-readout');
+        const maxReadout = document.getElementById('sqft-max-readout');
+        const rangeFill = document.querySelector('#sqft-filter .sqft-slider__range');
+
+        const minGap = parseInt(minRange.step || '5', 10); // keep handles from crossing
+
+        function clampHandles() {
+        let minVal = parseInt(minRange.value, 10);
+        let maxVal = parseInt(maxRange.value, 10);
+
+        if (maxVal - minVal < minGap) {
+            // Push the one that was moved
+            if (document.activeElement === minRange) {
+            minVal = maxVal - minGap;
+            minRange.value = minVal;
+            } else {
+            maxVal = minVal + minGap;
+            maxRange.value = maxVal;
+            }
+        }
+        updateUI();
+        }
+
+        function updateUI() {
+        const min = parseInt(minRange.min, 10);
+        const max = parseInt(maxRange.max, 10);
+        const minVal = parseInt(minRange.value, 10);
+        const maxVal = parseInt(maxRange.value, 10);
+
+        // Update readouts and hidden fields
+        minReadout.textContent = minVal.toLocaleString();
+        maxReadout.textContent = maxVal.toLocaleString();
+        minHidden.value = minVal;
+        maxHidden.value = maxVal;
+
+        // Update the fill between handles
+        const percentMin = ((minVal - min) / (max - min)) * 100;
+        const percentMax = ((maxVal - min) / (max - min)) * 100;
+        rangeFill.style.left = percentMin + '%';
+        rangeFill.style.right = (100 - percentMax) + '%';
+        }
+
+        // Initialize from hidden inputs (server-provided values), if present
+        function initFromHidden() {
+        const minProvided = parseInt(minHidden.value || minRange.min, 10);
+        const maxProvided = parseInt(maxHidden.value || maxRange.max, 10);
+        minRange.value = isNaN(minProvided) ? minRange.min : minProvided;
+        maxRange.value = isNaN(maxProvided) ? maxRange.max : maxProvided;
+        updateUI();
+        }
+
+        minRange.addEventListener('input', clampHandles);
+        maxRange.addEventListener('input', clampHandles);
+
+        // On first paint
+        initFromHidden();
+    })();
     </script>
 </body>
 </html>

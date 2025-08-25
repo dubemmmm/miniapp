@@ -74,7 +74,9 @@ def landing_view(request):
         'max_bedrooms': request.GET.get('max_bedrooms', ''),
         'min_bathrooms': request.GET.get('min_bathrooms', ''),
         'max_bathrooms': request.GET.get('max_bathrooms', ''),
-        'completion_date': request.GET.get('completion_date', '')
+        'completion_date': request.GET.get('completion_date', ''),
+        'min_square_footage': request.GET.get('min_square_footage', ''),
+        'max_square_footage': request.GET.get('max_square_footage', ''),
     }
 
     # Apply filters
@@ -138,7 +140,27 @@ def landing_view(request):
             properties = properties.filter(completion_date__lte=completion_date)
         except ValueError:
             pass
-    
+        
+    # square footage filters (based on configurations)
+    if filters['min_square_footage']:
+        try:
+            min_sqft = int(filters['min_square_footage'])
+            properties = properties.filter(
+                configurations__square_footage__gte=min_sqft,
+                configurations__is_available=True
+            )
+        except ValueError:
+            pass
+
+    if filters['max_square_footage']:
+        try:
+            max_sqft = int(filters['max_square_footage'])
+            properties = properties.filter(
+                configurations__square_footage__lte=max_sqft,
+                configurations__is_available=True
+            )
+        except ValueError:
+            pass
 
     # Ensure distinct results when filtering configurations
     properties = properties.distinct()
@@ -156,6 +178,10 @@ def landing_view(request):
         'price_range': all_configs.aggregate(min_price=Min('price'), max_price=Max('price')),
         'bedroom_range': all_configs.aggregate(min_bedrooms=Min('bedrooms'), max_bedrooms=Max('bedrooms')),
         'bathroom_range': all_configs.aggregate(min_bathrooms=Min('bathrooms'), max_bathrooms=Max('bathrooms')),
+        'square_footage_range': all_configs.aggregate(
+            min_square_footage=Min('square_footage'),
+            max_square_footage=Max('square_footage')
+        ),
         
     }
     context = {
@@ -953,6 +979,8 @@ def shared_properties_view(request, token):
     max_bathrooms = request.GET.get('max_bathrooms')
     luxury_status = request.GET.get('luxury_status')
     completion_date = request.GET.get('completion_date')
+    min_square_footage = request.GET.get('min_square_footage', '')
+    max_square_footage = request.GET.get('max_square_footage', '')
     
     
     # Get properties from shared list
@@ -992,6 +1020,26 @@ def shared_properties_view(request, token):
     # Filter by completion date
     if completion_date:
         properties = properties.filter(completion_date__lte=completion_date)
+    
+    if min_square_footage:
+        try:
+            properties = properties.filter(
+                configurations__square_footage__gte=int(min_square_footage),
+                configurations__is_available=True
+            )
+        except ValueError:
+            pass
+    if max_square_footage:
+        try:
+            properties = properties.filter(
+                configurations__square_footage__lte=int(max_square_footage),
+                configurations__is_available=True
+            )
+        except ValueError:
+            pass
+    
+    properties = properties.distinct()
+        
     # Get filter ranges
     all_shared_properties = shared_list.properties.filter(is_active=True)
     price_range = all_shared_properties.aggregate(
@@ -1005,6 +1053,10 @@ def shared_properties_view(request, token):
     bathroom_range = all_shared_properties.aggregate(
         min_bathrooms=Min('configurations__bathrooms'),
         max_bathrooms=Max('configurations__bathrooms')
+    )
+    square_footage_range = all_shared_properties.aggregate(
+        min_square_footage=Min('configurations__square_footage'),
+        max_square_footage=Max('configurations__square_footage')
     )
     
     context = {
@@ -1020,11 +1072,15 @@ def shared_properties_view(request, token):
             'min_bathrooms': min_bathrooms,
             'max_bathrooms': max_bathrooms,
             'luxury_status': luxury_status,
+            'min_square_footage': min_square_footage,
+            'max_square_footage': max_square_footage,
+            'completion_date': completion_date,
         },
         'filter_ranges': {
             'price_range': price_range,
             'bedroom_range': bedroom_range,
             'bathroom_range': bathroom_range,
+            'square_footage_range': square_footage_range,
         }
     }
     
