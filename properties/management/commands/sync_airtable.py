@@ -96,12 +96,19 @@ class Command(BaseCommand):
         if cache_only:
             print("💾 CACHE ONLY MODE - Database sync disabled")
 
-        token = 'patFtmrCvhrJq4htC.c1a887af3fd1d826944534a68c822caf0bedc92b8a0a8246782280c18597d800'
-        base_id = 'appkkHHDh5A21JhlK'
-        tbl_props = 'Property'
-        tbl_cfgs = 'Configuration'
-        tbl_imgs = 'Images'
-        tbl_amen = 'Amenities'
+        #token = 'patFtmrCvhrJq4htC.c1a887af3fd1d826944534a68c822caf0bedc92b8a0a8246782280c18597d800' # For my own airtable account
+        #token = 'patE38Xzz7fKDNsGL.2cd7f247fc218496d101af45a5627be6707ddb8d3762cc521117f5288c3b4438' # For CW airtable account
+        #base_id = 'appkkHHDh5A21JhlK'
+        #base_id = 'appLocaWHQNhMuYSH' # For CW airtable account
+        
+        token = config('AIRTABLE_TOKEN', default=None)
+        base_id = config('AIRTABLE_BASE_ID', default=None)
+
+        tbl_props = config('AIRTABLE_TABLE_PROPERTIES', default='Property')
+        tbl_cfgs  = config('AIRTABLE_TABLE_CONFIGS',    default='Configuration')
+        tbl_imgs  = config('AIRTABLE_TABLE_IMAGES',     default='Images')
+        tbl_amen  = config('AIRTABLE_TABLE_AMENITIES',  default='Amenities')
+        
         
         print('airtable is ', tbl_amen)
 
