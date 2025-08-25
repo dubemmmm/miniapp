@@ -12,7 +12,6 @@ urlpatterns = [
     path('property/<int:property_id>/pdf/', views.download_property_pdf, name='property_pdf'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('manage-shares/', views.manage_shared_lists, name='manage_shared_lists'),
-    path('register/', views.register_view, name='register'),
     path('api/compare-properties/', views.compare_properties, name='compare_properties'),
     path('api/comparison-properties/<str:property_ids>/', views.comparison_pdf, name='comparison_pdf'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),

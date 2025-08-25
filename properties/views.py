@@ -883,19 +883,6 @@ def manage_shared_lists(request):
         'shared_lists': shared_lists
     })
     
-def register_view(request):
-    """User registration"""
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Account created successfully!')
-            return redirect('landing')
-    else:
-        form = CustomUserCreationForm()
-    
-    return render(request, 'register.html', {'form': form})
     
 @login_required
 @require_http_methods(["GET"])
