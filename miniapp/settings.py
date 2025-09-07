@@ -26,7 +26,7 @@ SECRET_KEY = config('SECRET_KEY', default=None)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1']
+ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -177,3 +177,11 @@ CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'  # Optional: Set to your timezone (e.g., 'America/New_York')

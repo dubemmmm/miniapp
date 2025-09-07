@@ -12,6 +12,8 @@ from django.core.cache import cache
 from properties.models import Property, PropertyConfiguration, PropertyImage, PropertyAmenity
 from django.utils import timezone
 from datetime import datetime
+import time
+from properties.tasks import download_file_task, download_image_task
 log = logging.getLogger(__name__)
 
 def env(name, default=None):
@@ -42,22 +44,14 @@ def first_attachment(attachments):
 def extract_records_from_response(table_data):
     records = []
     try:
-        for item in table_data.iterate():
-            if isinstance(item, list):
-                records.extend(item)
-            elif isinstance(item, dict):
+        for item in table_data.iterate(max_records=100):  # Explicitly limit per page
+            if isinstance(item, dict):
                 records.append(item)
+            elif isinstance(item, list):
+                records.extend(item)
     except Exception as e:
-        print(f"iterate() failed: {e}, trying all()")
-        try:
-            all_data = table_data.all()
-            if isinstance(all_data, list):
-                records = all_data
-            else:
-                records = [all_data]
-        except Exception as e2:
-            print(f"Both iterate() and all() failed: {e2}")
-            return []
+        print(f"iterate() failed: {e}, falling back to all()")
+        records = table_data.all(max_records=1000)  # Fallback with limit
     return records
 
 class Command(BaseCommand):
@@ -161,6 +155,7 @@ class Command(BaseCommand):
                 self.sync_to_database(result, dry_run=dry_run, no_files=no_files)
 
             self.stdout.write(self.style.SUCCESS("✅ Airtable data fetch and sync complete."))
+            time.sleep(0.2)  # Respect 5 req/sec limit after each table fetch
 
         except Exception as e:
             print(f"❌ ERROR during fetch: {e}")
@@ -448,49 +443,15 @@ class Command(BaseCommand):
             return None
 
     def handle_property_files(self, property_obj, prop_data):
-        """Download and save brochure and thumbnail files if not present"""
         if prop_data.get('brochure_url') and not property_obj.brochure:
-            try:
-                file_content = self.download_file(prop_data['brochure_url'])
-                if file_content:
-                    filename = f"brochure_{property_obj.slug}.pdf"
-                    property_obj.brochure.save(
-                        filename,
-                        ContentFile(file_content),
-                        save=True
-                    )
-                    print(f"📎 Downloaded brochure for: {property_obj.name}")
-            except Exception as e:
-                print(f"⚠️ Failed to download brochure for {property_obj.name}: {str(e)}")
-
+            download_file_task.delay(property_obj, prop_data['brochure_url'], 'brochure', 'brochure')
         if prop_data.get('thumbnail_url') and not property_obj.thumbnail:
-            try:
-                file_content = self.download_file(prop_data['thumbnail_url'])
-                if file_content:
-                    filename = f"thumbnail_{property_obj.slug}.jpg"
-                    property_obj.thumbnail.save(
-                        filename,
-                        ContentFile(file_content),
-                        save=True
-                    )
-                    print(f"🖼️ Downloaded thumbnail for: {property_obj.name}")
-            except Exception as e:
-                print(f"⚠️ Failed to download thumbnail for {property_obj.name}: {str(e)}")
+            download_file_task.delay(property_obj, prop_data['thumbnail_url'], 'thumbnail', 'thumbnail')
 
     def download_and_save_image(self, image_obj, image_url):
-        """Download and save a PropertyImage"""
-        try:
-            file_content = self.download_file(image_url)
-            if file_content:
-                filename = f"image_{image_obj.property.slug}_{image_obj.order}.jpg"
-                image_obj.image.save(
-                    filename,
-                    ContentFile(file_content),
-                    save=False
-                )
-                return True
-        except Exception as e:
-            print(f"⚠️ Failed to download image: {str(e)}")
+        if image_url:
+            download_image_task.delay(image_obj, image_url)
+            return True
         return False
 
     def download_file(self, url, timeout=30):
@@ -515,58 +476,66 @@ class Command(BaseCommand):
             print("No property records found!")
             return {}
 
-        for i, rec in enumerate(records):
-            try:
-                if not isinstance(rec, dict) or 'id' not in rec:
-                    print(f"Skipping invalid record {i}: {type(rec)}")
+        for i in range(0, len(records), 100):  # Process 100 records at a time
+            batch = records[i:i + 100]
+            for rec in batch:
+                try:
+                    if not isinstance(rec, dict) or 'id' not in rec:
+                        print(f"Skipping invalid record {i + (rec - batch[0] + 1)}: {type(rec)}")
+                        continue
+
+                    rid = rec["id"]
+                    f = rec.get("fields", {})
+                    seen_ids.add(rid)
+
+                    print(f"\nProcessing property {processed_count + 1}/{len(records)}: {rid}")
+
+                    name = f.get("Name") or f"Unnamed Property {rid}"
+                    print(f"Property name: '{name}'")
+
+                    slug_final = f.get("Slug (Final)") or f.get("Slug") or slugify(name)
+                    address = f.get("Address") or ""
+                    description = f.get("Description") or ""
+                    lat = to_decimal(f.get("Latitude"))
+                    lng = to_decimal(f.get("Longitude"))
+                    contact_name = f.get("Contact Name") or ""
+                    contact_phone = f.get("Contact Phone") or ""
+                    luxury_status = f.get("Luxury Status") or "non_luxurious"
+                    is_active = bool(f.get("Is Active"))
+                    completion_date = to_date(f.get("Completion Date"))
+
+                    brochure_att = first_attachment(f.get("Brochure"))
+                    thumb_att = first_attachment(f.get("Thumbnail") or f.get("Thumbnails"))
+
+                    prop_data = {
+                        'airtable_id': rid,
+                        'name': name,
+                        'slug': slug_final,
+                        'address': address,
+                        'description': description,
+                        'latitude': lat,
+                        'longitude': lng,
+                        'contact_name': contact_name,
+                        'contact_phone': contact_phone,
+                        'luxury_status': luxury_status,
+                        'is_active': is_active,
+                        'brochure_url': brochure_att.get("url") if brochure_att else None,
+                        'thumbnail_url': thumb_att.get("url") if thumb_att else None,
+                        'completion_date': completion_date
+                    }
+
+                    prop_map[rid] = prop_data
+                    processed_count += 1
+
+                except Exception as e:
+                    print(f"Error processing property record {i + (rec - batch[0] + 1)}: {e}")
                     continue
 
-                rid = rec["id"]
-                f = rec.get("fields", {})
-                seen_ids.add(rid)
-
-                print(f"\nProcessing property {i+1}/{len(records)}: {rid}")
-
-                name = f.get("Name") or f"Unnamed Property {rid}"
-                print(f"Property name: '{name}'")
-
-                slug_final = f.get("Slug (Final)") or f.get("Slug") or slugify(name)
-                address = f.get("Address") or ""
-                description = f.get("Description") or ""
-                lat = to_decimal(f.get("Latitude"))
-                lng = to_decimal(f.get("Longitude"))
-                contact_name = f.get("Contact Name") or ""
-                contact_phone = f.get("Contact Phone") or ""
-                luxury_status = f.get("Luxury Status") or "non_luxurious"
-                is_active = bool(f.get("Is Active"))
-                completion_date = to_date(f.get("Completion Date"))
-
-                brochure_att = first_attachment(f.get("Brochure"))
-                thumb_att = first_attachment(f.get("Thumbnail") or f.get("Thumbnails"))
-
-                prop_data = {
-                    'airtable_id': rid,
-                    'name': name,
-                    'slug': slug_final,
-                    'address': address,
-                    'description': description,
-                    'latitude': lat,
-                    'longitude': lng,
-                    'contact_name': contact_name,
-                    'contact_phone': contact_phone,
-                    'luxury_status': luxury_status,
-                    'is_active': is_active,
-                    'brochure_url': brochure_att.get("url") if brochure_att else None,
-                    'thumbnail_url': thumb_att.get("url") if thumb_att else None,
-                    'completion_date': completion_date
-                }
-
-                prop_map[rid] = prop_data
-                processed_count += 1
-
-            except Exception as e:
-                print(f"Error processing property record {i}: {e}")
-                continue
+                # Clear memory every 500 records
+                if processed_count % 500 == 0:
+                    import gc
+                    gc.collect()
+                    print(f"🗑️ Cleared memory after processing {processed_count} properties")
 
         print(f"Successfully processed {processed_count} properties")
         return prop_map
@@ -578,42 +547,50 @@ class Command(BaseCommand):
         records = extract_records_from_response(cfgs_table)
         print(f"Retrieved {len(records)} configuration records")
 
-        for rec in records:
-            try:
-                if not isinstance(rec, dict) or 'id' not in rec:
-                    print(f"Skipping invalid configuration record: {rec}")
+        for i in range(0, len(records), 100):  # Process 100 records at a time
+            batch = records[i:i + 100]
+            for rec in batch:
+                try:
+                    if not isinstance(rec, dict) or 'id' not in rec:
+                        print(f"Skipping invalid configuration record: {rec}")
+                        continue
+
+                    rid = rec["id"]
+                    f = rec.get("fields", {})
+                    seen_ids.add(rid)
+
+                    linked = f.get("Property") or []
+                    if not linked:
+                        print(f"Configuration {rid} has no linked property")
+                        continue
+                    prop_id = linked[0]
+                    if prop_id not in prop_map:
+                        print(f"Configuration {rid} links to unknown property {prop_id}")
+                        continue
+
+                    config = {
+                        'airtable_id': rid,
+                        'property_id': prop_id,
+                        'type': f.get("Type") or "",
+                        'bedrooms': int(f.get("Bedrooms") or 0),
+                        'bathrooms': int(f.get("Bathrooms") or 1),
+                        'square_footage': int(f.get("Square Footage") or 0),
+                        'price': to_decimal(f.get("Price")),
+                        'is_available': bool(f.get("Is Available"))
+                    }
+
+                    config_data.append(config)
+                    print(f"Processed configuration for property {prop_id}")
+
+                except Exception as e:
+                    print(f"Error processing configuration {rid}: {e}")
                     continue
 
-                rid = rec["id"]
-                f = rec.get("fields", {})
-                seen_ids.add(rid)
-
-                linked = f.get("Property") or []
-                if not linked:
-                    print(f"Configuration {rid} has no linked property")
-                    continue
-                prop_id = linked[0]
-                if prop_id not in prop_map:
-                    print(f"Configuration {rid} links to unknown property {prop_id}")
-                    continue
-
-                config = {
-                    'airtable_id': rid,
-                    'property_id': prop_id,
-                    'type': f.get("Type") or "",
-                    'bedrooms': int(f.get("Bedrooms") or 0),
-                    'bathrooms': int(f.get("Bathrooms") or 1),
-                    'square_footage': int(f.get("Square Footage") or 0),
-                    'price': to_decimal(f.get("Price")),
-                    'is_available': bool(f.get("Is Available"))
-                }
-
-                config_data.append(config)
-                print(f"Processed configuration for property {prop_id}")
-
-            except Exception as e:
-                print(f"Error processing configuration {rid}: {e}")
-                continue
+                # Clear memory every 500 records
+                if len(config_data) % 500 == 0:
+                    import gc
+                    gc.collect()
+                    print(f"🗑️ Cleared memory after processing {len(config_data)} configurations")
 
         return config_data
 
@@ -624,54 +601,62 @@ class Command(BaseCommand):
         records = extract_records_from_response(imgs_table)
         print(f"Retrieved {len(records)} image records")
 
-        for rec in records:
-            try:
-                if not isinstance(rec, dict) or 'id' not in rec:
-                    print(f"Skipping invalid image record: {rec}")
+        for i in range(0, len(records), 100):  # Process 100 records at a time
+            batch = records[i:i + 100]
+            for rec in batch:
+                try:
+                    if not isinstance(rec, dict) or 'id' not in rec:
+                        print(f"Skipping invalid image record: {rec}")
+                        continue
+
+                    rid = rec["id"]
+                    f = rec.get("fields", {})
+                    seen_ids.add(rid)
+
+                    linked = f.get("Property") or []
+                    if not linked:
+                        print(f"Image {rid} has no linked property")
+                        continue
+                    prop_id = linked[0]
+                    if prop_id not in prop_map:
+                        print(f"Image {rid} links to unknown property {prop_id}")
+                        continue
+
+                    attachments = f.get("Image") or []
+                    alt_text = f.get("Alt Text") or ""
+                    order = int(f.get("Order") or 0)
+
+                    print(f"Record {rid} has {len(attachments)} attachments")
+
+                    if attachments and isinstance(attachments, list):
+                        for j, attachment in enumerate(attachments):
+                            if attachment and isinstance(attachment, dict) and attachment.get("url"):
+                                unique_image_id = f"{rid}_{j}" if len(attachments) > 1 else rid
+                                
+                                image = {
+                                    'airtable_id': unique_image_id,
+                                    'property_id': prop_id,
+                                    'image_url': attachment.get("url"),
+                                    'alt_text': f"{alt_text} (Image {j+1})" if len(attachments) > 1 and alt_text else alt_text,
+                                    'order': order + j,
+                                    'attachment_index': j,
+                                    'original_record_id': rid
+                                }
+
+                                image_data.append(image)
+                                print(f"Added image {j+1}/{len(attachments)} for property {prop_id}: {attachment.get('url')}")
+
+                except Exception as e:
+                    print(f"Error processing image {rid}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
 
-                rid = rec["id"]
-                f = rec.get("fields", {})
-                seen_ids.add(rid)
-
-                linked = f.get("Property") or []
-                if not linked:
-                    print(f"Image {rid} has no linked property")
-                    continue
-                prop_id = linked[0]
-                if prop_id not in prop_map:
-                    print(f"Image {rid} links to unknown property {prop_id}")
-                    continue
-
-                attachments = f.get("Image") or []
-                alt_text = f.get("Alt Text") or ""
-                order = int(f.get("Order") or 0)
-
-                print(f"Record {rid} has {len(attachments)} attachments")
-
-                if attachments and isinstance(attachments, list):
-                    for i, attachment in enumerate(attachments):
-                        if attachment and isinstance(attachment, dict) and attachment.get("url"):
-                            unique_image_id = f"{rid}_{i}" if len(attachments) > 1 else rid
-                            
-                            image = {
-                                'airtable_id': unique_image_id,
-                                'property_id': prop_id,
-                                'image_url': attachment.get("url"),
-                                'alt_text': f"{alt_text} (Image {i+1})" if len(attachments) > 1 and alt_text else alt_text,
-                                'order': order + i,
-                                'attachment_index': i,
-                                'original_record_id': rid
-                            }
-
-                            image_data.append(image)
-                            print(f"Added image {i+1}/{len(attachments)} for property {prop_id}: {attachment.get('url')}")
-
-            except Exception as e:
-                print(f"Error processing image {rid}: {e}")
-                import traceback
-                traceback.print_exc()
-                continue
+                # Clear memory every 500 records
+                if len(image_data) % 500 == 0:
+                    import gc
+                    gc.collect()
+                    print(f"🗑️ Cleared memory after processing {len(image_data)} images")
 
         print(f"Total images processed: {len(image_data)}")
         return image_data
@@ -683,43 +668,51 @@ class Command(BaseCommand):
         records = extract_records_from_response(amen_table)
         print(f"Retrieved {len(records)} amenity records")
 
-        for rec in records:
-            try:
-                if not isinstance(rec, dict) or 'id' not in rec:
-                    print(f"Skipping invalid amenity record: {rec}")
+        for i in range(0, len(records), 100):  # Process 100 records at a time
+            batch = records[i:i + 100]
+            for rec in batch:
+                try:
+                    if not isinstance(rec, dict) or 'id' not in rec:
+                        print(f"Skipping invalid amenity record: {rec}")
+                        continue
+
+                    rid = rec["id"]
+                    f = rec.get("fields", {})
+                    seen_ids.add(rid)
+
+                    linked = f.get("Property") or []
+                    if not linked:
+                        print(f"Amenity {rid} has no linked property")
+                        continue
+                    prop_id = linked[0]
+                    if prop_id not in prop_map:
+                        print(f"Amenity {rid} links to unknown property {prop_id}")
+                        continue
+
+                    amenities_text = f.get("Amenities") or f.get("Name") or ""
+                    if not amenities_text:
+                        print(f"Amenity {rid} has no name")
+                        continue
+
+                    amenity_names = [name.strip() for name in amenities_text.split(',') if name.strip()]
+                    for amenity_name in amenity_names:
+                        amenity_id = f"{rid}_{amenity_name.replace(' ', '_').lower()}"
+                        amenity = {
+                            'airtable_id': amenity_id,
+                            'property_id': prop_id,
+                            'name': amenity_name
+                        }
+                        amenity_data.append(amenity)
+                        print(f"Processed amenity: {amenity_name} for property {prop_id}")
+
+                except Exception as e:
+                    print(f"Error processing amenity {rid}: {e}")
                     continue
 
-                rid = rec["id"]
-                f = rec.get("fields", {})
-                seen_ids.add(rid)
-
-                linked = f.get("Property") or []
-                if not linked:
-                    print(f"Amenity {rid} has no linked property")
-                    continue
-                prop_id = linked[0]
-                if prop_id not in prop_map:
-                    print(f"Amenity {rid} links to unknown property {prop_id}")
-                    continue
-
-                amenities_text = f.get("Amenities") or f.get("Name") or ""
-                if not amenities_text:
-                    print(f"Amenity {rid} has no name")
-                    continue
-
-                amenity_names = [name.strip() for name in amenities_text.split(',') if name.strip()]
-                for amenity_name in amenity_names:
-                    amenity_id = f"{rid}_{amenity_name.replace(' ', '_').lower()}"
-                    amenity = {
-                        'airtable_id': amenity_id,
-                        'property_id': prop_id,
-                        'name': amenity_name
-                    }
-                    amenity_data.append(amenity)
-                    print(f"Processed amenity: {amenity_name} for property {prop_id}")
-
-            except Exception as e:
-                print(f"Error processing amenity {rid}: {e}")
-                continue
+                # Clear memory every 500 records
+                if len(amenity_data) % 500 == 0:
+                    import gc
+                    gc.collect()
+                    print(f"🗑️ Cleared memory after processing {len(amenity_data)} amenities")
 
         return amenity_data
