@@ -161,7 +161,7 @@ class PropertyImage(models.Model):
     )
     
     # Core fields
-    image = models.ImageField(upload_to=property_image_path)
+    image = models.ImageField(upload_to=property_image_path, null=False, blank=False)
     alt_text = models.CharField(max_length=200, blank=True)
     order = models.PositiveIntegerField(default=0)
     
