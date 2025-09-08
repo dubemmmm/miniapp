@@ -56,6 +56,14 @@
             background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
             box-shadow: 4px 0 25px rgba(0,0,0,0.15);
             transition: transform 0.3s ease;
+            max-height: 100vh;
+            overflow-y: auto; /* Scroll only when content overflows */
+            overscroll-behavior-y: contain; /* Stop scrolling at content end */
+            position: sticky; /* Keep it fixed vertically */
+            top: 0; /* Stick to the top of the viewport */
+            padding: 6px; /* Adjust padding if needed */
+            width: 80px; /* Adjust width as per your design */
+            z-index: 40; /* Ensure it stays above other content */
         }
         .header-gradient {
             background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #4b5563 100%);
@@ -457,8 +465,9 @@
                 z-index: 50;
                 transform: translateX(-100%);
                 width: 320px;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
+                overflow-y: auto; /* Allow scrolling within mobile view */
+                overscroll-behavior-y: contain; /* Stop at content end */
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on mobile */
             }
             .filter-sidebar.open {
                 transform: translateX(0);
@@ -468,8 +477,10 @@
                 gap: 20px;
             }
             .main-content {
-                width: 100%;
-                margin-left: 0;
+                flex: 1;
+                padding: 4px 8px; /* Adjust padding */
+                overflow-y: auto; /* Allow main content to scroll */
+                height: 100vh;
             }
             /* Adjust header-actions for laptop screens */
             .header-actions {
