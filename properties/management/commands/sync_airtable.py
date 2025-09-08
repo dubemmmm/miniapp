@@ -317,6 +317,7 @@ class Command(BaseCommand):
                 print(f"❌ Error syncing configuration: {str(e)}")
                 continue
 
+    
     def sync_images(self, images_data, dry_run=False, no_files=False):
         """Sync images to Django PropertyImage model"""
         for image_data in images_data:
@@ -342,7 +343,7 @@ class Command(BaseCommand):
                         changed = True
                     file_changed = False
                     if not no_files and not existing_image.image and image_data.get('image_url'):
-                        success = self.download_and_save_image(existing_image, image_data['image_url'])
+                        success = self.download_and_save_image_sync(existing_image, image_data['image_url'])
                         if success:
                             file_changed = True
 
@@ -365,22 +366,50 @@ class Command(BaseCommand):
 
                     image_obj = PropertyImage(**image_fields)
                     image_obj.last_synced_at = timezone.now()
-
+                    
+                    # Download image synchronously BEFORE saving to database
                     if not no_files and image_data.get('image_url'):
-                        success = self.download_and_save_image(image_obj, image_data['image_url'])
+                        success = self.download_and_save_image_sync(image_obj, image_data['image_url'])
                         if success:
                             print(f"✅ Downloaded image for: {property_obj.name} (Order: {image_data['order']})")
+                            image_obj.save()  # Only save if download succeeded
+                            print(f"✅ Created image for: {property_obj.name} (Order: {image_data['order']})")
                         else:
-                            print(f"⚠️ Created image record but failed to download file for: {property_obj.name}")
+                            print(f"⚠️ Failed to download image for: {property_obj.name}, skipping record creation")
                     else:
+                        # If no files to download, save the record anyway
+                        image_obj.save()
                         print(f"✅ Created image record for: {property_obj.name} (Order: {image_data['order']})")
-
-                    image_obj.save()
-                    print(f"✅ Created image for: {property_obj.name} (Order: {image_data['order']})")
 
             except Exception as e:
                 print(f"❌ Error syncing image: {str(e)}")
                 continue
+            
+    def download_and_save_image_sync(self, image_obj, image_url):
+        
+        """Download and save image synchronously"""
+        try:
+            response = requests.get(image_url, timeout=30, stream=True)
+            response.raise_for_status()
+            
+            # Get file content
+            content = response.content
+            
+            # Create filename
+            filename = f"image_{image_obj.property.slug}_{image_obj.order}.jpg"
+            
+            # Save the file to the image field
+            image_obj.image.save(filename, ContentFile(content), save=False)
+            
+            print(f"🖼️ Downloaded image for {image_obj.property.name}")
+            return True
+            
+        except requests.RequestException as e:
+            print(f"⚠️ Failed to download image from {image_url}: {e}")
+            return False
+        except Exception as e:
+            print(f"⚠️ Error saving image: {e}")
+            return False
 
     def sync_amenities(self, amenities_data, dry_run=False):
         """Sync amenities to Django PropertyAmenity model"""
@@ -450,7 +479,7 @@ class Command(BaseCommand):
 
     def download_and_save_image(self, image_obj, image_url):
         if image_url:
-            download_image_task.delay(image_obj, image_url)
+            download_image_task.delay(image_obj.id, image_url)
             return True
         return False
 
