@@ -13,7 +13,7 @@ from properties.models import Property, PropertyConfiguration, PropertyImage, Pr
 from django.utils import timezone
 from datetime import datetime
 import time
-from properties.tasks import download_file_task, download_image_task
+# from properties.tasks import download_file_task, download_image_task
 log = logging.getLogger(__name__)
 
 def env(name, default=None):
@@ -472,16 +472,56 @@ class Command(BaseCommand):
             return None
 
     def handle_property_files(self, property_obj, prop_data):
-        if prop_data.get('brochure_url') and not property_obj.brochure:
-            download_file_task.delay(property_obj, prop_data['brochure_url'], 'brochure', 'brochure')
-        if prop_data.get('thumbnail_url') and not property_obj.thumbnail:
-            download_file_task.delay(property_obj, prop_data['thumbnail_url'], 'thumbnail', 'thumbnail')
+        """Download property files synchronously (no Redis/Celery required)"""
+        try:
+            # Download brochure
+            if prop_data.get('brochure_url') and not property_obj.brochure:
+                success = self.download_and_save_file(
+                    property_obj, 
+                    prop_data['brochure_url'], 
+                    'brochure', 
+                    f"brochure_{property_obj.slug}.pdf"
+                )
+                if success:
+                    print(f"📎 Downloaded brochure for {property_obj.name}")
+                else:
+                    print(f"⚠️ Failed to download brochure for {property_obj.name}")
 
-    def download_and_save_image(self, image_obj, image_url):
-        if image_url:
-            download_image_task.delay(image_obj.id, image_url)
+            # Download thumbnail
+            if prop_data.get('thumbnail_url') and not property_obj.thumbnail:
+                success = self.download_and_save_file(
+                    property_obj, 
+                    prop_data['thumbnail_url'], 
+                    'thumbnail', 
+                    f"thumbnail_{property_obj.slug}.jpg"
+                )
+                if success:
+                    print(f"🖼️ Downloaded thumbnail for {property_obj.name}")
+                else:
+                    print(f"⚠️ Failed to download thumbnail for {property_obj.name}")
+                    
+        except Exception as e:
+            print(f"⚠️ Error handling files for {property_obj.name}: {e}")
+            
+    def download_and_save_file(self, model_instance, url, field_name, filename):
+        """Download file and save to model field synchronously"""
+        try:
+            print(f"🔄 Downloading {filename}...")
+            response = requests.get(url, timeout=30, stream=True)
+            response.raise_for_status()
+            
+            content = response.content
+            file_field = getattr(model_instance, field_name)
+            file_field.save(filename, ContentFile(content), save=True)
+            
             return True
-        return False
+            
+        except requests.RequestException as e:
+            print(f"⚠️ Download failed for {url}: {str(e)}")
+            return False
+        except Exception as e:
+            print(f"⚠️ Error saving file to {field_name}: {str(e)}")
+            return False
 
     def download_file(self, url, timeout=30):
         """Download file from URL"""
