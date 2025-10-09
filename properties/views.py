@@ -210,7 +210,6 @@ def sync_airtable(request):
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     if request.method == 'POST':
-        print('sync view was called')
         try:
             # Run the sync_airtable_to_models command
             call_command('sync_airtable')
@@ -248,7 +247,6 @@ def properties_api(request):
     properties = Property.objects.filter(is_active=True).prefetch_related(
         'configurations', 'images', 'amenities'
     )
-    print(properties)
     
     properties_data = []
     for prop in properties:
@@ -371,7 +369,6 @@ def create_shared_list(request):
             try:
                 share_path = reverse('shared_properties', kwargs={'token': shared_list.token})
                 share_url = request.build_absolute_uri(share_path)
-                print(f"Generated share URL: {share_url}")
                 logger.info(f"Generated share URL: {share_url}")
             except Exception as e:
                 logger.error(f"Failed to generate share URL: {str(e)}")
@@ -446,12 +443,14 @@ class PropertyPDFGenerator:
             if image_url.startswith('/'):
                 # Local file
                 image_path = os.path.join(settings.MEDIA_ROOT, image_url.lstrip('/'))
+                print('the image path is ', image_path)
                 if os.path.exists(image_path):
                     img = PILImage.open(image_path)
                 else:
                     return None
             else:
                 # Remote URL
+                print('the remote image url is ', image_url)
                 response = requests.get(image_url, timeout=10)
                 response.raise_for_status()
                 img = PILImage.open(BytesIO(response.content))
@@ -737,6 +736,7 @@ class PropertyPDFGenerator:
 def download_property_pdf(request, property_id):
     """Download PDF for a specific property"""
     property_obj = get_object_or_404(Property, id=property_id, is_active=True)
+    print('i am here')
     
     # Check if user has access to this property
     if not request.user.profile.is_employee:
@@ -833,7 +833,6 @@ def compare_properties(request):
                 'primary_image': request.build_absolute_uri(prop.get_primary_image().image.url) if prop.get_primary_image() else None
             })
         
-        print('comparison data is ', comparison_data)
         return JsonResponse({
             'success': True,
             'properties': comparison_data,

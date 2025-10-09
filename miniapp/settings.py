@@ -17,6 +17,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMP_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'properties',
+    "storages",
  
 ]
 
@@ -53,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'csp.middleware.CSPMiddleware',
     
 ]
 
@@ -118,21 +121,15 @@ USE_I18N = True
 
 USE_TZ = True
 
-STORAGES = {
-    # Enable WhiteNoise's GZip (and Brotli, if installed) compression of static assets:
-    # https://whitenoise.readthedocs.io/en/latest/django.html#add-compression-and-caching-support
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+
 WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    STATIC_DIR,
+]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -170,7 +167,7 @@ SECURE_REFERRER_POLICY = "same-origin"
 CSP_DEFAULT_SRC = ["'self'"]
 CSP_SCRIPT_SRC = ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"]
 CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"]
-CSP_IMG_SRC = ["'self'", "data:", "blob:"]
+
 CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
 
 
@@ -185,3 +182,56 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'  # Optional: Set to your timezone (e.g., 'America/New_York')
+
+
+# AWS Stuff
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': config("AWS_DATABASE_PASSWORD"),
+        'HOST': 'realestatedb.c1k6u4kg29d6.us-east-2.rds.amazonaws.com',
+        'PORT': '5432',
+    }
+}
+
+
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default=None)
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default=None)
+
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = "us-east-2"
+
+CSP_IMG_SRC = [
+    "'self'",
+    "data:",
+    "blob:",
+    f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com",
+    f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com",
+    # optional, broader:
+    "https://*.amazonaws.com",
+    # if/when you switch to CloudFront:
+    # f"https://{AWS_S3_CUSTOM_DOMAIN}",
+    # or a wildcard if you prefer:
+    # "https://*.cloudfront.net",
+]
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_FILE_OVERWRITE = True            # keep original filenames unique
+AWS_DEFAULT_ACL = None                    # ACLs disabled (recommended)
+AWS_QUERYSTRING_AUTH = False
+
+#MEDIA_URL = f"https://d2l0rj12cmje55.cloudfront.net/"
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400     # 25MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400 
+#AWS_S3_CUSTOM_DOMAIN = "d2l0rj12cmje55.cloudfront.net"  # << add this # Ill uncomment this when i create cloud front
+#AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}  # good caching

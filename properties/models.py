@@ -32,10 +32,10 @@ class Property(models.Model):
                                    help_text="Airtable record ID for sync purposes")
     
     # Core fields
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, default=0)
     slug = models.SlugField(unique=True, blank=True)
-    address = models.TextField()
-    description = models.TextField()
+    address = models.TextField(default='lekki')
+    description = models.TextField(default='house')
     latitude = models.DecimalField(
         max_digits=20,
         decimal_places=15,
@@ -62,7 +62,7 @@ class Property(models.Model):
     )
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True,)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_synced_at = models.DateTimeField(null=True, blank=True,
                                           help_text="Last time this was synced from Airtable")
@@ -130,7 +130,7 @@ class PropertyConfiguration(models.Model):
     is_available = models.BooleanField(default=True)
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True,)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
 
@@ -170,9 +170,11 @@ class PropertyImage(models.Model):
                                                    help_text="Index of attachment within Airtable record")
     original_record_id = models.CharField(max_length=50, blank=True,
                                           help_text="Original Airtable record ID before splitting")
+    image_url_hash = models.CharField(max_length=64, blank=True, 
+                                      help_text="SHA256 hash of image URL to detect changes")
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True, )
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
 
@@ -281,6 +283,7 @@ class AirtableSyncLog(models.Model):
         """Get total records processed across all types"""
         return (self.properties_processed + self.configurations_processed + 
                 self.images_processed + self.amenities_processed)
+
 
 class SharedPropertyList(models.Model):
     """Model for sharing selected properties with temporary links"""
