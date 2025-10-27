@@ -25,9 +25,11 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=None)
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1', 'localhost', '18.188.180.17']
+ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
+                 'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1', 
+                 'localhost', '18.188.180.17', 'offshore.cwrelagos.com',]
 
 
 # Application definition
