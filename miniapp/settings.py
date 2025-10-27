@@ -29,7 +29,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
                  'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1', 
-                 'localhost', '18.188.180.17', 'offshore.cwlagos.com',]
+                 'localhost', '18.188.180.17', 'offplan.cwlagos.com',]
 
 
 # Application definition
