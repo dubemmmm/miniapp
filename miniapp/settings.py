@@ -245,22 +245,22 @@ CELERY_TIMEZONE = 'UTC'  # Optional: Set to your timezone (e.g., 'America/New_Yo
 
 # AWS Stuff
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'postgres',
-#         'USER': 'postgres',
-#         'PASSWORD': config("AWS_DATABASE_PASSWORD"),
-#         'HOST': 'realestatedb.c1k6u4kg29d6.us-east-2.rds.amazonaws.com',
-#         'PORT': '5432',
-#     }
-# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': config("AWS_DATABASE_PASSWORD"),
+        'HOST': 'realestatedb.c1k6u4kg29d6.us-east-2.rds.amazonaws.com',
+        'PORT': '5432',
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default=None)
