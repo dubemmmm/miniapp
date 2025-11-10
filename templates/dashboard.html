@@ -8,34 +8,60 @@
 {% block content %}
 <div class="relative h-screen">
     <div id="map" class="leaflet-container"></div>
-    <!-- Logo -->
-    <div class="absolute top-4 left-4 z-[1000]">
-        <a href="{% url 'landing' %}">
+    <!-- Logo and User Actions -->
+    <div class="absolute top-4 left-4 z-[1000] flex items-center gap-3 flex-wrap">
+        <a href="{% url 'landing' %}" class="logo-container">
             <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Real Estate Logo" class="h-10 md:h-12 w-auto">
         </a>
+        {% if not is_internal_user %}
+        <a href="{% url 'logout' %}" class="user-action-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="hidden sm:inline ml-2">Logout</span>
+        </a>
+        {% endif %}
     </div>
-    
+
     <!-- Mobile Filter Overlay -->
     <div id="mobileFilterOverlay" class="mobile-filter-overlay"></div>
 
     <!-- Search Box -->
     <div id="searchBox" class="search-box">
         <input
-            type="text" 
-            id="searchInput" 
+            type="text"
+            id="searchInput"
             placeholder="🔍 Search properties..."
             class="search-input"
         />
     </div>
-    
+
     <!-- Map Controls -->
     <div class="map-controls">
-        <button id="toggleFiltersBtn" onclick="toggleFilters()" class="control-button"><i class="fas fa-filter mr-2"></i>Filters</button>
-        <button onclick="resetMap()" class="control-button"><i class="fas fa-home mr-2"></i>Reset View</button>
-        <button onclick="refreshData()" class="control-button"><i class="fas fa-refresh mr-2"></i>Refresh</button>
-        <button id="propertyCount" class="control-button"><i class="fas fa-chart-bar mr-2"></i>Loading...</button>
-        <a href="{% url 'landing' %}" class="control-button"><i class="fas fa-th mr-2"></i>Card View</a>
-        <button id="currencyToggle" class="currency-toggle"><i class="fas fa-money-bill-wave mr-2"></i>NGN</button>
+        <button id="toggleFiltersBtn" onclick="toggleFilters()" class="control-button">
+            <i class="fas fa-filter mr-2"></i>
+            <span class="button-text">Filters</span>
+        </button>
+        <button onclick="resetMap()" class="control-button">
+            <i class="fas fa-home mr-2"></i>
+            <span class="button-text">Reset</span>
+        </button>
+        <button onclick="refreshData()" class="control-button">
+            <i class="fas fa-refresh mr-2"></i>
+            <span class="button-text">Refresh</span>
+        </button>
+        <button id="propertyCount" class="control-button">
+            <i class="fas fa-chart-bar mr-2"></i>
+            <span class="button-text">Loading...</span>
+        </button>
+        {% if is_internal_user %}
+        <a href="{% url 'landing' %}" class="control-button">
+            <i class="fas fa-th mr-2"></i>
+            <span class="button-text">Card View</span>
+        </a>
+        {% endif %}
+        <button id="currencyToggle" class="currency-toggle">
+            <i class="fas fa-money-bill-wave mr-2"></i>
+            <span class="button-text">NGN</span>
+        </button>
     </div>
     
     <!-- Filter Sidebar -->
@@ -145,11 +171,10 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Property Modal -->
     <div id="propertyModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <button id="modalCloseButton" onclick="closeModal()" class="modal-close-button">×</button>
             <div id="modalContent"></div>
         </div>
     </div>

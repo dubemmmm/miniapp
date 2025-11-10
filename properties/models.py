@@ -321,11 +321,99 @@ class UserProfile(models.Model):
         ('agent', 'Real Estate Agent'),
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True)
     is_employee = models.BooleanField(default=False)
     can_share_properties = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
+    # Location privacy - track which properties external users have unlocked
+    unlocked_properties = models.ManyToManyField(
+        Property,
+        blank=True,
+        related_name='unlocked_by_users',
+        help_text="Properties for which this user can see exact location"
+    )
+
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
+
+    def unlock_property(self, property_obj):
+        """Grant user access to exact location of a property"""
+        if not self.is_employee:  # Employees don't need to unlock
+            self.unlocked_properties.add(property_obj)
+
+    def has_unlocked_property(self, property_obj):
+        """Check if user has unlocked a specific property"""
+        if self.is_employee:
+            return True
+        return self.unlocked_properties.filter(id=property_obj.id).exists()
+
+
+class EmployeeInvitation(models.Model):
+    """Invitation codes for employee registration"""
+    code = models.CharField(max_length=20, unique=True, db_index=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_invitations',
+        help_text="Admin who created this invitation"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiration date")
+    is_used = models.BooleanField(default=False)
+    used_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='used_invitation',
+        help_text="Employee who used this code"
+    )
+    used_at = models.DateTimeField(null=True, blank=True)
+    max_uses = models.IntegerField(default=1, help_text="Number of times this code can be used")
+    use_count = models.IntegerField(default=0)
+    notes = models.TextField(blank=True, help_text="Internal notes about this invitation")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Employee Invitation'
+        verbose_name_plural = 'Employee Invitations'
+
+    def __str__(self):
+        status = "Used" if self.is_used else "Active"
+        return f"{self.code} - {status}"
+
+    def is_valid(self):
+        """Check if invitation code is still valid"""
+        # Check if already used (for single-use codes)
+        if self.max_uses == 1 and self.is_used:
+            return False
+
+        # Check if max uses reached
+        if self.use_count >= self.max_uses:
+            return False
+
+        # Check if expired
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+
+        return True
+
+    def mark_as_used(self, user):
+        """Mark invitation as used by a specific user"""
+        self.use_count += 1
+        if self.use_count >= self.max_uses:
+            self.is_used = True
+        self.used_by = user
+        self.used_at = timezone.now()
+        self.save()
+
+    @staticmethod
+    def generate_code():
+        """Generate a unique random invitation code"""
+        while True:
+            code = get_random_string(12, allowed_chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789').upper()
+            if not EmployeeInvitation.objects.filter(code=code).exists():
+                return code

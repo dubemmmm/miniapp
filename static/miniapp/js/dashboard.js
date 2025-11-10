@@ -78,11 +78,11 @@ async function fetchProperties() {
 
 function updateMap() {
     map.eachLayer(layer => {
-        if (layer instanceof L.Marker || layer instanceof L.MarkerClusterGroup) {
+        if (layer instanceof L.Marker || layer instanceof L.MarkerClusterGroup || layer instanceof L.Circle) {
             map.removeLayer(layer);
         }
     });
-    
+
     const cluster = L.markerClusterGroup({
         showCoverageOnHover: false,
         zoomToBoundsOnClick: true,
@@ -90,25 +90,53 @@ function updateMap() {
         removeOutsideVisibleBounds: true,
         maxClusterRadius: 40
     });
-    
+
     const validMarkers = [];
     filteredProperties.forEach(property => {
         if (!property.latitude || !property.longitude || isNaN(property.latitude) || isNaN(property.longitude)) {
             console.warn(`Invalid coordinates for ${property.name}`);
             return;
         }
+
+        // Create marker icon with location privacy indicator
+        const isExact = property.is_exact_location !== false; // Default to true if not specified
+        const markerClass = isExact ? 'custom-marker' : 'custom-marker fuzzy-location';
+
         const icon = L.divIcon({
-            html: `<div class="custom-marker"><img src="${property.thumbnail || 'https://via.placeholder.com/40'}" alt="${property.name}"/></div>`,
+            html: `<div class="${markerClass}">
+                <img src="${property.thumbnail || 'https://via.placeholder.com/40'}" alt="${property.name}"/>
+                ${!isExact ? '<span class="fuzzy-indicator" title="Approximate location"><i class="fas fa-question-circle"></i></span>' : ''}
+            </div>`,
             className: 'custom-marker-container',
             iconSize: [44, 44],
             iconAnchor: [22, 22]
         });
+
         const marker = L.marker([property.latitude, property.longitude], { icon });
         marker.on('click', () => showPropertyModal(property));
         cluster.addLayer(marker);
         validMarkers.push(marker);
+
+        // Add fuzzy location circle overlay if not exact
+        if (!isExact && property.fuzzy_radius && property.fuzzy_radius > 0) {
+            const circle = L.circle([property.latitude, property.longitude], {
+                color: '#3b82f6',
+                fillColor: '#93c5fd',
+                fillOpacity: 0.15,
+                weight: 1,
+                radius: property.fuzzy_radius,
+                dashArray: '5, 5'
+            });
+
+            circle.bindTooltip('Approximate location area', {
+                permanent: false,
+                direction: 'top'
+            });
+
+            map.addLayer(circle);
+        }
     });
-    
+
     map.addLayer(cluster);
     if (validMarkers.length > 0) {
         const group = new L.featureGroup(validMarkers);
@@ -137,16 +165,12 @@ function formatWhatsAppNumber(phoneNumber) {
 function createModalHTML(property) {
     console.log('Creating modal for property:', property.id, 'Images:', property.images);
     currentImageIndex = 0;
-    
-    const amenities = property.amenities.map(a => 
-        `<span class="bg-blue-50 text-blue-700 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm border border-blue-200">${a}</span>`
-    ).join('');
-    
+
     const images = Array.isArray(property.images) && property.images.length > 0 
         ? property.images 
         : [property.thumbnail || 'https://via.placeholder.com/200'];
     
-    const configurationsHTML = property.configurations.length > 0 
+    const configurationsHTML = property.configurations.length > 0
         ? property.configurations.map(config => {
             let priceDisplay = config.price || 'TBD';
             if (config.price && config.price !== 'TBD') {
@@ -156,77 +180,121 @@ function createModalHTML(property) {
                     : `₦${cleanPrice.toLocaleString()}`;
             }
             return `
-                <div class="configuration-card">
-                    <div class="configuration-header">
-                        <div class="configuration-type">${config.type}</div>
-                        <div class="configuration-price">${priceDisplay}</div>
+                <div class="unit-item">
+                    <div class="unit-header">
+                        <h3 class="unit-name">${config.type}</h3>
+                        <div class="unit-price-tag">${priceDisplay}</div>
                     </div>
-                    <div class="configuration-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Bedrooms</div>
-                            <div class="detail-value"><i class="fas fa-bed mr-1"></i>${config.bedrooms || 0}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Bathrooms</div>
-                            <div class="detail-value"><i class="fas fa-bath mr-1"></i>${config.bathrooms || 0}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Square Feet</div>
-                            <div class="detail-value"><i class="fas fa-ruler-combined mr-1"></i>${(config.square_footage || 0).toLocaleString()}</div>
-                        </div>
+                    <div class="unit-details">
+                        <span class="unit-detail"><i class="fas fa-bed"></i> ${config.bedrooms || 0} Bed</span>
+                        <span class="unit-detail"><i class="fas fa-bath"></i> ${config.bathrooms || 0} Bath</span>
+                        <span class="unit-detail"><i class="fas fa-vector-square"></i> ${(config.square_footage || 0).toLocaleString()} sq ft</span>
                     </div>
                 </div>
             `;
         }).join('')
-        : '<div class="text-center text-gray-500 py-8">No configurations available</div>';
+        : '<div class="no-configs-message">No configurations available</div>';
     
     const phoneNumber = extractPhoneNumber(property.contact);
+    console.log('Extracted phone number:', phoneNumber);
     const whatsappNumber = formatWhatsAppNumber(phoneNumber);
+    console.log('Formatted WhatsApp number:', whatsappNumber);
     const whatsappMessage = encodeURIComponent(`Hi! I'm interested in the property: ${property.name} at ${property.address}. Could you please provide more information?`);
     const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
+    console.log('WhatsApp link:', whatsappLink);
     
     return `
-        <div class="bg-white rounded-lg p-8 shadow-lg">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">${property.name}</h2>
-            <div class="image-gallery">
-                <img src="${images[currentImageIndex]}" alt="${property.name}" id="galleryImage"/>
+        <div class="elegant-modal">
+            <!-- Close Button -->
+            <button onclick="closeModal()" class="modal-close-button">×</button>
+
+            <!-- Image Carousel -->
+            <div class="modal-carousel">
+                <img src="${images[currentImageIndex]}" alt="${property.name}" id="galleryImage" class="carousel-img"/>
                 ${images.length > 1 ? `
-                <button class="gallery-nav prev" onclick="changeImage(-1, ${property.id})"><i class="fas fa-chevron-left"></i></button>
-                <button class="gallery-nav next" onclick="changeImage(1, ${property.id})"><i class="fas fa-chevron-right"></i></button>
-                <div class="gallery-indicators">
-                    ${images.map((_, idx) => 
-                        `<div class="gallery-indicator ${idx === currentImageIndex ? 'active' : ''}" 
-                              onclick="setImage(${idx}, ${property.id})"></div>`
-                    ).join('')}
-                </div>` : ''}
-            </div>
-            <div class="space-y-2 mb-6">
-                <p class="text-gray-600 text-sm md:text-base flex items-center"><i class="fas fa-map-marker-alt mr-2 text-blue-500"></i><strong>Address:</strong> ${property.address}</p>
-                <p class="text-gray-700 text-sm md:text-base"><strong>Description:</strong>${property.description}</p>
-                <p class="text-gray-700 text-sm md:text-base"><strong>Luxury Status:</strong> ${property.luxury_status}</p>
-                <p class="text-gray-700 text-sm md:text-base"><strong>Completion Date:</strong> ${property.completion_date}</p>
-            </div>
-            
-            <div class="configurations-section">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Available Types</h3>
-                <div class="configurations-grid">
-                    ${configurationsHTML}
+                <button class="carousel-arrow left" onclick="changeImage(-1, ${property.id})">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="carousel-arrow right" onclick="changeImage(1, ${property.id})">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <div class="carousel-dots">
+                    ${images.map((_, idx) => `<span class="${idx === currentImageIndex ? 'active' : ''}" onclick="setImage(${idx}, ${property.id})"></span>`).join('')}
                 </div>
+                ` : ''}
             </div>
-            
-            <div class="mb-6">
-                <span class="block text-xs md:text-sm text-gray-600 mb-2">Amenities</span>
-                <div class="flex flex-wrap gap-2">${amenities}</div>
-            </div>
-            <div class="flex gap-3 md:gap-4">
-                <button onclick="showContact()" class="flex-1 py-2 md:py-3 bg-gray-800 text-white rounded-lg text-sm md:text-base font-medium hover:bg-gray-700"><i class="fas fa-phone mr-2"></i>Contact Agent</button>
-                <button onclick="downloadBrochure('${property.brochure}')" class="flex-1 py-2 md:py-3 bg-gray-200 text-gray-800 rounded-lg text-sm md:text-base font-medium hover:bg-gray-300"><i class="fas fa-download mr-2"></i>Download Brochure</button>
-            </div>
-            <div id="contactDisplay" class="contact-display">
-                <div class="contact-info">
-                    <span>Contact: ${property.contact}</span>
-                    <a href="${whatsappLink}" target="_blank" class="whatsapp-button">
-                        <svg class="whatsapp-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+
+            <!-- Content Area -->
+            <div class="modal-body">
+                <!-- Title & Meta -->
+                <div class="property-title-section">
+                    <h1 class="property-title">${property.name}</h1>
+                    <div class="property-meta-row">
+                        <span class="meta-location"><i class="fas fa-map-marker-alt"></i> ${property.address}</span>
+                        ${!property.is_exact_location ? '<span class="meta-approximate">Approx</span>' : ''}
+                    </div>
+                    <div class="meta-badges">
+                        <span class="badge badge-luxury">${property.luxury_status}</span>
+                        <span class="badge">${property.completion_date}</span>
+                    </div>
+                </div>
+
+                ${!property.is_exact_location ? `
+                <div class="location-privacy-notice">
+                    <div class="notice-content">
+                        <i class="fas fa-shield-alt notice-icon"></i>
+                        <div>
+                            <strong>Location Privacy Active</strong>
+                            <p>Exact address provided upon inquiry</p>
+                        </div>
+                    </div>
+                    <button onclick="requestLocationUnlock(${property.id})" id="unlockBtn${property.id}" class="btn-unlock-location">
+                        <i class="fas fa-unlock-alt"></i> Unlock
+                    </button>
+                </div>
+                ` : ''}
+
+                <!-- Description -->
+                <div class="property-description">
+                    <p>${property.description}</p>
+                </div>
+
+                <!-- Units -->
+                ${property.configurations.length > 0 ? `
+                <div class="property-section">
+                    <h2 class="section-heading">Available Units</h2>
+                    <div class="units-grid">${configurationsHTML}</div>
+                </div>
+                ` : ''}
+
+                <!-- Amenities -->
+                ${property.amenities.length > 0 ? `
+                <div class="property-section">
+                    <h2 class="section-heading">Amenities & Features</h2>
+                    <div class="amenities-wrap">
+                        ${property.amenities.map(a => `<div class="amenity-pill"><i class="fas fa-check-circle"></i> ${a}</div>`).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button onclick="showContact()" class="btn btn-contact">
+                        <i class="fas fa-phone-alt"></i> Contact Agent
+                    </button>
+                    <button onclick="downloadBrochure('${property.brochure}')" class="btn btn-download">
+                        <i class="fas fa-file-download"></i> Brochure
+                    </button>
+                </div>
+
+                <!-- Contact Info -->
+                <div id="contactDisplay" class="contact-info-panel">
+                    <div class="contact-agent">
+                        <i class="fas fa-user-circle"></i>
+                        <span>${property.contact}</span>
+                    </div>
+                    <a href="${whatsappLink}" target="_blank" class="btn-whatsapp-contact">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.465 3.516"/>
                         </svg>
                         Message on WhatsApp
@@ -319,9 +387,14 @@ function updateGalleryIndicators() {
 }
 
 function showContact() {
+    console.log('showContact called');
     const contactDisplay = document.getElementById('contactDisplay');
+    console.log('contactDisplay element:', contactDisplay);
     if (contactDisplay) {
         contactDisplay.classList.add('active');
+        console.log('Added active class');
+    } else {
+        console.error('contactDisplay element not found');
     }
 }
 
@@ -602,12 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchBox.style.left = (window.innerWidth / 2 - (window.innerWidth < 768 ? window.innerWidth / 2 - 10 : 150)) + 'px';
         searchBox.style.top = '10px';
     }
-    
-    const closeButton = document.getElementById('modalCloseButton');
-    if (closeButton) {
-        closeButton.addEventListener('click', closeModal);
-    }
-    
+
     const modal = document.getElementById('propertyModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -623,3 +691,102 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Location unlock functionality
+async function requestLocationUnlock(propertyId) {
+    const button = document.getElementById(`unlockBtn${propertyId}`);
+    if (!button) return;
+
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Requesting...';
+
+    try {
+        const response = await fetch(`/api/property/${propertyId}/request-unlock/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            button.innerHTML = '<i class="fas fa-check mr-1"></i>Location Unlocked!';
+            button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            button.classList.add('bg-green-500');
+
+            // Show success message
+            showNotification('Success! Reloading property data...', 'success');
+
+            // Reload properties to get exact location
+            setTimeout(async () => {
+                await fetchProperties();
+                closeModal();
+                showNotification('Property locations updated. Click the property again to see exact location.', 'info');
+            }, 1500);
+
+        } else {
+            throw new Error(data.error || 'Failed to unlock location');
+        }
+
+    } catch (error) {
+        console.error('Error unlocking location:', error);
+        showNotification(error.message || 'Failed to unlock location. Please try again.', 'error');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}
+
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Show notification toast
+function showNotification(message, type = 'info') {
+    // Check if notification container exists, create if not
+    let container = document.getElementById('notificationContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificationContainer';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
+        document.body.appendChild(container);
+    }
+
+    const notification = document.createElement('div');
+    const bgColors = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        info: 'bg-blue-500',
+        warning: 'bg-yellow-500'
+    };
+
+    notification.className = `${bgColors[type] || bgColors.info} text-white px-6 py-3 rounded-lg shadow-lg mb-2 transition-opacity duration-300`;
+    notification.innerHTML = `
+        <div class="flex items-center gap-2">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+    container.appendChild(notification);
+
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}

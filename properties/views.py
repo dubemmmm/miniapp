@@ -3,7 +3,6 @@ from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.views.generic import CreateView, UpdateView
-from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.db.models import Q, Min, Max
 from django.contrib import messages
@@ -13,9 +12,9 @@ from django.db.models.functions import ExtractMonth, ExtractYear
 from datetime import timedelta
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from datetime import datetime, timedelta
-from .forms import CustomUserCreationForm
+from .forms import ExternalUserRegistrationForm, EmployeeRegistrationForm
 import json
 import logging
 from django.urls import reverse, reverse_lazy
@@ -50,18 +49,33 @@ logger = logging.getLogger(__name__)
 
 
 # Create your views here.
+@login_required
 def landing_view(request):
-    """Display and filter properties"""
+    """Display and filter properties - Only accessible to employees"""
     # Check if user is employee
     is_employee = False
     can_sync_airtable = False
-    if request.user.is_authenticated:
-        try:
-            profile = request.user.profile
-            is_employee = profile.is_employee
-            can_sync_airtable = is_employee
-        except UserProfile.DoesNotExist:
-            pass
+    try:
+        profile = request.user.profile
+        is_employee = profile.is_employee
+        can_sync_airtable = is_employee
+
+        # Redirect non-employees to dashboard
+        if not is_employee:
+            messages.info(request, 'Access restricted. Employees only.')
+            return redirect('dashboard')
+
+    except UserProfile.DoesNotExist:
+        # Create profile if it doesn't exist (should not happen with new registration)
+        profile = UserProfile.objects.create(
+            user=request.user,
+            is_employee=False,
+            can_share_properties=False,
+            role=None
+        )
+        logger.info(f"Created missing UserProfile for user: {request.user.username}")
+        messages.info(request, 'Access restricted. Employees only.')
+        return redirect('dashboard')
     properties = Property.objects.filter(is_active=True)
     
     # Initialize filters
@@ -167,12 +181,7 @@ def landing_view(request):
 
     # Get filter ranges for form inputs
     all_configs = PropertyConfiguration.objects.filter(is_available=True, property__is_active=True)
-    
-    # If not employee, only show properties that are in active shared lists or all if no shared lists exist
-    if not is_employee:
-        # This will be handled by shared link view instead
-        properties = properties.none()
-    
+
     filter_ranges = {
         'luxury_choices': Property.luxury_status.field.choices,
         'price_range': all_configs.aggregate(min_price=Min('price'), max_price=Max('price')),
@@ -184,11 +193,15 @@ def landing_view(request):
         ),
         
     }
+    # Determine if user can see exact locations
+    is_internal_user = is_employee
+
     context = {
         'properties': properties,
         'filters': filters,
         'filter_ranges': filter_ranges,
         'is_employee': is_employee,
+        'is_internal_user': is_internal_user,
         'can_sync_airtable': can_sync_airtable,
         'search_query': filters['search'],
     }
@@ -225,31 +238,85 @@ def sync_airtable(request):
     logger.warning(f"Invalid request method: {request.method}")
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-@staff_member_required
-def create_employee_view(request):
-    """Admin view to create employee users"""
+def register_view(request):
+    """Public registration view for external users (non-employees)"""
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    # Set session flag for OAuth adapter
+    request.session['is_employee_signup'] = False
+
     if request.method == 'POST':
-        from .forms import EmployeeUserCreationForm
-        form = EmployeeUserCreationForm(request.POST)
+        form = ExternalUserRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            messages.success(request, f'Employee account created successfully for {user.get_full_name() or user.username}!')
+            messages.success(request, f'Account created successfully! Please log in.')
+            logger.info(f"New external user registered: {user.username}")
             return redirect('login')
     else:
-        from .forms import EmployeeUserCreationForm
-        form = EmployeeUserCreationForm()
-    
-    return render(request, 'create_employee.html', {'form': form})
+        form = ExternalUserRegistrationForm()
+
+    return render(request, 'register.html', {'form': form, 'is_employee_signup': False})
+
+
+def employee_register_view(request):
+    """Public registration view for employee users (admin/agent)"""
+    if request.user.is_authenticated:
+        return redirect('landing')
+
+    # Set session flag for OAuth adapter
+    request.session['is_employee_signup'] = True
+
+    if request.method == 'POST':
+        form = EmployeeRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Employee account created successfully! Please log in.')
+            logger.info(f"New employee registered: {user.username} - Role: {user.profile.role}")
+            return redirect('login')
+        else:
+            # Log form errors for debugging
+            logger.error(f"Employee registration form errors: {form.errors}")
+    else:
+        form = EmployeeRegistrationForm()
+
+    return render(request, 'employee_register.html', {'form': form, 'is_employee_signup': True})
+
+
+def custom_logout_view(request):
+    """Custom logout view that redirects based on user type"""
+    # Check if user is employee before logging out
+    is_employee = False
+    try:
+        if request.user.is_authenticated:
+            profile = request.user.profile
+            is_employee = profile.is_employee
+    except UserProfile.DoesNotExist:
+        pass
+
+    # Logout the user
+    logout(request)
+
+    # Redirect based on user type
+    if is_employee:
+        return redirect('landing')
+    else:
+        return redirect('login')
 
 
 def properties_api(request):
     """API endpoint to get all properties as JSON for the map"""
+    from .location_utils import get_property_location_data
+
     properties = Property.objects.filter(is_active=True).prefetch_related(
         'configurations', 'images', 'amenities'
     )
-    
+
     properties_data = []
     for prop in properties:
+        # Get location data based on user permissions
+        location_data = get_property_location_data(prop, request.user)
+
         images = [request.build_absolute_uri(img.image.url) for img in prop.images.all()]
         thumbnail = request.build_absolute_uri(prop.thumbnail.url) if prop.thumbnail else None
         configurations = [
@@ -266,27 +333,34 @@ def properties_api(request):
         properties_data.append({
             'id': prop.id,
             'name': prop.name,
-            'latitude': float(prop.latitude),
-            'longitude': float(prop.longitude),
-            'address': prop.address,
+            'latitude': location_data['latitude'],
+            'longitude': location_data['longitude'],
+            'address': location_data['address'],
+            'is_exact_location': location_data['is_exact'],
+            'fuzzy_radius': location_data['fuzzy_radius'],
             'description': prop.description,
             'configurations': configurations,
             'amenities': amenities,
             'thumbnail': thumbnail,
             'images': images,
-            'contact': f"{prop.contact_name} - {prop.contact_phone}",
+            'contact': f"{prop.contact_name} - {prop.contact_phone}" if location_data['is_exact'] else "Contact available after inquiry",
             'brochure': request.build_absolute_uri(prop.brochure.url) if prop.brochure else "",
             'luxury_status': prop.get_luxury_status_display(),
             'completion_date': prop.completion_date
-            
+
         })
-    
+
     return JsonResponse(properties_data, safe=False)
 def property_detail_api(request, property_id):
     """API endpoint to get a single property's details as JSON"""
+    from .location_utils import get_property_location_data
+
     property = get_object_or_404(Property.objects.prefetch_related(
         'configurations', 'images', 'amenities'
     ), id=property_id, is_active=True)
+
+    # Get location data based on user permissions
+    location_data = get_property_location_data(property, request.user)
 
     images = [request.build_absolute_uri(img.image.url) for img in property.images.all()]
     thumbnail = request.build_absolute_uri(property.thumbnail.url) if property.thumbnail else None
@@ -305,15 +379,17 @@ def property_detail_api(request, property_id):
     property_data = {
         'id': property.id,
         'name': property.name,
-        'latitude': float(property.latitude),
-        'longitude': float(property.longitude),
-        'address': property.address,
+        'latitude': location_data['latitude'],
+        'longitude': location_data['longitude'],
+        'address': location_data['address'],
+        'is_exact_location': location_data['is_exact'],
+        'fuzzy_radius': location_data['fuzzy_radius'],
         'description': property.description,
         'configurations': configurations,
         'amenities': amenities,
         'thumbnail': thumbnail,
         'images': images,
-        'contact': f"{property.contact_name} - {property.contact_phone}",
+        'contact': f"{property.contact_name} - {property.contact_phone}" if location_data['is_exact'] else "Contact available after inquiry",
         'brochure': request.build_absolute_uri(property.brochure.url) if property.brochure else "",
         'luxury_status': property.get_luxury_status_display(),
         'completion_date': property.completion_date
@@ -848,21 +924,32 @@ def compare_properties(request):
         print(f"Traceback: {traceback.format_exc()}")
         return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
     
+@login_required
 def dashboard_view(request):
-    """Map dashboard view - for employees only"""
-    if not request.user.is_authenticated:
-        return redirect('login')
-    
+    """Map dashboard view - accessible to all authenticated users
+
+    External users see fuzzy locations, employees see exact locations
+    """
     try:
         profile = request.user.profile
-        if not profile.is_employee:
-            messages.error(request, 'Access denied. Employee access required.')
-            return redirect('landing')
+        is_internal_user = profile.is_employee
+
     except UserProfile.DoesNotExist:
-        messages.error(request, 'Access denied. Employee access required.')
-        return redirect('landing')
-    
-    return render(request, 'dashboard.html')
+        # Create profile if it doesn't exist (should not happen with new registration)
+        profile = UserProfile.objects.create(
+            user=request.user,
+            is_employee=False,
+            can_share_properties=False,
+            role=None
+        )
+        is_internal_user = False
+        logger.info(f"Created missing UserProfile for user: {request.user.username}")
+
+    context = {
+        'is_internal_user': is_internal_user
+    }
+
+    return render(request, 'dashboard.html', context)
 
 @login_required
 def manage_shared_lists(request):
@@ -875,12 +962,141 @@ def manage_shared_lists(request):
     except UserProfile.DoesNotExist:
         messages.error(request, 'Permission denied.')
         return redirect('landing')
-    
+
     shared_lists = SharedPropertyList.objects.filter(created_by=request.user)
-    
+
     return render(request, 'manage_shared_lists.html', {
         'shared_lists': shared_lists
     })
+
+
+@login_required
+@require_POST
+@csrf_protect
+def delete_shared_list(request, list_id):
+    """Delete a shared property list"""
+    try:
+        profile = request.user.profile
+        if not profile.can_share_properties:
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    try:
+        shared_list = get_object_or_404(
+            SharedPropertyList,
+            id=list_id,
+            created_by=request.user
+        )
+
+        list_name = shared_list.name
+        shared_list.delete()
+
+        logger.info(f"User {request.user.username} deleted shared list: {list_name}")
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Shared list "{list_name}" deleted successfully'
+        })
+
+    except Exception as e:
+        logger.error(f"Error deleting shared list {list_id}: {str(e)}")
+        return JsonResponse({'error': f'Failed to delete list: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+@csrf_protect
+def request_property_unlock(request, property_id):
+    """
+    Request to unlock exact location of a property.
+    This can be triggered when user inquires about a property.
+    """
+    try:
+        property_obj = get_object_or_404(Property, id=property_id, is_active=True)
+
+        # Check if user already has access
+        try:
+            profile = request.user.profile
+
+            if profile.is_employee:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'You already have access to exact locations',
+                    'unlocked': True
+                })
+
+            # Check if already unlocked
+            if profile.has_unlocked_property(property_obj):
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Location already unlocked',
+                    'unlocked': True
+                })
+
+            # For now, automatically unlock on request
+            # In production, you might want to:
+            # - Send email to admin for approval
+            # - Require user to fill out a form
+            # - Require payment
+            # - Check if user has verified identity
+            profile.unlock_property(property_obj)
+
+            logger.info(f"User {request.user.username} unlocked property: {property_obj.name}")
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Exact location for {property_obj.name} is now visible',
+                'unlocked': True
+            })
+
+        except UserProfile.DoesNotExist:
+            return JsonResponse({'error': 'User profile not found'}, status=404)
+
+    except Exception as e:
+        logger.error(f"Error unlocking property {property_id}: {str(e)}")
+        return JsonResponse({'error': f'Failed to unlock property: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+@csrf_protect
+def toggle_shared_list(request, list_id):
+    """Toggle active status of a shared property list"""
+    try:
+        profile = request.user.profile
+        if not profile.can_share_properties:
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        new_status = data.get('active', True)
+
+        shared_list = get_object_or_404(
+            SharedPropertyList,
+            id=list_id,
+            created_by=request.user
+        )
+
+        shared_list.is_active = new_status
+        shared_list.save(update_fields=['is_active'])
+
+        status_text = 'activated' if new_status else 'deactivated'
+        logger.info(f"User {request.user.username} {status_text} shared list: {shared_list.name}")
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Shared list "{shared_list.name}" {status_text} successfully',
+            'is_active': shared_list.is_active
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Error toggling shared list {list_id}: {str(e)}")
+        return JsonResponse({'error': f'Failed to toggle list: {str(e)}'}, status=500)
     
     
 @login_required
@@ -922,15 +1138,14 @@ def comparison_pdf(request, property_ids=None):
         if not properties.exists():
             return JsonResponse({'error': 'No accessible properties found'}, status=404)
         
-        # TODO: Generate PDF comparison
-        # For now, return a simple response
-        from django.http import HttpResponse
+        # Generate PDF
+        generator = PropertyPDFGenerator()
+        pdf_content = generator.generate_comparison_pdf(properties, request)
         
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="property_comparison_{property_ids}.pdf"'
-        
-        # Placeholder PDF content - you'll need to implement actual PDF generation
-        response.write(b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R>>endobj 4 0 obj<</Length 44>>stream\nBT\n70 720 Td\n(Property Comparison PDF) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000010 00000 n \n0000000053 00000 n \n0000000125 00000 n \n0000000185 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n238\n%%EOF')
+        # Create response
+        response = HttpResponse(pdf_content, content_type='application/pdf')
+        filename = f"property-comparison-{property_ids.replace(',', '-')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         return response
         

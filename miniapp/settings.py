@@ -10,7 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 import os
-from decouple import config
+try:
+    from decouple import config
+except ImportError:
+    from decouple import Config
+    config = Config()
 from pathlib import Path
 
 
@@ -25,7 +29,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=None)
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
                  'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1', 
@@ -43,10 +47,20 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'django.contrib.sites',  # Required for allauth
+
+    # Third-party apps
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
+    # Local apps
     'properties',
     "storages",
- 
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -57,8 +71,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',  # Required for allauth
     'csp.middleware.CSPMiddleware',
-    
 ]
 
 ROOT_URLCONF = 'miniapp.urls'
@@ -74,6 +88,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',  # Required for allauth
             ],
         },
     },
@@ -141,6 +156,48 @@ LOGIN_REDIRECT_URL = 'landing'
 LOGOUT_REDIRECT_URL = 'landing'
 LOGIN_URL = 'login'
 
+# Django Allauth Configuration
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Allauth settings - Modern configuration
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Set to 'mandatory' in production
+ACCOUNT_SESSION_REMEMBER = True
+ACCOUNT_ADAPTER = 'properties.adapters.CustomAccountAdapter'
+
+# Suppress allauth default messages to avoid stale messages
+ACCOUNT_AUTHENTICATED_LOGIN_REDIRECTS = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+
+# Modern allauth field configuration
+ACCOUNT_LOGIN_METHODS = {'email', 'username'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'first_name', 'last_name', 'password1*', 'password2*']
+
+# Social Account settings
+SOCIALACCOUNT_ADAPTER = 'properties.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_QUERY_EMAIL = True
+
+# Google OAuth settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'APP': {
+            'client_id': config('GOOGLE_OAUTH_CLIENT_ID', default=''),
+            'secret': config('GOOGLE_OAUTH_CLIENT_SECRET', default=''),
+            'key': ''
+        }
+    }
+}
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -163,8 +220,14 @@ SECURE_REFERRER_POLICY = "same-origin"
 CSP_DEFAULT_SRC = ["'self'"]
 CSP_SCRIPT_SRC = ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"]
 CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"]
-
 CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
+CSP_CONNECT_SRC = ["'self'"]
+CSP_FORM_ACTION = ["'self'"]
+
+# CSRF Settings
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
 
 
 # File upload settings
@@ -182,14 +245,20 @@ CELERY_TIMEZONE = 'UTC'  # Optional: Set to your timezone (e.g., 'America/New_Yo
 
 # AWS Stuff
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'postgres',
+#         'USER': 'postgres',
+#         'PASSWORD': config("AWS_DATABASE_PASSWORD"),
+#         'HOST': 'realestatedb.c1k6u4kg29d6.us-east-2.rds.amazonaws.com',
+#         'PORT': '5432',
+#     }
+# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': config("AWS_DATABASE_PASSWORD"),
-        'HOST': 'realestatedb.c1k6u4kg29d6.us-east-2.rds.amazonaws.com',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 

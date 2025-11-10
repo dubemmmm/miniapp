@@ -195,27 +195,78 @@ class CurrencyConverter {
 // Initialize currency converter
 const currencyConverter = new CurrencyConverter();
 
-// Mobile menu functionality
+// Filter sidebar functionality (Mobile & Desktop)
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-const closeMobileMenu = document.getElementById('closeMobileMenu');
+const closeFilterBtn = document.getElementById('closeFilterBtn');
+const toggleFilterBtn = document.getElementById('toggleFilterBtn');
 const filterSidebar = document.getElementById('filterSidebar');
 const mobileFilterOverlay = document.getElementById('mobileFilterOverlay');
-function openMobileFilter() {
-    filterSidebar.classList.add('open');
-    mobileFilterOverlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+
+// Start with sidebar hidden
+let filterSidebarVisible = false;
+
+// Show toggle button on page load
+if (toggleFilterBtn) {
+    toggleFilterBtn.classList.remove('hidden');
 }
-function closeMobileFilter() {
-    filterSidebar.classList.remove('open');
-    mobileFilterOverlay.classList.add('hidden');
-    document.body.style.overflow = '';
+
+function openFilter() {
+    filterSidebar.classList.remove('hidden');
+    filterSidebarVisible = true;
+
+    if (window.innerWidth < 1024) {
+        // Mobile: show overlay
+        filterSidebar.classList.add('open');
+        mobileFilterOverlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    if (toggleFilterBtn) toggleFilterBtn.classList.add('hidden');
 }
-if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileFilter);
-if (closeMobileMenu) closeMobileMenu.addEventListener('click', closeMobileFilter);
-if (mobileFilterOverlay) mobileFilterOverlay.addEventListener('click', closeMobileFilter);
+
+function closeFilter() {
+    if (window.innerWidth >= 1024) {
+        // Desktop: just hide sidebar
+        filterSidebar.classList.add('hidden');
+        filterSidebarVisible = false;
+        if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
+    } else {
+        // Mobile: close overlay
+        filterSidebar.classList.remove('open');
+        filterSidebar.classList.add('hidden');
+        mobileFilterOverlay.classList.add('hidden');
+        document.body.style.overflow = '';
+        filterSidebarVisible = false;
+        if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
+    }
+}
+
+// Event listeners
+if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openFilter);
+if (closeFilterBtn) closeFilterBtn.addEventListener('click', closeFilter);
+if (toggleFilterBtn) toggleFilterBtn.addEventListener('click', openFilter);
+if (mobileFilterOverlay) mobileFilterOverlay.addEventListener('click', closeFilter);
+
 window.addEventListener('resize', function() {
     if (window.innerWidth >= 1024) {
-        closeMobileFilter();
+        // Desktop: remove mobile overlay classes
+        filterSidebar.classList.remove('open');
+        mobileFilterOverlay.classList.add('hidden');
+        document.body.style.overflow = '';
+
+        // Show/hide toggle button based on sidebar state
+        if (filterSidebarVisible) {
+            if (toggleFilterBtn) toggleFilterBtn.classList.add('hidden');
+        } else {
+            if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
+        }
+    } else {
+        // Mobile: ensure sidebar is hidden
+        if (!mobileFilterOverlay.classList.contains('hidden')) {
+            // Overlay is open, keep it open
+        } else {
+            filterSidebar.classList.add('hidden');
+        }
     }
 });
 

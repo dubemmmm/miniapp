@@ -20,14 +20,15 @@ from . import views
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from properties.views import custom_logout_view
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('properties.urls')),
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='landing'), name='logout'),
-    
+    path('logout/', custom_logout_view, name='logout'),
+    path('accounts/', include('allauth.urls')),  # Allauth URLs (includes Google OAuth)
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -10,6 +10,7 @@
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     background: #ffffff;
     border: 1px solid #e5e7eb;
+    border-radius: 16px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -24,12 +25,12 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 4px;
     background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 1;
+    z-index: 10;
 }
 
 .property-card:hover::before {
@@ -37,28 +38,35 @@
 }
 
 .property-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 
-        0 20px 40px -8px rgba(0, 0, 0, 0.15),
-        0 0 0 1px rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.3);
+    transform: translateY(-12px);
+    box-shadow:
+        0 25px 50px -12px rgba(0, 0, 0, 0.18),
+        0 0 0 1px rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
 }
 
-/* Image Gallery - Optimized */
+.property-card .p-5 {
+    padding: 1.5rem;
+}
+
+/* Image Gallery - Improved */
 .image-gallery {
     position: relative;
     overflow: hidden;
-    height: 200px;
+    height: 260px;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .image-gallery img {
     transition: transform 0.7s cubic-bezier(0.165, 0.84, 0.44, 1);
     will-change: transform;
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
 }
 
 .property-card:hover .image-gallery img {
-    transform: scale(1.1);
+    transform: scale(1.08);
 }
 
 /* Text truncation utilities */
@@ -474,7 +482,7 @@
 .filter-sidebar {
     background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     max-height: calc(100vh - 80px);
     overflow-y: auto;
     overscroll-behavior-y: contain;
@@ -483,6 +491,80 @@
     padding: 24px;
     width: 320px;
     z-index: 30;
+}
+
+.filter-sidebar.hidden {
+    transform: translateX(-100%);
+    margin-left: -320px;
+}
+
+/* Top Action Bar */
+.top-action-bar {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.5rem;
+    position: sticky;
+    top: 80px;
+    z-index: 20;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Toggle Filter Button - Compact */
+.toggle-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.toggle-filter-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.toggle-filter-btn:active {
+    transform: translateY(0);
+}
+
+.toggle-filter-btn.hidden {
+    display: none;
+}
+
+/* Property Count Display */
+.property-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    padding: 10px 18px;
+    border-radius: 10px;
+    color: #475569;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.property-count i {
+    color: #3b82f6;
+    font-size: 16px;
+}
+
+.count-number {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 16px;
+}
+
+.count-label {
+    color: #64748b;
 }
 
 .header-gradient {
@@ -897,26 +979,45 @@
         grid-template-columns: 1fr;
         gap: 20px;
     }
-    
+
+    .top-action-bar {
+        padding: 0.875rem 1rem;
+        top: 76px;
+    }
+
+    .top-action-bar .flex {
+        justify-content: center;
+    }
+
+    .property-count {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .toggle-filter-btn,
+    .property-count {
+        min-width: 140px;
+    }
+
     .header-content {
         flex-direction: column;
         gap: 16px;
         text-align: center;
     }
-    
+
     .header-actions {
         flex-wrap: wrap;
         justify-content: center;
         gap: 8px;
     }
-    
+
     .modal-content {
         max-width: 95vw;
         margin: 12px;
         border-radius: 16px;
         max-height: 90vh;
     }
-    
+
     .modal-overlay {
         padding: 12px;
     }
@@ -936,7 +1037,7 @@
     }
     
     .image-gallery {
-        height: 180px;
+        height: 220px;
     }
 }
 
@@ -944,21 +1045,21 @@
     .property-card {
         margin: 0;
     }
-    
+
     .filter-sidebar {
         width: 100vw;
     }
-    
+
     .modal-image-container {
         height: 220px;
     }
-    
+
     .header-actions {
         gap: 6px;
     }
-    
+
     .image-gallery {
-        height: 160px;
+        height: 200px;
     }
     
     .modal-content {

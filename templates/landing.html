@@ -34,7 +34,7 @@
                         <i class="fas fa-exchange-alt"></i>
                         <span id="currentCurrency">₦ NGN</span>
                     </button>
-                    {% if is_employee %}
+                    
                         <a href="{% url 'dashboard' %}" class="btn-primary text-white rounded-lg no-underline font-semibold flex items-center gap-2">
                             <i class="fas fa-map-marked-alt"></i>
                             <span class="hidden md:inline">Map View</span>
@@ -44,14 +44,7 @@
                             <span class="hidden md:inline ml-1">Manage Shares</span>
                         </a>
                         <!-- Sync Button (Visible to Employees Only) -->
-                        {% if can_sync_airtable %}
-                            <button id="syncAirtableBtn" class="btn-primary text-white rounded font-semibold flex items-center gap-2">
-                                <i class="fas fa-sync"></i>
-                                <span class="hidden md:inline">Sync with Airtable</span>
-                            </button>
-                            <span id="syncStatus" class="ml-2 text-gray-300 text-sm hidden md:block"></span>
-                        {% endif %}
-                    {% endif %}
+                    
                     {% if user.is_authenticated %}
                         <div class="flex items-center gap-2">
                             <span class="text-gray-300 text-sm hidden md:block">
@@ -81,20 +74,17 @@
     <!-- Mobile Filter Overlay -->
     <div id="mobileFilterOverlay" class="mobile-filter-overlay fixed inset-0 z-40 hidden lg:hidden"></div>
 
-    <div class="flex">
-        <!-- Filter Sidebar -->
-        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6 text-white">
-            <!-- Mobile Close Button -->
-            <div class="lg:hidden flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold">Filter Properties</h3>
-                <button id="closeMobileMenu" class="text-white p-2">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="mb-6 hidden lg:block">
-                <h3 class="text-xl font-bold mb-4">
+    <div class="flex relative">
+        <!-- Filter Sidebar - Hidden by default -->
+        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6 text-white hidden">
+            <!-- Close Button (Desktop & Mobile) -->
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">
                     <i class="fas fa-filter mr-2"></i>Filter Properties
                 </h3>
+                <button id="closeFilterBtn" class="text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
             </div>
             <!-- Currency Info -->
             <div class="currency-info mb-6">
@@ -317,9 +307,27 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex-1 p-4 lg:p-8 main-content">
-            {% if not is_employee and not is_shared_view %}
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div class="flex-1 main-content">
+            <!-- Top Bar with Actions -->
+            <div class="top-action-bar">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <!-- Toggle Filter Button -->
+                    <button id="toggleFilterBtn" class="toggle-filter-btn">
+                        <i class="fas fa-filter mr-2"></i>
+                        <span>Filters</span>
+                    </button>
+
+                    <!-- Property Count -->
+                    <div class="property-count">
+                        <i class="fas fa-home mr-2"></i>
+                        <span class="count-number">{{ properties|length }}</span>
+                        <span class="count-label">propert{{ properties|length|pluralize:"y,ies" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if not user.is_authenticated and not is_shared_view %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mx-4 lg:mx-8 mb-6">
                     <div class="flex items-center">
                         <i class="fas fa-info-circle text-yellow-600 mr-2"></i>
                         <p class="text-yellow-800">
@@ -328,9 +336,8 @@
                     </div>
                 </div>
             {% endif %}
-            <div class="mb-8">
-                <h4 class="text-2xl lg:text-xl font-bold text-gray-800 mb-2">{{ properties|length }} propert{{ properties|length|pluralize:"y,ies" }}</h4>
-            </div>
+
+            <div class="px-4 lg:px-8">
             <!-- Properties Grid -->
             <div class="property-grid">
                 {% for property in properties %}
@@ -471,6 +478,7 @@
                         </div>
                     </div>
                 {% endfor %}
+            </div>
             </div>
         </div>
     </div>
