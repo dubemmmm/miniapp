@@ -417,3 +417,162 @@ class EmployeeInvitation(models.Model):
             code = get_random_string(12, allowed_chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789').upper()
             if not EmployeeInvitation.objects.filter(code=code).exists():
                 return code
+
+
+def progress_image_path(instance, filename):
+    """Generate upload path for progress update images"""
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    return f"progress_images/{instance.progress_update.property.slug}/{filename}"
+
+
+class PropertyProgress(models.Model):
+    """Track construction/development progress for properties"""
+    STAGE_CHOICES = (
+        ('foundation', 'Foundation'),
+        ('structure', 'Structure'),
+        ('roofing', 'Roofing'),
+        ('exterior', 'Exterior Finishing'),
+        ('interior', 'Interior Finishing'),
+        ('landscaping', 'Landscaping'),
+        ('final_touches', 'Final Touches'),
+        ('completed', 'Completed'),
+    )
+
+    # Airtable tracking
+    airtable_id = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="Airtable record ID for sync purposes"
+    )
+
+    # Relationships
+    property = models.ForeignKey(
+        Property,
+        on_delete=models.CASCADE,
+        related_name='progress_updates'
+    )
+
+    # Core fields
+    stage = models.CharField(
+        max_length=20,
+        choices=STAGE_CHOICES,
+        help_text="Current construction stage"
+    )
+    progress_percentage = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        default=0,
+        help_text="Overall completion percentage (0-100)"
+    )
+    update_date = models.DateField(
+        default=timezone.now,
+        help_text="Date of this progress update"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Details about this progress update"
+    )
+    uploaded_by = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Name or email of person who added this update"
+    )
+    is_latest = models.BooleanField(
+        default=False,
+        help_text="Mark if this is the most recent update for the property"
+    )
+
+    # Multiple images support - stored as JSON array of image URLs from Airtable
+    images_data = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of image attachment data from Airtable"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last time this was synced from Airtable"
+    )
+
+    class Meta:
+        ordering = ['-update_date', '-created_at']
+        verbose_name = 'Property Progress Update'
+        verbose_name_plural = 'Property Progress Updates'
+        indexes = [
+            models.Index(fields=['airtable_id']),
+            models.Index(fields=['property', '-update_date']),
+            models.Index(fields=['stage']),
+            models.Index(fields=['is_latest']),
+        ]
+
+    def __str__(self):
+        return f"{self.property.name} - {self.get_stage_display()} ({self.progress_percentage}%)"
+
+    def save(self, *args, **kwargs):
+        # If this is marked as latest, unmark other updates for this property
+        if self.is_latest:
+            PropertyProgress.objects.filter(
+                property=self.property,
+                is_latest=True
+            ).exclude(id=self.id).update(is_latest=False)
+        super().save(*args, **kwargs)
+
+
+class PropertyProgressImage(models.Model):
+    """Individual images for progress updates (downloaded from Airtable)"""
+    # Airtable tracking
+    airtable_id = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="Unique ID for this image (progress_update_id + index)"
+    )
+
+    # Relationships
+    progress_update = models.ForeignKey(
+        PropertyProgress,
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+
+    # Core fields
+    image = models.ImageField(
+        upload_to=progress_image_path,
+        null=True,
+        blank=True
+    )
+    order = models.PositiveIntegerField(default=0)
+    caption = models.CharField(max_length=200, blank=True)
+
+    # Airtable sync fields
+    attachment_index = models.PositiveIntegerField(
+        default=0,
+        help_text="Index of attachment within Airtable record"
+    )
+    image_url_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="SHA256 hash of image URL to detect changes"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['order', 'attachment_index']
+        indexes = [
+            models.Index(fields=['airtable_id']),
+            models.Index(fields=['progress_update', 'order']),
+        ]
+
+    def __str__(self):
+        return f"{self.progress_update.property.name} - Progress Image {self.order}"

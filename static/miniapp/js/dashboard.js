@@ -3,6 +3,7 @@
 let map, properties = [], filteredProperties = [];
 let currentImageIndex = 0;
 let currencyConverter;
+let selectedPropertyIds = new Set(); // Track selected properties for comparison
 
 // Currency Converter Class
 class CurrencyConverter {
@@ -68,12 +69,43 @@ async function fetchProperties() {
         if (!response.ok) throw new Error('Failed to fetch properties');
         properties = await response.json();
         filteredProperties = properties;
+        populateYearDropdown();
         updateMap();
         updatePropertyCount();
     } catch (error) {
         console.error('Error fetching properties:', error);
         alert('Error fetching properties. Please try again later.');
     }
+}
+
+function populateYearDropdown() {
+    const completionYearSelect = document.getElementById('completionYear');
+    if (!completionYearSelect) return;
+
+    // Extract unique years from properties' completion_date (format: "Q1 2028")
+    const years = new Set();
+    properties.forEach(property => {
+        if (property.completion_date) {
+            const match = property.completion_date.match(/\d{4}/);
+            if (match) {
+                years.add(parseInt(match[0]));
+            }
+        }
+    });
+
+    // Sort years
+    const sortedYears = Array.from(years).sort((a, b) => a - b);
+
+    // Clear existing options (except the first "Year" option)
+    completionYearSelect.innerHTML = '<option value="">Year</option>';
+
+    // Add year options
+    sortedYears.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        completionYearSelect.appendChild(option);
+    });
 }
 
 function updateMap() {
@@ -228,7 +260,21 @@ function createModalHTML(property) {
             <div class="modal-body">
                 <!-- Title & Meta -->
                 <div class="property-title-section">
-                    <h1 class="property-title">${property.name}</h1>
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <h1 class="property-title">${property.name}</h1>
+                        ${window.isInternalUser ? `
+                            <label class="inline-flex items-center bg-white/95 backdrop-blur-sm px-3 py-2 rounded-lg cursor-pointer shadow-sm hover:shadow-md transition-shadow">
+                                <input
+                                    type="checkbox"
+                                    class="dashboard-property-checkbox form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
+                                    value="${property.id}"
+                                    ${selectedPropertyIds.has(property.id.toString()) ? 'checked' : ''}
+                                    onchange="togglePropertySelection(this)"
+                                >
+                                <span class="ml-2 text-sm font-semibold text-gray-700">Select for Compare</span>
+                            </label>
+                        ` : ''}
+                    </div>
                     <div class="property-meta-row">
                         <span class="meta-location"><i class="fas fa-map-marker-alt"></i> ${property.address}</span>
                         ${!property.is_exact_location ? '<span class="meta-approximate">Approx</span>' : ''}
@@ -273,6 +319,67 @@ function createModalHTML(property) {
                     <h2 class="section-heading">Amenities & Features</h2>
                     <div class="amenities-wrap">
                         ${property.amenities.map(a => `<div class="amenity-pill"><i class="fas fa-check-circle"></i> ${a}</div>`).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Construction Progress (Only shown to users with exact location access) -->
+                ${property.progress_updates && property.progress_updates.length > 0 ? `
+                <div class="property-section">
+                    <h2 class="section-heading"><i class="fas fa-hard-hat" style="margin-right: 8px;"></i>Construction Progress</h2>
+                    <div class="progress-timeline">
+                        ${property.progress_updates.map((update) => `
+                            <div class="progress-card ${update.is_latest ? 'latest-update' : ''}">
+                                ${update.is_latest ? `
+                                    <div class="latest-badge">
+                                        <i class="fas fa-check-circle"></i> Latest Update
+                                    </div>
+                                ` : ''}
+                                <div class="progress-header">
+                                    <div class="progress-info">
+                                        <h3 class="progress-stage">${update.stage}</h3>
+                                        <p class="progress-date">
+                                            <i class="far fa-calendar"></i>
+                                            ${new Date(update.update_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div class="progress-percent">
+                                        <div class="percent-number">${update.progress_percentage}%</div>
+                                        <div class="percent-label">Complete</div>
+                                    </div>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" style="width: ${update.progress_percentage}%"></div>
+                                </div>
+                                ${update.description ? `
+                                    <p class="progress-description">${update.description}</p>
+                                ` : ''}
+                                ${update.uploaded_by ? `
+                                    <p class="progress-uploader">
+                                        <i class="fas fa-user-circle"></i> Updated by ${update.uploaded_by}
+                                    </p>
+                                ` : ''}
+                                ${update.images && update.images.length > 0 ? `
+                                    <div class="progress-images-section">
+                                        <p class="progress-images-title">
+                                            <i class="fas fa-images"></i> Progress Photos (${update.images.length})
+                                        </p>
+                                        <div class="progress-images-grid">
+                                            ${update.images.slice(0, 4).map((img, imgIndex) => `
+                                                <div class="progress-image-item" onclick="window.open('${img}', '_blank')">
+                                                    <img src="${img}" alt="Progress ${imgIndex + 1}" loading="lazy">
+                                                    ${imgIndex === 3 && update.images.length > 4 ? `
+                                                        <div class="progress-image-overlay">
+                                                            +${update.images.length - 4} more
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
                 ` : ''}
@@ -500,12 +607,34 @@ function applyFilters() {
     const minBathrooms = parseInt(document.getElementById('minBathrooms') ? document.getElementById('minBathrooms').value : 0) || null;
     const maxBathrooms = parseInt(document.getElementById('maxBathrooms') ? document.getElementById('maxBathrooms').value : 0) || null;
     const luxuryStatus = document.getElementById('luxuryStatus') ? document.getElementById('luxuryStatus').value : 'all';
-    // ✅ Get selected completion date (YYYY-MM-DD)
-    const completionDateInputEl = document.getElementById('completionDate');
-    const completionDateSelectedStr = completionDateInputEl && completionDateInputEl.value ? completionDateInputEl.value : null;
-    const completionDateSelected = completionDateSelectedStr ? new Date(completionDateSelectedStr) : null;
-    console.log(completionDateSelected)
-    if (completionDateSelected) completionDateSelected.setHours(0, 0, 0, 0);
+
+    // ✅ Get selected completion quarter and year
+    const completionQuarter = document.getElementById('completionQuarter') ? document.getElementById('completionQuarter').value : '';
+    const completionYear = document.getElementById('completionYear') ? document.getElementById('completionYear').value : '';
+
+    // Convert quarter and year to date range
+    let completionStartDate = null;
+    let completionEndDate = null;
+
+    if (completionQuarter && completionYear) {
+        const year = parseInt(completionYear);
+        const quarter = parseInt(completionQuarter);
+
+        const quarterDates = {
+            1: { startMonth: 0, startDay: 1, endMonth: 2, endDay: 31 },    // Q1: Jan 1 - Mar 31
+            2: { startMonth: 3, startDay: 1, endMonth: 5, endDay: 30 },    // Q2: Apr 1 - Jun 30
+            3: { startMonth: 6, startDay: 1, endMonth: 8, endDay: 30 },    // Q3: Jul 1 - Sep 30
+            4: { startMonth: 9, startDay: 1, endMonth: 11, endDay: 31 }    // Q4: Oct 1 - Dec 31
+        };
+
+        if (quarterDates[quarter]) {
+            const q = quarterDates[quarter];
+            completionStartDate = new Date(year, q.startMonth, q.startDay);
+            completionEndDate = new Date(year, q.endMonth, q.endDay);
+            completionStartDate.setHours(0, 0, 0, 0);
+            completionEndDate.setHours(23, 59, 59, 999);
+        }
+    }
 
     // Convert input prices to NGN (base currency) for filtering
     const minPriceNGN = currencyConverter.currentCurrency === 'USD'
@@ -516,20 +645,11 @@ function applyFilters() {
         : maxPriceInput;
 
     filteredProperties = properties.filter(p => {
-        // ✅ Completion date check (only if user selected a date)
-    let matchesCompletionDate = true;
-        if (completionDateSelected) {
-            if (!p.completion_date) {
-                matchesCompletionDate = false; // no date -> exclude when filter is active
-            } else {
-                const propDate = new Date(p.completion_date);
-                if (isNaN(propDate.getTime())) {
-                    matchesCompletionDate = false; // invalid date -> exclude when filter is active
-                } else {
-                    propDate.setHours(0, 0, 0, 0);
-                    matchesCompletionDate = propDate.getTime() <= completionDateSelected.getTime();
-                }
-            }
+        // ✅ Completion period check (quarter and year)
+        let matchesCompletionDate = true;
+        if (completionQuarter && completionYear) {
+            const expectedQuarterString = `Q${completionQuarter} ${completionYear}`;
+            matchesCompletionDate = p.completion_date === expectedQuarterString;
         }
         let matchesLuxury = true;
         if (luxuryStatus !== 'all') {
@@ -572,8 +692,9 @@ function clearFilters() {
     const maxBathroomsInput = document.getElementById('maxBathrooms');
     const luxuryStatusInput = document.getElementById('luxuryStatus');
     const searchInputSidebar = document.getElementById('searchInputSidebar');
-    const completionDateInputEl = document.getElementById('completionDate');
-    
+    const completionQuarterEl = document.getElementById('completionQuarter');
+    const completionYearEl = document.getElementById('completionYear');
+
     if (minPriceInput) minPriceInput.value = '';
     if (maxPriceInput) maxPriceInput.value = '';
     if (minBedroomsInput) minBedroomsInput.value = '';
@@ -582,7 +703,8 @@ function clearFilters() {
     if (maxBathroomsInput) maxBathroomsInput.value = '';
     if (luxuryStatusInput) luxuryStatusInput.value = 'all';
     if (searchInputSidebar) searchInputSidebar.value = '';
-    if (completionDateInputEl) completionDateInputEl.value = '';
+    if (completionQuarterEl) completionQuarterEl.value = '';
+    if (completionYearEl) completionYearEl.value = '';
     
     filteredProperties = properties;
     updateMap();
@@ -643,7 +765,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initMap();
     currencyConverter = new CurrencyConverter();
     fetchProperties();
-    
+
+    // Initialize compare button
+    updateDashboardCompareButton();
+
     const searchInput = document.getElementById('searchInput');
     const searchInputSidebar = document.getElementById('searchInputSidebar');
     const luxuryStatus = document.getElementById('luxuryStatus');
@@ -653,8 +778,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const maxBathrooms = document.getElementById('maxBathrooms');
     const minPrice = document.getElementById('minPrice');
     const maxPrice = document.getElementById('maxPrice');
-    const completionDate = document.getElementById('completionDate');
-    
+    const completionQuarter = document.getElementById('completionQuarter');
+    const completionYear = document.getElementById('completionYear');
+
     if (searchInput) searchInput.addEventListener('input', handleSearch);
     if (searchInputSidebar) searchInputSidebar.addEventListener('input', handleSearch);
     if (luxuryStatus) luxuryStatus.addEventListener('change', updateLuxuryStatusDisplay);
@@ -664,12 +790,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (maxBathrooms) maxBathrooms.addEventListener('input', () => updateRangeDisplay('Bathrooms'));
     if (minPrice) minPrice.addEventListener('input', updatePriceDisplay);
     if (maxPrice) maxPrice.addEventListener('input', updatePriceDisplay);
-    if (completionDate) completionDate.addEventListener('change', () => {
+
+    // Update completion period display
+    const updateCompletionDisplay = () => {
         const completionDateDisplay = document.getElementById('completionDateDisplay');
-        if (completionDateDisplay) {
-            completionDateDisplay.textContent = completionDate.value ? `By ${completionDate.value}` : 'Any date';
+        if (completionDateDisplay && completionQuarter && completionYear) {
+            if (completionQuarter.value && completionYear.value) {
+                completionDateDisplay.textContent = `Q${completionQuarter.value} ${completionYear.value}`;
+            } else {
+                completionDateDisplay.textContent = 'Any period';
+            }
         }
-    });
+    };
+
+    if (completionQuarter) completionQuarter.addEventListener('change', updateCompletionDisplay);
+    if (completionYear) completionYear.addEventListener('change', updateCompletionDisplay);
     
     if (searchBox) {
         searchBox.style.left = (window.innerWidth / 2 - (window.innerWidth < 768 ? window.innerWidth / 2 - 10 : 150)) + 'px';
@@ -790,3 +925,178 @@ function showNotification(message, type = 'info') {
         setTimeout(() => notification.remove(), 300);
     }, 4000);
 }
+
+// Dashboard Property Comparison Functionality
+function togglePropertySelection(checkbox) {
+    const propertyId = checkbox.value;
+
+    if (checkbox.checked) {
+        selectedPropertyIds.add(propertyId);
+    } else {
+        selectedPropertyIds.delete(propertyId);
+    }
+
+    updateDashboardCompareButton();
+}
+
+function updateDashboardCompareButton() {
+    const count = selectedPropertyIds.size;
+
+    const countSpan = document.getElementById('dashboardSelectedCount');
+    if (countSpan) {
+        countSpan.textContent = count;
+    }
+
+    const compareBtn = document.getElementById('dashboardCompareBtn');
+    if (compareBtn) {
+        compareBtn.disabled = count < 2;
+        if (count >= 2) {
+            compareBtn.title = `Compare ${count} properties`;
+        } else {
+            compareBtn.title = 'Select 2+ properties to compare';
+        }
+    }
+}
+
+// Compare Selected Properties
+async function compareDashboardProperties() {
+    const selectedProperties = Array.from(selectedPropertyIds);
+
+    if (selectedProperties.length < 2) {
+        showNotification('Please select at least 2 properties to compare', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('comparisonModal');
+    const content = document.getElementById('comparisonContent');
+
+    content.innerHTML = `
+        <div class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span class="ml-3 text-gray-600">Loading comparison...</span>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    try {
+        const response = await fetch(URLS.compareProperties, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ property_ids: selectedProperties })
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch comparison data');
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+
+        content.innerHTML = buildComparisonTable(data.properties);
+
+        const pdfLink = document.getElementById('downloadComparisonPdf');
+        if (pdfLink) {
+            pdfLink.href = data.comparison_url;
+        }
+    } catch (error) {
+        console.error('Error fetching comparison:', error);
+        content.innerHTML = `
+            <div class="text-center py-12">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                    <h3 class="text-lg font-semibold text-red-800 mb-2">Error Loading Comparison</h3>
+                    <p class="text-red-600 mb-4">We couldn't load the comparison. Please try again.</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function buildComparisonTable(properties) {
+    let html = '<div class="overflow-x-auto"><table class="min-w-full border-collapse">';
+    // Headers
+    html += '<thead><tr class="bg-gray-100">';
+    html += '<th class="p-4 border text-left font-bold text-gray-800">Feature</th>';
+    properties.forEach(prop => {
+        html += `<th class="p-4 border text-center font-bold text-gray-800">${prop.name}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // Features
+    const features = [
+        { key: 'address', label: 'Address', format: v => v || 'N/A' },
+        { key: 'luxury_status', label: 'Luxury Status', format: v => v === 'luxurious' ? '<span class="text-amber-600 font-semibold"><i class="fas fa-crown mr-1"></i>Luxurious</span>' : 'Non-Luxurious' },
+        { key: 'min_price', label: 'Min Price', format: v => {
+            if (!v) return 'On Request';
+            if (currencyConverter.currentCurrency === 'USD') {
+                const usd = v / currencyConverter.exchangeRate;
+                return `$${usd < 1000 ? usd.toLocaleString('en-US', {maximumFractionDigits: 0}) : (usd/1000).toFixed(1) + 'K'}`;
+            } else {
+                return `₦${v.toLocaleString()}`;
+            }
+        }},
+        { key: 'description', label: 'Description', format: v => v || 'N/A' },
+        { key: 'contact_phone', label: 'Contact Phone', format: v => v || 'N/A' },
+        { key: 'amenities', label: 'Amenities', format: v => v.length > 0 ? v.join(', ') : 'None' },
+        { key: 'configurations', label: 'Configurations', format: v => v.map(c => {
+            let price = c.price;
+            if (price) {
+                if (currencyConverter.currentCurrency === 'USD') {
+                    price = price / currencyConverter.exchangeRate;
+                    price = `$${price < 1000 ? price.toLocaleString('en-US', {maximumFractionDigits: 0}) : (price/1000).toFixed(1) + 'K'}`;
+                } else {
+                    price = `₦${price.toLocaleString()}`;
+                }
+            } else {
+                price = 'TBD';
+            }
+            return `${c.bedrooms} Bed, ${c.bathrooms} Bath - ${price}`;
+        }).join('<br>') || 'N/A' }
+    ];
+
+    features.forEach(feature => {
+        html += `<tr class="hover:bg-gray-50"><td class="p-4 border font-semibold text-gray-700">${feature.label}</td>`;
+        properties.forEach(prop => {
+            let value = prop[feature.key];
+            value = feature.format(value);
+            html += `<td class="p-4 border text-gray-600">${value}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    return html;
+}
+
+function closeDashboardComparisonModal() {
+    const modal = document.getElementById('comparisonModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Event listener for compare button
+const dashboardCompareBtn = document.getElementById('dashboardCompareBtn');
+if (dashboardCompareBtn) {
+    dashboardCompareBtn.addEventListener('click', compareDashboardProperties);
+}
+
+// Click outside modal to close
+const comparisonModal = document.getElementById('comparisonModal');
+if (comparisonModal) {
+    comparisonModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDashboardComparisonModal();
+        }
+    });
+}
+
+// Escape key to close
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('comparisonModal');
+    if (modal && modal.style.display !== 'none' && e.key === 'Escape') {
+        closeDashboardComparisonModal();
+    }
+});

@@ -491,11 +491,17 @@
     padding: 24px;
     width: 320px;
     z-index: 30;
+    flex-shrink: 0;
 }
 
+/* Desktop: Hide sidebar by collapsing width and translating */
 .filter-sidebar.hidden {
     transform: translateX(-100%);
+    width: 0;
+    padding: 0;
     margin-left: -320px;
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* Top Action Bar */
@@ -978,6 +984,12 @@
     .property-grid {
         grid-template-columns: 1fr;
         gap: 20px;
+        padding: 0 16px;
+    }
+
+    .property-card {
+        margin: 0 auto;
+        width: 100%;
     }
 
     .top-action-bar {
@@ -986,17 +998,22 @@
     }
 
     .top-action-bar .flex {
-        justify-content: center;
+        justify-content: space-between;
+        width: 100%;
     }
 
     .property-count {
         flex: 1;
-        justify-content: center;
+        justify-content: flex-end;
+    }
+
+    .toggle-filter-btn {
+        flex-shrink: 0;
     }
 
     .toggle-filter-btn,
     .property-count {
-        min-width: 140px;
+        min-width: auto;
     }
 
     .header-content {

@@ -3,7 +3,8 @@ from django.utils.html import format_html
 from django.utils import timezone
 from .models import (
     Property, PropertyConfiguration, PropertyImage, PropertyAmenity,
-    SharedPropertyList, UserProfile, AirtableSyncLog, EmployeeInvitation
+    SharedPropertyList, UserProfile, AirtableSyncLog, EmployeeInvitation,
+    PropertyProgress, PropertyProgressImage
 )
 
 
@@ -422,3 +423,138 @@ class EmployeeInvitationAdmin(admin.ModelAdmin):
         )
 
     generate_invitation_codes.short_description = "Generate 5 new invitation codes"
+
+
+class PropertyProgressImageInline(admin.TabularInline):
+    model = PropertyProgressImage
+    extra = 0
+    readonly_fields = ['airtable_id', 'image_preview', 'last_synced_at', 'image_url_hash']
+    fields = ['image', 'image_preview', 'caption', 'order', 'airtable_id']
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 50px; max-width: 100px;" />',
+                obj.image.url
+            )
+        return "No image"
+    image_preview.short_description = 'Preview'
+
+
+@admin.register(PropertyProgress)
+class PropertyProgressAdmin(admin.ModelAdmin):
+    list_display = [
+        'property',
+        'stage',
+        'progress_percentage',
+        'update_date',
+        'is_latest',
+        'uploaded_by',
+        'image_count',
+        'airtable_id',
+        'last_synced_at'
+    ]
+    list_filter = ['stage', 'is_latest', 'update_date', 'last_synced_at']
+    search_fields = ['property__name', 'description', 'uploaded_by', 'airtable_id']
+    readonly_fields = [
+        'airtable_id',
+        'last_synced_at',
+        'created_at',
+        'updated_at',
+        'image_count'
+    ]
+    list_select_related = ['property']
+    date_hierarchy = 'update_date'
+    inlines = [PropertyProgressImageInline]
+
+    fieldsets = (
+        ('Property Link', {
+            'fields': ('property',)
+        }),
+        ('Progress Details', {
+            'fields': ('stage', 'progress_percentage', 'update_date', 'is_latest')
+        }),
+        ('Description & Uploader', {
+            'fields': ('description', 'uploaded_by')
+        }),
+        ('Images Data (from Airtable)', {
+            'fields': ('images_data',),
+            'classes': ('collapse',)
+        }),
+        ('Sync Information', {
+            'fields': ('airtable_id', 'last_synced_at'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def image_count(self, obj):
+        return obj.images.count()
+    image_count.short_description = 'Images'
+
+
+@admin.register(PropertyProgressImage)
+class PropertyProgressImageAdmin(admin.ModelAdmin):
+    list_display = [
+        'progress_update',
+        'image_preview',
+        'caption',
+        'order',
+        'airtable_id',
+        'last_synced_at'
+    ]
+    list_filter = ['order', 'last_synced_at', 'created_at']
+    search_fields = ['progress_update__property__name', 'caption', 'airtable_id']
+    readonly_fields = [
+        'airtable_id',
+        'attachment_index',
+        'image_url_hash',
+        'last_synced_at',
+        'created_at',
+        'updated_at',
+        'image_preview_large'
+    ]
+    list_select_related = ['progress_update', 'progress_update__property']
+    ordering = ['progress_update', 'order']
+
+    fieldsets = (
+        ('Progress Update Link', {
+            'fields': ('progress_update',)
+        }),
+        ('Image Details', {
+            'fields': ('image', 'image_preview_large', 'caption', 'order')
+        }),
+        ('Airtable Sync Details', {
+            'fields': ('airtable_id', 'attachment_index', 'image_url_hash'),
+            'classes': ('collapse',)
+        }),
+        ('Sync Information', {
+            'fields': ('last_synced_at',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 50px; max-width: 100px;" />',
+                obj.image.url
+            )
+        return "No image"
+    image_preview.short_description = 'Preview'
+
+    def image_preview_large(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 200px; max-width: 300px;" />',
+                obj.image.url
+            )
+        return "No image"
+    image_preview_large.short_description = 'Large Preview'

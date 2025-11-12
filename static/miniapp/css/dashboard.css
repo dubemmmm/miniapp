@@ -5,6 +5,14 @@
     --primary-light: #4A5568;
     --accent: #718096;
 }
+
+/* FORCE LOGOUT BUTTON TO SHOW ON ALL DEVICES */
+.user-action-btn,
+.user-action-btn span {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
 .leaflet-container { height: 100vh; width: 100%; }
 .custom-marker {
     border: 2px solid var(--primary-light);
@@ -88,7 +96,8 @@
     position: relative;
     box-sizing: border-box;
 }
-.modal-close-button {
+.modal-close-button,
+.modal-close-btn {
     position: absolute;
     top: 12px;
     right: 12px;
@@ -109,8 +118,11 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border: none;
+    outline: none;
 }
-.modal-close-button:hover {
+.modal-close-button:hover,
+.modal-close-btn:hover {
     background: rgba(0, 0, 0, 0.8);
     transform: scale(1.1);
     border-color: #ffffff;
@@ -556,9 +568,26 @@
         right: 10px;
         gap: 6px;
     }
+
+    /* Ensure logo/logout container is visible on mobile */
+    .absolute.top-4.left-4 {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 1000 !important;
+    }
+
+    .logo-container {
+        display: block !important;
+    }
+
     .user-action-btn {
+        display: inline-flex !important;
         padding: 8px 12px;
         font-size: 12px;
+    }
+    .user-action-btn span {
+        display: inline !important;
     }
     .user-action-btn i {
         font-size: 14px;
@@ -1370,4 +1399,203 @@ button[id^="unlockBtn"]:disabled {
         font-size: 9px;
         padding: 3px 8px;
     }
+
+    .progress-timeline {
+        gap: 10px;
+    }
+
+    .progress-card {
+        padding: 12px;
+    }
+
+    .progress-stage {
+        font-size: 14px;
+    }
+
+    .progress-date {
+        font-size: 10px;
+    }
+
+    .percent-number {
+        font-size: 20px;
+    }
+
+    .percent-label {
+        font-size: 9px;
+    }
+
+    .progress-description {
+        font-size: 11px;
+    }
+
+    .progress-images-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .progress-image-item img {
+        height: 60px;
+    }
+}
+
+/* Progress Timeline Styles */
+.progress-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.progress-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.progress-card.latest-update {
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.latest-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #d1fae5;
+    color: #065f46;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.progress-info {
+    flex: 1;
+}
+
+.progress-stage {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 6px 0;
+}
+
+.progress-date {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.progress-percent {
+    text-align: right;
+}
+
+.percent-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2563eb;
+    line-height: 1;
+}
+
+.percent-label {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 10px;
+    background: #e5e7eb;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    transition: width 0.5s ease;
+    border-radius: 5px;
+}
+
+.progress-description {
+    color: #4b5563;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0 0 12px 0;
+}
+
+.progress-uploader {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.progress-images-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.progress-images-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.progress-images-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.progress-image-item {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+
+.progress-image-item:hover {
+    transform: scale(1.05);
+}
+
+.progress-image-item img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+}
+
+.progress-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
 }

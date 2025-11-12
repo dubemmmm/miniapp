@@ -48,6 +48,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def format_date_as_quarter(date_obj):
+    """Convert a date object to quarter format (e.g., 'Q1 2028')"""
+    if not date_obj:
+        return None
+
+    month = date_obj.month
+    year = date_obj.year
+
+    if month <= 3:
+        quarter = 1
+    elif month <= 6:
+        quarter = 2
+    elif month <= 9:
+        quarter = 3
+    else:
+        quarter = 4
+
+    return f"Q{quarter} {year}"
+
+
 # Create your views here.
 @login_required
 def landing_view(request):
@@ -88,7 +108,8 @@ def landing_view(request):
         'max_bedrooms': request.GET.get('max_bedrooms', ''),
         'min_bathrooms': request.GET.get('min_bathrooms', ''),
         'max_bathrooms': request.GET.get('max_bathrooms', ''),
-        'completion_date': request.GET.get('completion_date', ''),
+        'completion_quarter': request.GET.get('completion_quarter', ''),
+        'completion_year': request.GET.get('completion_year', ''),
         'min_square_footage': request.GET.get('min_square_footage', ''),
         'max_square_footage': request.GET.get('max_square_footage', ''),
     }
@@ -147,12 +168,31 @@ def landing_view(request):
         except ValueError:
             pass
     
-    # Filter by completion date
-    if filters['completion_date']:
+    # Filter by completion quarter and year
+    if filters['completion_quarter'] and filters['completion_year']:
         try:
-            completion_date = datetime.strptime(filters['completion_date'], '%Y-%m-%d').date()
-            properties = properties.filter(completion_date__lte=completion_date)
-        except ValueError:
+            quarter = int(filters['completion_quarter'])
+            year = int(filters['completion_year'])
+
+            # Map quarter to date range
+            quarter_dates = {
+                1: (1, 1, 3, 31),    # Q1: Jan 1 - Mar 31
+                2: (4, 1, 6, 30),    # Q2: Apr 1 - Jun 30
+                3: (7, 1, 9, 30),    # Q3: Jul 1 - Sep 30
+                4: (10, 1, 12, 31),  # Q4: Oct 1 - Dec 31
+            }
+
+            if quarter in quarter_dates:
+                start_month, start_day, end_month, end_day = quarter_dates[quarter]
+                start_date = datetime(year, start_month, start_day).date()
+                end_date = datetime(year, end_month, end_day).date()
+
+                # Filter properties with completion date within the quarter
+                properties = properties.filter(
+                    completion_date__gte=start_date,
+                    completion_date__lte=end_date
+                )
+        except (ValueError, TypeError):
             pass
         
     # square footage filters (based on configurations)
@@ -182,6 +222,14 @@ def landing_view(request):
     # Get filter ranges for form inputs
     all_configs = PropertyConfiguration.objects.filter(is_available=True, property__is_active=True)
 
+    # Get available years from completion dates
+    completion_years = Property.objects.filter(
+        is_active=True,
+        completion_date__isnull=False
+    ).dates('completion_date', 'year').distinct()
+
+    available_years = [date.year for date in completion_years]
+
     filter_ranges = {
         'luxury_choices': Property.luxury_status.field.choices,
         'price_range': all_configs.aggregate(min_price=Min('price'), max_price=Max('price')),
@@ -191,7 +239,8 @@ def landing_view(request):
             min_square_footage=Min('square_footage'),
             max_square_footage=Max('square_footage')
         ),
-        
+        'available_years': available_years,
+
     }
     # Determine if user can see exact locations
     is_internal_user = is_employee
@@ -309,7 +358,7 @@ def properties_api(request):
     from .location_utils import get_property_location_data
 
     properties = Property.objects.filter(is_active=True).prefetch_related(
-        'configurations', 'images', 'amenities'
+        'configurations', 'images', 'amenities', 'progress_updates__images'
     )
 
     properties_data = []
@@ -330,6 +379,28 @@ def properties_api(request):
             for config in prop.configurations.all()
         ]
         amenities = [amenity.name for amenity in prop.amenities.all()]
+
+        # Include progress updates only if user has exact location access
+        progress_updates = []
+        if location_data['is_exact']:
+            for update in prop.progress_updates.all().order_by('-update_date'):
+                progress_images = [
+                    request.build_absolute_uri(img.image.url)
+                    for img in update.images.all()
+                    if img.image
+                ]
+                progress_updates.append({
+                    'id': update.id,
+                    'stage': update.get_stage_display(),
+                    'stage_code': update.stage,
+                    'progress_percentage': update.progress_percentage,
+                    'update_date': update.update_date.strftime('%Y-%m-%d'),
+                    'description': update.description,
+                    'uploaded_by': update.uploaded_by,
+                    'is_latest': update.is_latest,
+                    'images': progress_images
+                })
+
         properties_data.append({
             'id': prop.id,
             'name': prop.name,
@@ -346,7 +417,8 @@ def properties_api(request):
             'contact': f"{prop.contact_name} - {prop.contact_phone}" if location_data['is_exact'] else "Contact available after inquiry",
             'brochure': request.build_absolute_uri(prop.brochure.url) if prop.brochure else "",
             'luxury_status': prop.get_luxury_status_display(),
-            'completion_date': prop.completion_date
+            'completion_date': format_date_as_quarter(prop.completion_date),
+            'progress_updates': progress_updates
 
         })
 
@@ -356,7 +428,7 @@ def property_detail_api(request, property_id):
     from .location_utils import get_property_location_data
 
     property = get_object_or_404(Property.objects.prefetch_related(
-        'configurations', 'images', 'amenities'
+        'configurations', 'images', 'amenities', 'progress_updates__images'
     ), id=property_id, is_active=True)
 
     # Get location data based on user permissions
@@ -376,6 +448,27 @@ def property_detail_api(request, property_id):
     ]
     amenities = [amenity.name for amenity in property.amenities.all()]
 
+    # Include progress updates only if user has exact location access (employees or shared link users)
+    progress_updates = []
+    if location_data['is_exact']:
+        for update in property.progress_updates.all().order_by('-update_date'):
+            progress_images = [
+                request.build_absolute_uri(img.image.url)
+                for img in update.images.all()
+                if img.image
+            ]
+            progress_updates.append({
+                'id': update.id,
+                'stage': update.get_stage_display(),
+                'stage_code': update.stage,
+                'progress_percentage': update.progress_percentage,
+                'update_date': update.update_date.strftime('%Y-%m-%d'),
+                'description': update.description,
+                'uploaded_by': update.uploaded_by,
+                'is_latest': update.is_latest,
+                'images': progress_images
+            })
+
     property_data = {
         'id': property.id,
         'name': property.name,
@@ -392,7 +485,8 @@ def property_detail_api(request, property_id):
         'contact': f"{property.contact_name} - {property.contact_phone}" if location_data['is_exact'] else "Contact available after inquiry",
         'brochure': request.build_absolute_uri(property.brochure.url) if property.brochure else "",
         'luxury_status': property.get_luxury_status_display(),
-        'completion_date': property.completion_date
+        'completion_date': format_date_as_quarter(property.completion_date),
+        'progress_updates': progress_updates
     }
 
     return JsonResponse(property_data)

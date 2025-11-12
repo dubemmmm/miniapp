@@ -14,57 +14,87 @@
 <body class="bg-gray-50">
     <!-- Header -->
     <header class="header-gradient text-white shadow-lg sticky top-0 z-40">
-        <div class="container mx-auto px-4 lg:px-6 py-4">
-            <div class="flex justify-between items-center header-content">
-                <div class="flex items-center gap-4">
-                    <!-- Mobile Hamburger Menu -->
-                    <button id="mobileMenuBtn" class="lg:hidden hamburger-btn text-white p-3 rounded-lg">
-                        <i class="fas fa-bars text-lg"></i>
-                    </button>
-                    <!-- Logo -->
-                    <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Company Logo" class="logo-img">
-                    <div>
-                        <h1 class="text-2xl lg:text-3xl font-bold">Real Estate Properties</h1>
-                        <p class="text-gray-300 text-sm">Find your perfect home</p>
+        <div class="container mx-auto px-4 lg:px-6 py-3 lg:py-4">
+            <!-- Desktop and Mobile Layout -->
+            <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 lg:gap-4">
+                <!-- Top Row: Logo and Primary Actions -->
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <!-- Mobile Hamburger Menu -->
+                        <button id="mobileMenuBtn" class="lg:hidden hamburger-btn text-white p-2 rounded-lg">
+                            <i class="fas fa-bars text-lg"></i>
+                        </button>
+                        <!-- Logo -->
+                        <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Company Logo" class="logo-img h-10 lg:h-12">
+                        <div class="hidden sm:block">
+                            <h1 class="text-lg sm:text-xl lg:text-2xl font-bold leading-tight">Real Estate Properties</h1>
+                            <p class="text-gray-300 text-xs lg:text-sm">Find your perfect home</p>
+                        </div>
                     </div>
-                </div>
-                <div class="flex items-center gap-4 header-actions">
-                    <!-- Currency Toggle -->
-                    <button id="currencyToggle" class="currency-toggle flex items-center gap-2">
-                        <i class="fas fa-exchange-alt"></i>
-                        <span id="currentCurrency">₦ NGN</span>
-                    </button>
-                    
-                        <a href="{% url 'dashboard' %}" class="btn-primary text-white rounded-lg no-underline font-semibold flex items-center gap-2">
-                            <i class="fas fa-map-marked-alt"></i>
-                            <span class="hidden md:inline">Map View</span>
-                        </a>
-                        <a href="{% url 'manage_shared_lists' %}" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
-                            <i class="fas fa-share-alt"></i>
-                            <span class="hidden md:inline ml-1">Manage Shares</span>
-                        </a>
-                        <!-- Sync Button (Visible to Employees Only) -->
-                    
+
+                    <!-- Mobile: User Info (Icon Only) -->
                     {% if user.is_authenticated %}
-                        <div class="flex items-center gap-2">
-                            <span class="text-gray-300 text-sm hidden md:block">
+                        <div class="lg:hidden flex items-center gap-2">
+                            <span class="text-gray-300 text-xs">
+                                <i class="fas fa-user-circle"></i>
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Bottom Row: Action Buttons (Responsive Grid) -->
+                <div class="flex flex-wrap items-center gap-2 lg:gap-3">
+                    <!-- Currency Toggle -->
+                    <button id="currencyToggle" class="currency-toggle flex items-center gap-1.5 px-3 py-2 lg:px-4 lg:py-2 text-sm">
+                        <i class="fas fa-exchange-alt text-xs lg:text-sm"></i>
+                        <span id="currentCurrency" class="text-xs lg:text-sm font-semibold">₦ NGN</span>
+                    </button>
+
+                    {% if is_employee %}
+                        <!-- Compare Button (Employees Only) -->
+                        <button
+                            id="compareSelectedBtn"
+                            class="btn-primary text-white rounded-lg font-semibold flex items-center gap-1.5 px-3 py-2 lg:px-4 lg:py-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            disabled
+                            title="Select 2+ properties to compare"
+                        >
+                            <i class="fas fa-balance-scale text-xs lg:text-sm"></i>
+                            <span class="hidden sm:inline">Compare</span>
+                            <span class="font-bold">(<span class="selected-count">0</span>)</span>
+                        </button>
+                    {% endif %}
+
+                    <!-- Map View -->
+                    <a href="{% url 'dashboard' %}" class="btn-primary text-white rounded-lg no-underline font-semibold flex items-center gap-1.5 px-3 py-2 lg:px-4 lg:py-2 text-sm">
+                        <i class="fas fa-map-marked-alt text-xs lg:text-sm"></i>
+                        <span class="hidden sm:inline">Map View</span>
+                    </a>
+
+                    <!-- Manage Shares -->
+                    <a href="{% url 'manage_shared_lists' %}" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-2 text-sm">
+                        <i class="fas fa-share-alt text-xs lg:text-sm"></i>
+                        <span class="hidden sm:inline">Shares</span>
+                    </a>
+
+                    <!-- User Actions -->
+                    {% if user.is_authenticated %}
+                        <div class="hidden lg:flex items-center gap-2 border-l border-gray-600 pl-3">
+                            <span class="text-gray-300 text-sm">
                                 Hello, {{ user.get_full_name|default:user.username }}
                             </span>
-                            <form method="post" action="{% url 'logout' %}">
-                                {% csrf_token %}
-                                <button type="submit" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    <span class="hidden md:inline">Log Out</span>
-                                </button>
-                            </form>
                         </div>
+                        <form method="post" action="{% url 'logout' %}" class="m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-2 text-sm">
+                                <i class="fas fa-sign-out-alt text-xs lg:text-sm"></i>
+                                <span class="hidden sm:inline">Logout</span>
+                            </button>
+                        </form>
                     {% else %}
-                        <div class="flex items-center gap-2">
-                            <a href="{% url 'login' %}" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1">
-                                <i class="fas fa-sign-in-alt"></i>
-                                <span class="hidden md:inline">Login</span>
-                            </a>
-                        </div>
+                        <a href="{% url 'login' %}" class="text-gray-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-2 text-sm">
+                            <i class="fas fa-sign-in-alt text-xs lg:text-sm"></i>
+                            <span class="hidden sm:inline">Login</span>
+                        </a>
                     {% endif %}
                 </div>
             </div>
@@ -74,15 +104,15 @@
     <!-- Mobile Filter Overlay -->
     <div id="mobileFilterOverlay" class="mobile-filter-overlay fixed inset-0 z-40 hidden lg:hidden"></div>
 
-    <div class="flex relative">
-        <!-- Filter Sidebar - Hidden by default -->
-        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6 text-white hidden">
-            <!-- Close Button (Desktop & Mobile) -->
+    <div class="flex">
+        <!-- Filter Sidebar -->
+        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6 text-white">
+            <!-- Close Button - Shows on All Devices -->
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-filter mr-2"></i>Filter Properties
                 </h3>
-                <button id="closeFilterBtn" class="text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
+                <button id="closeMobileMenu" class="text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
@@ -187,15 +217,30 @@
                         </div>
                     </div>
                 </div>
-                <!-- Completion Date Filter -->
+                <!-- Completion Quarter & Year Filter -->
                 <div class="mb-6">
-                    <label class="block text-sm font-medium mb-3">Completion Date</label>
-                    <input 
-                        type="date" 
-                        name="completion_date" 
-                        value="{{ filters.completion_date }}"
-                        class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
-                    >
+                    <label class="block text-sm font-medium mb-3">Completion Period</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <select
+                            name="completion_quarter"
+                            class="filter-input px-4 py-3 rounded-lg focus:outline-none"
+                        >
+                            <option value="">Quarter</option>
+                            <option value="1" {% if filters.completion_quarter == '1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
+                            <option value="2" {% if filters.completion_quarter == '2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
+                            <option value="3" {% if filters.completion_quarter == '3' %}selected{% endif %}>Q3 (Jul-Sep)</option>
+                            <option value="4" {% if filters.completion_quarter == '4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
+                        </select>
+                        <select
+                            name="completion_year"
+                            class="filter-input px-4 py-3 rounded-lg focus:outline-none"
+                        >
+                            <option value="">Year</option>
+                            {% for year in filter_ranges.available_years %}
+                                <option value="{{ year }}" {% if filters.completion_year == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 <!-- Square Footage Filter -->
                 <div class="filter-group" id="sqft-filter">
@@ -287,19 +332,19 @@
                                 <option value="720">1 month</option>
                             </select>
                         </div>
-                        <button 
-                            id="createShareBtn" 
+                        <button
+                            id="createShareBtn"
                             class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                             disabled
                         >
                             <i class="fas fa-link mr-2"></i>Create Share (<span class="selected-count" id="selectedCount">0</span>)
                         </button>
-                        <button 
-                            id="compareSelectedBtn" 
+                        <button
+                            id="createShareBtn"
                             class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                             disabled
                         >
-                            <i class="fas fa-balance-scale mr-2"></i>Compare (<span class="selected-count">0</span>)
+                            <i class="fas fa-link mr-2"></i>Create Share (<span class="selected-count" id="selectedCount">0</span>)
                         </button>
                     </div>
                 </div>
@@ -307,27 +352,22 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex-1 main-content">
-            <!-- Top Bar with Actions -->
-            <div class="top-action-bar">
-                <div class="flex items-center gap-4 flex-wrap">
-                    <!-- Toggle Filter Button -->
-                    <button id="toggleFilterBtn" class="toggle-filter-btn">
-                        <i class="fas fa-filter mr-2"></i>
-                        <span>Filters</span>
-                    </button>
-
-                    <!-- Property Count -->
-                    <div class="property-count">
-                        <i class="fas fa-home mr-2"></i>
-                        <span class="count-number">{{ properties|length }}</span>
-                        <span class="count-label">propert{{ properties|length|pluralize:"y,ies" }}</span>
-                    </div>
+        <div class="flex-1 p-4 lg:p-8 main-content">
+            <!-- Top Bar with Filter Toggle and Property Count - Shows on All Devices -->
+            <div class="flex items-center justify-between mb-6">
+                <button id="toggleFilterBtn" class="toggle-filter-btn">
+                    <i class="fas fa-filter mr-2"></i>
+                    <span>Filters</span>
+                </button>
+                <div class="property-count">
+                    <i class="fas fa-home mr-2"></i>
+                    <span class="count-number">{{ properties|length }}</span>
+                    <span class="count-label">propert{{ properties|length|pluralize:"y,ies" }}</span>
                 </div>
             </div>
 
             {% if not user.is_authenticated and not is_shared_view %}
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mx-4 lg:mx-8 mb-6">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                     <div class="flex items-center">
                         <i class="fas fa-info-circle text-yellow-600 mr-2"></i>
                         <p class="text-yellow-800">
@@ -336,8 +376,9 @@
                     </div>
                 </div>
             {% endif %}
-
-            <div class="px-4 lg:px-8">
+            {% comment %} <div class="mb-8 hidden lg:block">
+                <h4 class="text-2xl lg:text-xl font-bold text-gray-800 mb-2">{{ properties|length }} propert{{ properties|length|pluralize:"y,ies" }}</h4>
+            </div> {% endcomment %}
             <!-- Properties Grid -->
             <div class="property-grid">
                 {% for property in properties %}
@@ -478,7 +519,6 @@
                         </div>
                     </div>
                 {% endfor %}
-            </div>
             </div>
         </div>
     </div>

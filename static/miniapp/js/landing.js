@@ -196,14 +196,19 @@ class CurrencyConverter {
 const currencyConverter = new CurrencyConverter();
 
 // Filter sidebar functionality (Mobile & Desktop)
-const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-const closeFilterBtn = document.getElementById('closeFilterBtn');
-const toggleFilterBtn = document.getElementById('toggleFilterBtn');
+const mobileMenuBtn = document.getElementById('mobileMenuBtn'); // Hamburger in header
+const closeMobileMenu = document.getElementById('closeMobileMenu'); // X button in sidebar
+const toggleFilterBtn = document.getElementById('toggleFilterBtn'); // Filter toggle button in main content
 const filterSidebar = document.getElementById('filterSidebar');
 const mobileFilterOverlay = document.getElementById('mobileFilterOverlay');
 
-// Start with sidebar hidden
+// Start with sidebar hidden on all devices
 let filterSidebarVisible = false;
+
+// Initialize sidebar as hidden on page load
+if (filterSidebar) {
+    filterSidebar.classList.add('hidden');
+}
 
 // Show toggle button on page load
 if (toggleFilterBtn) {
@@ -225,48 +230,40 @@ function openFilter() {
 }
 
 function closeFilter() {
-    if (window.innerWidth >= 1024) {
-        // Desktop: just hide sidebar
-        filterSidebar.classList.add('hidden');
-        filterSidebarVisible = false;
-        if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
-    } else {
-        // Mobile: close overlay
-        filterSidebar.classList.remove('open');
-        filterSidebar.classList.add('hidden');
+    // Close sidebar on all devices
+    filterSidebar.classList.remove('open');
+    filterSidebar.classList.add('hidden');
+    filterSidebarVisible = false;
+
+    // Mobile-specific cleanup
+    if (window.innerWidth < 1024) {
         mobileFilterOverlay.classList.add('hidden');
         document.body.style.overflow = '';
-        filterSidebarVisible = false;
-        if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
     }
+
+    // Show toggle button
+    if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
 }
 
 // Event listeners
 if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openFilter);
-if (closeFilterBtn) closeFilterBtn.addEventListener('click', closeFilter);
+if (closeMobileMenu) closeMobileMenu.addEventListener('click', closeFilter);
 if (toggleFilterBtn) toggleFilterBtn.addEventListener('click', openFilter);
 if (mobileFilterOverlay) mobileFilterOverlay.addEventListener('click', closeFilter);
 
 window.addEventListener('resize', function() {
     if (window.innerWidth >= 1024) {
-        // Desktop: remove mobile overlay classes
+        // Desktop: remove mobile overlay
         filterSidebar.classList.remove('open');
         mobileFilterOverlay.classList.add('hidden');
         document.body.style.overflow = '';
+    }
 
-        // Show/hide toggle button based on sidebar state
-        if (filterSidebarVisible) {
-            if (toggleFilterBtn) toggleFilterBtn.classList.add('hidden');
-        } else {
-            if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
-        }
+    // Maintain toggle button visibility based on sidebar state
+    if (filterSidebarVisible) {
+        if (toggleFilterBtn) toggleFilterBtn.classList.add('hidden');
     } else {
-        // Mobile: ensure sidebar is hidden
-        if (!mobileFilterOverlay.classList.contains('hidden')) {
-            // Overlay is open, keep it open
-        } else {
-            filterSidebar.classList.add('hidden');
-        }
+        if (toggleFilterBtn) toggleFilterBtn.classList.remove('hidden');
     }
 });
 
@@ -289,6 +286,7 @@ function changePropertyImage(propertyId, direction) {
 const propertyCheckboxes = document.querySelectorAll('.property-checkbox');
 const createShareBtn = document.getElementById('createShareBtn');
 const compareSelectedBtn = document.getElementById('compareSelectedBtn');
+const navbarCompareBtn = document.getElementById('navbarCompareBtn');
 const shareListName = document.getElementById('shareListName');
 const shareDuration = document.getElementById('shareDuration');
 const syncAirtableBtn = document.getElementById('syncAirtableBtn');
@@ -300,8 +298,12 @@ function updateSelectionButtons() {
     document.querySelectorAll('.selected-count').forEach(span => {
         span.textContent = count;
     });
+    document.querySelectorAll('.navbar-selected-count').forEach(span => {
+        span.textContent = count;
+    });
     if (createShareBtn) createShareBtn.disabled = count === 0 || !shareListName.value.trim();
     if (compareSelectedBtn) compareSelectedBtn.disabled = count < 2;
+    if (navbarCompareBtn) navbarCompareBtn.disabled = count < 2;
 }
 propertyCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', updateSelectionButtons);
@@ -474,6 +476,81 @@ async function showPropertyModal(propertyId) {
                         </div>
                     </div>
                 ` : ''}
+
+                <!-- Progress Updates (Only for users with exact location access) -->
+                ${property.progress_updates?.length > 0 ? `
+                    <div class="modal-section">
+                        <h3 class="modal-section-title">
+                            <i class="fas fa-hard-hat text-blue-600"></i>
+                            Construction Progress
+                        </h3>
+                        <div class="space-y-4">
+                            ${property.progress_updates.map((update, index) => `
+                                <div class="bg-white border ${update.is_latest ? 'border-green-500' : 'border-gray-200'} rounded-12 p-4 ${update.is_latest ? 'shadow-lg' : 'shadow-sm'}">
+                                    ${update.is_latest ? `
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">
+                                                <i class="fas fa-check-circle mr-1"></i>Latest Update
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h4 class="font-semibold text-lg text-gray-800">${update.stage}</h4>
+                                            <p class="text-sm text-gray-500">
+                                                <i class="far fa-calendar mr-1"></i>${new Date(update.update_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            </p>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-2xl font-bold text-blue-600">${update.progress_percentage}%</div>
+                                            <p class="text-xs text-gray-500">Complete</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Progress Bar -->
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+                                        <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${update.progress_percentage}%"></div>
+                                    </div>
+
+                                    ${update.description ? `
+                                        <p class="text-gray-700 text-sm mb-3 leading-relaxed">${update.description}</p>
+                                    ` : ''}
+
+                                    ${update.uploaded_by ? `
+                                        <p class="text-xs text-gray-500">
+                                            <i class="fas fa-user-circle mr-1"></i>Updated by ${update.uploaded_by}
+                                        </p>
+                                    ` : ''}
+
+                                    <!-- Progress Images -->
+                                    ${update.images?.length > 0 ? `
+                                        <div class="mt-4">
+                                            <p class="text-sm font-semibold text-gray-700 mb-2">
+                                                <i class="fas fa-images mr-1"></i>Progress Photos (${update.images.length})
+                                            </p>
+                                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                                ${update.images.slice(0, 4).map((img, imgIndex) => `
+                                                    <div class="relative group cursor-pointer" onclick="openProgressImageGallery(${index}, ${imgIndex})">
+                                                        <img src="${img}"
+                                                             alt="Progress ${imgIndex + 1}"
+                                                             class="w-full h-24 object-cover rounded-lg transition-transform group-hover:scale-105"
+                                                             loading="lazy">
+                                                        ${imgIndex === 3 && update.images.length > 4 ? `
+                                                            <div class="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center text-white font-bold">
+                                                                +${update.images.length - 4} more
+                                                            </div>
+                                                        ` : ''}
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
                 <!-- Contact Section -->
                 <div class="modal-section">
                     <h3 class="modal-section-title">
@@ -684,6 +761,9 @@ async function downloadPropertyPDF(propertyId) {
 if (compareSelectedBtn) {
     compareSelectedBtn.addEventListener('click', compareSelected);
 }
+if (navbarCompareBtn) {
+    navbarCompareBtn.addEventListener('click', compareSelected);
+}
 async function compareSelected() {
     const selectedProperties = Array.from(propertyCheckboxes)
         .filter(checkbox => checkbox.checked)
@@ -861,3 +941,17 @@ document.addEventListener('keydown', function(e) {
     // On first paint
     if (minRange && maxRange) initFromHidden();
 })();
+
+// Progress Image Gallery Function
+function openProgressImageGallery(_updateIndex, imageIndex) {
+    // Get the property data from the last fetched property in the modal
+    const modalContent = document.getElementById('modalContent');
+    if (!modalContent) return;
+
+    // For now, just open the image in a new tab
+    // You can enhance this later with a full gallery modal
+    const imgElements = modalContent.querySelectorAll('.grid img');
+    if (imgElements && imgElements[imageIndex]) {
+        window.open(imgElements[imageIndex].src, '_blank');
+    }
+}
