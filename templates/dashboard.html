@@ -301,18 +301,31 @@
         }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 768px) {
         #chat-widget-container {
-            width: calc(100vw - 20px);
-            height: calc(100vh - 20px);
-            max-width: none;
-            max-height: none;
-            border-radius: 12px;
+            width: 90%;
+            max-width: 360px;
+            height: 500px;
+            bottom: 80px;
+            right: 5%;
+        }
+
+        #chat-widget-button {
+            bottom: 15px;
+            right: 15px;
         }
 
         .user-message p,
         .bot-message p {
             max-width: 90%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        #chat-widget-container {
+            width: 85%;
+            max-width: 340px;
+            height: 650px;
         }
     }
 </style>
