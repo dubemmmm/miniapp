@@ -300,6 +300,9 @@ STORAGES = {
     },
 }
 DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400     # 25MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400 
+FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400
 #AWS_S3_CUSTOM_DOMAIN = "d2l0rj12cmje55.cloudfront.net"  # << add this # Ill uncomment this when i create cloud front
 #AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}  # good caching
+
+# N8N Chat Widget Settings
+N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')

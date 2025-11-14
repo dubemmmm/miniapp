@@ -1040,7 +1040,8 @@ def dashboard_view(request):
         logger.info(f"Created missing UserProfile for user: {request.user.username}")
 
     context = {
-        'is_internal_user': is_internal_user
+        'is_internal_user': is_internal_user,
+        'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL
     }
 
     return render(request, 'dashboard.html', context)

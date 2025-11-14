@@ -3,6 +3,319 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'miniapp/css/dashboard.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/geist-font/1.0.0/fonts/geist-sans/style.min.css">
+<style>
+    /* Chat Widget Styles */
+    #chat-widget-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 380px;
+        height: 600px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(133, 79, 255, 0.15);
+        display: none;
+        flex-direction: column;
+        z-index: 1002;
+        overflow: hidden;
+        animation: slideUp 0.3s ease-out;
+        border: 1px solid rgba(133, 79, 255, 0.1);
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    #chat-widget-header {
+        background: linear-gradient(135deg, #854fff 0%, #6b3fd4 100%);
+        color: white;
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(133, 79, 255, 0.2);
+    }
+
+    #chat-widget-header span {
+        font-weight: 600;
+        font-size: 18px;
+        letter-spacing: -0.5px;
+    }
+
+    #chat-widget-header button {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease;
+    }
+
+    #chat-widget-header button:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    #chat-widget-body {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: #fafafa;
+        scroll-behavior: smooth;
+    }
+
+    #chat-widget-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #chat-widget-body::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    #chat-widget-body::-webkit-scrollbar-thumb {
+        background: rgba(133, 79, 255, 0.2);
+        border-radius: 3px;
+    }
+
+    #chat-widget-body::-webkit-scrollbar-thumb:hover {
+        background: rgba(133, 79, 255, 0.4);
+    }
+
+    .welcome-message {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px;
+        background: white;
+        border-radius: 12px;
+        border-left: 4px solid #854fff;
+    }
+
+    .welcome-message strong {
+        color: #1a1a1a;
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    .welcome-message p {
+        color: #666;
+        font-size: 13px;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .user-message {
+        display: flex;
+        justify-content: flex-end;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .user-message p {
+        background: linear-gradient(135deg, #854fff 0%, #6b3fd4 100%);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border-bottom-right-radius: 4px;
+        margin: 0;
+        max-width: 85%;
+        word-wrap: break-word;
+        font-size: 14px;
+        line-height: 1.4;
+        box-shadow: 0 2px 8px rgba(133, 79, 255, 0.2);
+    }
+
+    .bot-message {
+        display: flex;
+        justify-content: flex-start;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .bot-message p {
+        background: white;
+        color: #1a1a1a;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border-bottom-left-radius: 4px;
+        margin: 0;
+        max-width: 85%;
+        word-wrap: break-word;
+        font-size: 14px;
+        line-height: 1.4;
+        border: 1px solid #e5e5e5;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        padding: 12px 16px;
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+        border-bottom-left-radius: 4px;
+        width: fit-content;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #854fff;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+        0%, 60%, 100% {
+            opacity: 0.3;
+            transform: translateY(0);
+        }
+        30% {
+            opacity: 1;
+            transform: translateY(-10px);
+        }
+    }
+
+    #chat-widget-footer {
+        padding: 16px;
+        border-top: 1px solid #e5e5e5;
+        display: flex;
+        gap: 10px;
+        background: white;
+        flex-shrink: 0;
+    }
+
+    #chat-widget-input {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        outline: none;
+        font-family: inherit;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+    }
+
+    #chat-widget-input:focus {
+        border-color: #854fff;
+        box-shadow: 0 0 0 3px rgba(133, 79, 255, 0.1);
+    }
+
+    #chat-widget-input::placeholder {
+        color: #999;
+    }
+
+    #chat-widget-send {
+        background: linear-gradient(135deg, #854fff 0%, #6b3fd4 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 2px 8px rgba(133, 79, 255, 0.2);
+        flex-shrink: 0;
+    }
+
+    #chat-widget-send:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(133, 79, 255, 0.3);
+    }
+
+    #chat-widget-send:active {
+        transform: translateY(0);
+    }
+
+    #chat-widget-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #854fff 0%, #6b3fd4 100%);
+        color: white;
+        border: none;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 24px;
+        z-index: 1003;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 20px rgba(133, 79, 255, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        animation: bounce 2s infinite;
+    }
+
+    #chat-widget-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 8px 28px rgba(133, 79, 255, 0.4);
+    }
+
+    #chat-widget-button:active {
+        transform: scale(0.95);
+    }
+
+    @keyframes bounce {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-8px);
+        }
+    }
+
+    @media (max-width: 480px) {
+        #chat-widget-container {
+            width: calc(100vw - 20px);
+            height: calc(100vh - 20px);
+            max-width: none;
+            max-height: none;
+            border-radius: 12px;
+        }
+
+        .user-message p,
+        .bot-message p {
+            max-width: 90%;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -218,6 +531,27 @@
             </div>
         </div>
     </div>
+
+    <!-- Chat Widget Button -->
+    <button id="chat-widget-button">💬</button>
+
+    <!-- Chat Widget -->
+    <div id="chat-widget-container">
+        <div id="chat-widget-header">
+            <span>Chat with us</span>
+            <button onclick="closeChatWidget()">✖</button>
+        </div>
+        <div id="chat-widget-body">
+            <div class="welcome-message">
+                <strong>👋 Hi there!</strong>
+                <p>I'm your AI assistant for CW Real Estate. Have questions about properties or need assistance? Send me a message and I'll be happy to help!</p>
+            </div>
+        </div>
+        <div id="chat-widget-footer">
+            <input type="text" id="chat-widget-input" placeholder="Type your message...">
+            <button id="chat-widget-send">Send</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -231,6 +565,11 @@
     };
     const CSRF_TOKEN = '{{ csrf_token }}';
     window.isInternalUser = {% if is_internal_user %}true{% else %}false{% endif %};
+
+    // Set chat widget webhook URL (kept minimal to avoid exposing in page source)
+    window.ChatWidgetConfig = window.ChatWidgetConfig || {};
+    window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || {};
+    window.ChatWidgetConfig.webhook.url = '{{ n8n_chat_url }}';
 </script>
 
 <script src="{% static 'miniapp/js/dashboard.js' %}"></script>

@@ -1100,3 +1100,157 @@ document.addEventListener('keydown', function(e) {
         closeDashboardComparisonModal();
     }
 });
+
+// ============================================
+// Chat Widget Functionality
+// ============================================
+
+// Initialize chat widget configuration (URL set from template)
+window.ChatWidgetConfig = window.ChatWidgetConfig || {
+    webhook: {
+        url: '',
+        route: 'general'
+    },
+    style: {
+        primaryColor: '#854fff',
+        secondaryColor: '#6b3fd4',
+        position: 'right',
+        backgroundColor: '#ffffff',
+        fontColor: '#333333'
+    }
+};
+
+// Function to generate or retrieve a unique chat ID
+function getChatId() {
+    let chatId = sessionStorage.getItem("chatId");
+    if (!chatId) {
+        chatId = "chat_" + Math.random().toString(36).substr(2, 9);
+        sessionStorage.setItem("chatId", chatId);
+    }
+    return chatId;
+}
+
+// Close chat widget and show bubble
+function closeChatWidget() {
+    document.getElementById("chat-widget-container").style.display = "none";
+    document.getElementById("chat-widget-button").style.display = "flex";
+}
+
+// Auto-scroll to bottom
+function scrollChatToBottom() {
+    const chatBody = document.getElementById("chat-widget-body");
+    if (chatBody) {
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+}
+
+// Initialize chat widget event listeners
+function initChatWidget() {
+    // Show chat widget and hide bubble
+    const chatButton = document.getElementById("chat-widget-button");
+    if (chatButton) {
+        chatButton.addEventListener("click", function() {
+            document.getElementById("chat-widget-container").style.display = "flex";
+            document.getElementById("chat-widget-button").style.display = "none";
+        });
+    }
+
+    // Send message to n8n webhook
+    const sendButton = document.getElementById("chat-widget-send");
+    if (sendButton) {
+        sendButton.addEventListener("click", sendChatMessage);
+    }
+
+    // Allow sending message with Enter key
+    const chatInput = document.getElementById("chat-widget-input");
+    if (chatInput) {
+        chatInput.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                sendChatMessage();
+            }
+        });
+    }
+}
+
+// Send chat message function
+function sendChatMessage() {
+    const chatInput = document.getElementById("chat-widget-input");
+    let message = chatInput.value;
+
+    if (message.trim() === "") return;
+
+    let chatBody = document.getElementById("chat-widget-body");
+
+    // Add user message
+    let userMessageDiv = document.createElement("div");
+    userMessageDiv.className = "user-message";
+    let userMessage = document.createElement("p");
+    userMessage.textContent = message;
+    userMessageDiv.appendChild(userMessage);
+    chatBody.appendChild(userMessageDiv);
+
+    scrollChatToBottom();
+
+    let chatId = getChatId();
+
+    // Show typing indicator
+    let typingDiv = document.createElement("div");
+    typingDiv.className = "bot-message";
+    let typingContainer = document.createElement("div");
+    typingContainer.className = "typing-indicator";
+    typingContainer.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+    typingDiv.appendChild(typingContainer);
+    chatBody.appendChild(typingDiv);
+    scrollChatToBottom();
+
+    fetch(window.ChatWidgetConfig.webhook.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            chatId: chatId,
+            message: message,
+            route: window.ChatWidgetConfig.webhook.route
+        })
+    })
+    .then(response => {
+        console.log("Response status:", response.status);
+        if (!response.ok) {
+            console.error("Webhook error - Status:", response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("Webhook response data:", data);
+
+        // Remove typing indicator
+        typingDiv.remove();
+
+        // Add bot response
+        let botMessageDiv = document.createElement("div");
+        botMessageDiv.className = "bot-message";
+        let botMessage = document.createElement("p");
+        botMessage.innerHTML = data.output || "Sorry, I couldn't understand that. Please try again.";
+        botMessageDiv.appendChild(botMessage);
+        chatBody.appendChild(botMessageDiv);
+
+        scrollChatToBottom();
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        typingDiv.remove();
+
+        let errorDiv = document.createElement("div");
+        errorDiv.className = "bot-message";
+        let errorMessage = document.createElement("p");
+        errorMessage.textContent = "Sorry, something went wrong. Please try again later.";
+        errorDiv.appendChild(errorMessage);
+        chatBody.appendChild(errorDiv);
+
+        scrollChatToBottom();
+    });
+
+    chatInput.value = "";
+}
+
+// Initialize chat widget when DOM is ready
+document.addEventListener('DOMContentLoaded', initChatWidget);
