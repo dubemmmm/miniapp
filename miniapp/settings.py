@@ -33,7 +33,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
                  'mini-app-fw2l4.ondigitalocean.app', '127.0.0.1', 
-                 'localhost', '18.188.180.17', 'offplan.cwlagos.com',]
+                 'localhost', '18.188.180.17', 'offplan.cwlagos.com', '0.0.0.0']
 
 
 # Application definition
@@ -155,8 +155,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = 'landing'
-LOGOUT_REDIRECT_URL = 'landing'
+LOGIN_REDIRECT_URL = 'temp'
+LOGOUT_REDIRECT_URL = 'login'
 LOGIN_URL = 'login'
 
 # Django Allauth Configuration

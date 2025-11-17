@@ -585,8 +585,7 @@
         const CSRF_TOKEN = '{{ csrf_token }}';
         const URLS = {
             propertyDetail: '{% url "property_detail_api" property_id=0 %}'.replace('0/', ''),
-            createSharedList: '{% url "create_shared_list" %}',
-            syncAirtable: '{% url "sync_airtable" %}',
+            createSharedList: '{% url "create_shared_list" %}',,
             propertyPdf: '{% url "property_pdf" property_id=0 %}'.replace('0/', ''),
             compareProperties: '{% url "compare_properties" %}'
         };

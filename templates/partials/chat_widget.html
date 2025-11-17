@@ -1,0 +1,18 @@
+<div id="chat-widget-wrapper">
+    <button id="chat-widget-button" aria-label="Open chat assistant">💬</button>
+    <div id="chat-widget-container" role="dialog" aria-modal="true">
+        <div id="chat-widget-header">
+            <span>Chat with CW</span>
+            <button type="button" onclick="closeChatWidget()" aria-label="Close chat">✕</button>
+        </div>
+        <div id="chat-widget-body">
+            <div class="chat-message bot">
+                👋 Hi there! I'm here to help you learn more about our properties. Ask me anything.
+            </div>
+        </div>
+        <div id="chat-widget-footer">
+            <input type="text" id="chat-widget-input" placeholder="Ask about a property..." aria-label="Chat message" />
+            <button id="chat-widget-send" type="button">Send</button>
+        </div>
+    </div>
+</div>

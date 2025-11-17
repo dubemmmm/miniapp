@@ -336,7 +336,7 @@
     <div id="map" class="leaflet-container"></div>
     <!-- Logo and User Actions -->
     <div class="absolute top-4 left-4 z-[1000] flex items-center gap-3 flex-wrap">
-        <a href="{% url 'landing' %}" class="logo-container">
+        <a href="{% url 'temp' %}" class="logo-container">
             <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Real Estate Logo" class="h-10 md:h-12 w-auto">
         </a>
         
@@ -379,11 +379,13 @@
             <i class="fas fa-balance-scale mr-2"></i>
             <span class="button-text">Compare (<span id="dashboardSelectedCount">0</span>)</span>
         </button>
-        <a href="{% url 'landing' %}" class="control-button">
+        {% endif %}
+
+        <a href="{% url 'temp' %}" class="control-button">
             <i class="fas fa-th mr-2"></i>
             <span class="button-text">Card View</span>
         </a>
-        {% endif %}
+
         <button id="currencyToggle" class="currency-toggle">
             <i class="fas fa-money-bill-wave mr-2"></i>
             <span class="button-text">NGN</span>

@@ -314,6 +314,33 @@ class SharedPropertyList(models.Model):
     def __str__(self):
         return f"{self.name} - {self.token[:8]}..."
 
+
+class PropertyFavorite(models.Model):
+    """Store per-user favourite properties."""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favourite_properties'
+    )
+    property = models.ForeignKey(
+        Property,
+        on_delete=models.CASCADE,
+        related_name='favourited_by'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'property')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['property']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} ❤ {self.property.name}"
+
+
 class UserProfile(models.Model):
     """Extended user profile for employee management"""
     ROLE_CHOICES = (

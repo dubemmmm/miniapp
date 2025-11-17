@@ -1,0 +1,313 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CW Real Estate • Premium Real Estate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'miniapp/css/chat-widget.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/temp.css' %}">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <script src="{% static 'miniapp/js/chat-widget.js' %}"></script>
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Inter", "system-ui", "sans-serif"],
+                        display: ["Playfair Display", "serif"],
+                    },
+                    boxShadow: {
+                        glass: "0 25px 65px -25px rgba(15, 23, 42, 0.8)",
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="antialiased bg-slate-50">
+    <div class="relative min-h-screen pb-24">
+        <div class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-white via-slate-50/50 to-transparent"></div>
+        </div>
+
+        <div class="relative z-10 mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+            <header class="flex flex-col gap-8 text-slate-900">
+                <div class="flex flex-wrap items-center justify-center gap-6">
+                    {% block hero_text %}
+                    <div class="max-w-2xl space-y-4 text-center">
+                        <p class="text-m font-bold uppercase tracking-[0.5em] text-slate-700">CW Real Estate</p>
+                    </div>
+                    {% endblock %}
+                </div>
+            </header>
+
+            <main class="mt-10 space-y-8 text-slate-900">
+                {% block hero_cta %}
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div></div>
+                    <div class="flex items-center gap-3">
+                        {% include "partials/profile_menu.html" %}
+                    </div>
+                </div>
+                {% endblock %}
+
+                <!-- Compact Filter Bar -->
+                <section id="filtersSection" class="space-y-4 rounded-2xl sm:rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-rose-50/70 p-4 sm:p-6 shadow-lg shadow-rose-200/60 transition-all duration-300">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <svg class="h-5 w-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 6H3"/><path d="M7 12H3"/><path d="M21 18H3"/><path d="M17 3v6"/><path d="m14 15 3 3 3-3"/>
+                            </svg>
+                            <h3 class="text-base sm:text-lg font-semibold text-slate-900">Filters</h3>
+                            <span id="activeFilterCount" class="hidden items-center justify-center rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white"></span>
+                        </div>
+                        <button id="toggleFilters" class="flex items-center gap-2 text-sm font-medium text-rose-600 hover:text-rose-800 transition">
+                            <span id="toggleFiltersText">Hide</span>
+                            <svg id="toggleFiltersIcon" class="h-4 w-4 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m18 15-6-6-6 6"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div id="filterContent" class="space-y-4 transition-all duration-300 overflow-hidden">
+                        <!-- Quick Search -->
+                        <div class="relative">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <input
+                                id="searchInput"
+                                type="text"
+                                placeholder="Search by name or location..."
+                                class="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition"
+                            />
+                        </div>
+
+                        <!-- Filter Pills -->
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+                            <select id="bedroomsSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                                <option value="all">All Bedrooms</option>
+                                <option value="0">Studio</option>
+                                <option value="1">1 Bed</option>
+                                <option value="2">2 Beds</option>
+                                <option value="3">3 Beds</option>
+                                <option value="4">4 Beds</option>
+                                <option value="5+">5+ Beds</option>
+                            </select>
+
+                            <select id="completionQuarterSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                                <option value="all">Any Quarter</option>
+                                <option value="1">Q1</option>
+                                <option value="2">Q2</option>
+                                <option value="3">Q3</option>
+                                <option value="4">Q4</option>
+                            </select>
+
+                            <select id="completionYearSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                                <option value="all">Any Year</option>
+                                <!-- Options will be populated dynamically from Django -->
+                            </select>
+
+                            <select id="luxurySelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                                <option value="all">All Types</option>
+                                <option value="luxurious">Luxurious</option>
+                                <option value="non_luxurious">Non-Luxurious</option>
+                            </select>
+
+                            <button id="resetFilters" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-rose-500 hover:border-rose-200 transition">
+                                Clear All
+                            </button>
+                        </div>
+
+                        <!-- Price Range and Square Footage -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Price Range -->
+                            <div class="bg-gradient-to-br from-slate-50 to-white rounded-xl p-4 border border-slate-200">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Price Range</span>
+                                    <span id="priceRangeLabel" class="text-sm font-semibold text-slate-700"></span>
+                                </div>
+                                <div class="space-y-2">
+                                    <input id="minPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
+                                    <input id="maxPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
+                                </div>
+                                <div class="mt-3 flex justify-end">
+                                    <button id="currencyToggle" onclick="toggleCurrency()" class="text-xs font-medium text-rose-500 hover:text-rose-600 transition flex items-center gap-1">
+                                        <span id="currencyLabel">Switch to USD</span>
+                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Square Footage -->
+                            <div class="bg-gradient-to-br from-slate-50 to-white rounded-xl p-4 border border-slate-200">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Square Footage</span>
+                                    <span id="sqftRangeLabel" class="text-sm font-semibold text-slate-700"></span>
+                                </div>
+                                <div class="space-y-2">
+                                    <input id="minSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
+                                    <input id="maxSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sort & View Options -->
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.3em] text-slate-500">Portfolio</p>
+                        <p id="portfolioCount"  class="text-m font-semibold uppercase tracking-[0.2em] text-slate-700">0 properties</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <select id="sortSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                            <option value="featured">Featured</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="newest">Newest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <section id="locationSections" class="space-y-8">
+                    <!-- Location sections will be dynamically generated -->
+                </section>
+
+                <!-- Hidden: Full property grid for "View All" in a location -->
+                <section id="locationViewAll" class="hidden">
+                    <button id="backToLocations" class="mb-4 flex items-center gap-2 text-rose-500 hover:text-rose-600 font-medium">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                        Back to all locations
+                    </button>
+                    <h2 id="locationViewAllTitle" class="text-2xl font-semibold text-slate-900 mb-4"></h2>
+                    <div id="locationViewAllGrid" class="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Compare Button -->
+    <div id="compareButton" class="fixed bottom-6 right-6 z-40 hidden">
+        <button class="flex items-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-white shadow-2xl hover:bg-rose-600 transition-all hover:scale-105">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+            </svg>
+            <span>Compare (<span id="compareCount">0</span>)</span>
+        </button>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 sm:px-4 py-4 sm:py-10">
+        <div class="relative flex w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[95vh]">
+            <div class="flex items-center justify-between border-b border-slate-200 p-4 sm:p-6">
+                <h2 class="text-xl sm:text-2xl font-semibold text-slate-900">Property Comparison</h2>
+                <button id="closeComparisonModal" class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="comparisonContent" class="overflow-auto p-4 sm:p-6">
+                <!-- Comparison table will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Property Modal -->
+    <div id="propertyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 sm:px-4 py-4 sm:py-10">
+        <div class="relative flex w-full max-w-6xl flex-col gap-4 sm:gap-8 overflow-hidden rounded-2xl sm:rounded-[2.5rem] border border-slate-200 bg-white p-4 sm:p-8 shadow-2xl max-h-[95vh] overflow-y-auto">
+            <button id="closeModal" class="absolute right-3 sm:right-6 top-3 sm:top-6 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition z-10">
+                <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+            </button>
+            <div class="grid gap-4 sm:gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+                <div class="space-y-3 sm:space-y-6">
+                    <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50">
+                        <img id="carouselImage" class="h-48 sm:h-64 md:h-[28rem] w-full object-cover" alt="Property gallery" />
+                        <button id="prevImage" class="absolute left-2 sm:left-4 top-1/2 flex h-8 w-8 sm:h-11 sm:w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 hover:bg-white text-slate-700 transition shadow-lg">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m15 18-6-6 6-6" />
+                            </svg>
+                        </button>
+                        <button id="nextImage" class="absolute right-2 sm:right-4 top-1/2 flex h-8 w-8 sm:h-11 sm:w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 hover:bg-white text-slate-700 transition shadow-lg">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m9 18 6-6-6-6" />
+                            </svg>
+                        </button>
+                        <div id="carouselDots" class="absolute bottom-3 sm:bottom-5 left-1/2 flex -translate-x-1/2 gap-1 sm:gap-2"></div>
+                    </div>
+                    <div class="space-y-2 sm:space-y-4">
+                        <p id="modalCity" class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500"></p>
+                        <h2 id="modalTitle" class="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900"></h2>
+                        <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600" id="modalMeta"></div>
+                        <p id="modalDescription" class="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed"></p>
+                    </div>
+                </div>
+                <div class="space-y-4 sm:space-y-6">
+                    <div class="rounded-2xl sm:rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-6 shadow-lg">
+                        <div class="flex items-start justify-between gap-3 sm:gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Starting Price</p>
+                                <p id="modalPrice" class="mt-2 text-2xl sm:text-3xl font-semibold text-slate-900"></p>
+                                <p id="modalCompletionDate" class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600"></p>
+                            </div>
+                            <span id="modalStatusBadge" class="rounded-full px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 sm:space-y-4">
+                        <p class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Configurations</p>
+                        <div id="modalConfigurations" class="space-y-2 sm:space-y-3 max-h-48 sm:max-h-64 overflow-y-auto"></div>
+                    </div>
+
+                    <div class="space-y-3 sm:space-y-4">
+                        <p class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Amenities</p>
+                        <div id="modalAmenities" class="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 max-h-40 sm:max-h-48 overflow-y-auto"></div>
+                    </div>
+
+                    <div id="progressSection" class="space-y-3 sm:space-y-4 hidden">
+                        <p class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Progress Updates</p>
+                        <div id="modalProgress" class="space-y-2 sm:space-y-3 max-h-40 sm:max-h-48 overflow-y-auto"></div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 pt-2">
+                        <button id="contactBtn" class="flex flex-1 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-rose-500 px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white shadow-lg shadow-rose-500/30 transition hover:bg-rose-400">
+                            <i class="fas fa-phone"></i> Contact Us
+                        </button>
+                        <button id="brochureBtn" class="flex flex-1 items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-slate-700 transition hover:bg-slate-50">
+                            <i class="fas fa-file-pdf"></i> Download Brochure
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "partials/chat_widget.html" %}
+
+    <script>
+        // Property Data from Django - injected into global scope for temp.js
+        const properties = {{ properties_json|safe }};
+        const filterRanges = {{ filter_ranges_json|safe }};
+        const isFavoritesPage = {{ is_favorites_page|default:False|yesno:"true,false" }};
+        window.ChatWidgetConfig = window.ChatWidgetConfig || {};
+        window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || {};
+        window.ChatWidgetConfig.webhook.url = '{{ n8n_chat_url|default:"" }}';
+    </script>
+    <script src="{% static 'miniapp/js/temp.js' %}"></script>
+</body>
+</html>

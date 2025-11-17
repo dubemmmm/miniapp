@@ -1,0 +1,32 @@
+<div class="relative z-30" id="profileMenuWrapper">
+    <button
+        id="profileMenuButton"
+        type="button"
+        class="flex h-11 w-11 items-center justify-center rounded-full bg-rose-500 text-white font-semibold shadow-lg shadow-rose-400/40 ring-rose-200 transition hover:ring-2 focus-visible:outline-none focus-visible:ring-2"
+        aria-haspopup="true"
+        aria-expanded="false"
+    >
+        {{ user_initials }}
+    </button>
+    <div
+        id="profileMenu"
+        class="absolute right-0 mt-3 w-56 rounded-2xl border border-slate-100 bg-white/95 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur-md hidden z-50"
+    >
+        <p class="text-xs uppercase tracking-[0.3em] text-slate-400 mb-2">Profile</p>
+        <p class="text-sm font-semibold text-slate-900 mb-4 truncate">{{ user_full_name }}</p>
+        <div class="space-y-2">
+            <a href="{% url 'dashboard' %}" class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition">
+                <span>🗺️</span> <span>Map View</span>
+            </a>
+            <a href="{% url 'favorites' %}" class="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-100 transition">
+                <span>♥</span> <span>My Favourites</span>
+            </a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">
+                    Logout
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

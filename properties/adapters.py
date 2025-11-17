@@ -9,18 +9,9 @@ class CustomAccountAdapter(DefaultAccountAdapter):
 
     def get_login_redirect_url(self, request):
         """
-        Redirect users based on their profile type after login
+        Redirect all users to temp page after login
         """
-        if request.user.is_authenticated:
-            try:
-                profile = request.user.profile
-                if profile.is_employee:
-                    return '/'  # Landing page for employees
-                else:
-                    return '/dashboard/'  # Dashboard for external users
-            except UserProfile.DoesNotExist:
-                pass
-        return super().get_login_redirect_url(request)
+        return '/default'  # All users go to temp page
 
     def add_message(self, request, level, message_template, message_context=None, extra_tags=''):
         """
@@ -88,35 +79,15 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
 
     def get_login_redirect_url(self, request):
         """
-        Redirect users based on their profile type after social login
+        Redirect all users to temp page after social login
         """
-        if request.user.is_authenticated:
-            try:
-                profile = request.user.profile
-                if profile.is_employee:
-                    return '/'  # Landing page for employees
-                else:
-                    return '/dashboard/'  # Dashboard for external users
-            except UserProfile.DoesNotExist:
-                # If profile doesn't exist yet, redirect external users to dashboard by default
-                return '/dashboard/'
-        return super().get_login_redirect_url(request)
+        return '/default'  # All users go to temp page
 
     def get_signup_redirect_url(self, request):
         """
-        Redirect users after signup based on their profile type
+        Redirect all users to temp page after signup
         """
-        if request.user.is_authenticated:
-            try:
-                profile = request.user.profile
-                if profile.is_employee:
-                    return '/'  # Landing page for employees
-                else:
-                    return '/dashboard/'  # Dashboard for external users
-            except UserProfile.DoesNotExist:
-                # If profile doesn't exist yet, redirect external users to dashboard by default
-                return '/dashboard/'
-        return super().get_signup_redirect_url(request)
+        return '/default'  # All users go to temp page
 
     def is_auto_signup_allowed(self, request, sociallogin):
         """

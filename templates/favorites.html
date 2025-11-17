@@ -1,0 +1,21 @@
+{% extends "temp.html" %}
+
+{% block hero_cta %}
+<div class="flex flex-wrap items-center justify-end gap-3">
+    <a href="{% url 'temp' %}" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition">
+        <span>←</span>
+        <span>Back to Portfolio</span>
+    </a>
+    {% include "partials/profile_menu.html" %}
+</div>
+{% endblock %}
+
+{% block hero_text %}
+<div class="max-w-2xl space-y-4 text-center">
+    <p class="text-xs font-semibold uppercase tracking-[0.5em] text-rose-400">My Collection</p>
+    <h1 class="text-4xl font-semibold text-slate-900 sm:text-5xl">Saved Properties</h1>
+    <p class="text-md text-slate-400">
+        Every property you&apos;ve liked lives here. Filter, explore, and open full details just like the main portfolio.
+    </p>
+</div>
+{% endblock %}

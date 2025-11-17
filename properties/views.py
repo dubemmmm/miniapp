@@ -6,7 +6,15 @@ from django.views.generic import CreateView, UpdateView
 from django.utils.decorators import method_decorator
 from django.db.models import Q, Min, Max
 from django.contrib import messages
-from .models import SharedPropertyList, UserProfile, Property, PropertyConfiguration, PropertyImage, PropertyAmenity
+from .models import (
+    SharedPropertyList,
+    UserProfile,
+    Property,
+    PropertyConfiguration,
+    PropertyImage,
+    PropertyAmenity,
+    PropertyFavorite,
+)
 from django.utils import timezone
 from django.db.models.functions import ExtractMonth, ExtractYear
 from datetime import timedelta
@@ -47,6 +55,23 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+PROPERTY_PREFETCHES = (
+    'images',
+    'configurations',
+    'amenities',
+    'progress_updates',
+    'progress_updates__images',
+)
+
+
+def get_user_initials(user):
+    if not user.is_authenticated:
+        return "NA"
+    initials = ''.join(part[0].upper() for part in [user.first_name, user.last_name] if part)
+    if initials:
+        return initials[:2]
+    return (user.username[:2] if user.username else "NA").upper()
+
 
 def format_date_as_quarter(date_obj):
     """Convert a date object to quarter format (e.g., 'Q1 2028')"""
@@ -66,6 +91,163 @@ def format_date_as_quarter(date_obj):
         quarter = 4
 
     return f"Q{quarter} {year}"
+
+
+def extract_location(address):
+    """Extract key location from address string"""
+    if not address:
+        return 'Others'
+
+    location_keywords = {
+        'Ikoyi': ['ikoyi'],
+        'Lekki': ['lekki', 'ajah', 'osapa', 'chevron', 'oniru', 'ikate', 'agungi'],
+        'Banana Island': ['banana island'],
+        'Victoria Island': ['victoria island', 'vi ', ' vi,', 'v.i'],
+    }
+
+    address_lower = address.lower()
+    for main_location, variations in location_keywords.items():
+        for variation in variations:
+            if variation in address_lower:
+                return main_location
+    return 'Others'
+
+
+def build_property_payload(
+    request,
+    properties_queryset,
+    favorite_ids=None,
+    config_queryset=None,
+    completion_dates_queryset=None
+):
+    """Serialize properties and build filter metadata for the frontend."""
+    favorite_ids = favorite_ids or set()
+    properties_list = list(properties_queryset)
+    property_ids = [prop.id for prop in properties_list]
+
+    if config_queryset is None:
+        config_queryset = PropertyConfiguration.objects.filter(
+            property_id__in=property_ids,
+            is_available=True
+        )
+
+    if completion_dates_queryset is not None:
+        completion_dates = [date for date in completion_dates_queryset if date]
+    else:
+        completion_dates = [prop.completion_date for prop in properties_list if prop.completion_date]
+
+    quarter_year_options = []
+    seen_quarters = set()
+    for date in completion_dates:
+        year = date.year
+        month = date.month
+        quarter = (month - 1) // 3 + 1
+        label = f"Q{quarter} {year}"
+        if label not in seen_quarters:
+            seen_quarters.add(label)
+            quarter_year_options.append(label)
+    quarter_year_options.sort(key=lambda x: (int(x.split()[1]), int(x[1])))
+
+    aggregates = {
+        'price_range': config_queryset.aggregate(min_price=Min('price'), max_price=Max('price')) or {},
+        'bedroom_range': config_queryset.aggregate(min_bedrooms=Min('bedrooms'), max_bedrooms=Max('bedrooms')) or {},
+        'bathroom_range': config_queryset.aggregate(min_bathrooms=Min('bathrooms'), max_bathrooms=Max('bathrooms')) or {},
+        'square_footage_range': config_queryset.aggregate(
+            min_square_footage=Min('square_footage'),
+            max_square_footage=Max('square_footage')
+        ) or {},
+    }
+
+    filter_ranges = {
+        'luxury_choices': Property.luxury_status.field.choices,
+        **aggregates,
+        'quarter_year_options': quarter_year_options,
+    }
+
+    def safe_float(value, default=0):
+        try:
+            return float(value) if value is not None else default
+        except (TypeError, ValueError):
+            return default
+
+    filter_ranges_json = {
+        'min_price': safe_float(aggregates['price_range'].get('min_price')),
+        'max_price': safe_float(aggregates['price_range'].get('max_price'), 10000000),
+        'min_sqft': safe_float(aggregates['square_footage_range'].get('min_square_footage')),
+        'max_sqft': safe_float(aggregates['square_footage_range'].get('max_square_footage'), 10000),
+        'quarter_year_options': quarter_year_options,
+    }
+
+    properties_data = []
+    for prop in properties_list:
+        images = [
+            {
+                'image': request.build_absolute_uri(img.image.url),
+                'alt_text': img.alt_text or ''
+            }
+            for img in prop.images.all() if img.image
+        ]
+
+        configurations = [
+            {
+                'type': config.type,
+                'bedrooms': config.bedrooms,
+                'bathrooms': float(config.bathrooms),
+                'square_footage': config.square_footage,
+                'price': float(config.price) if config.price else 0,
+                'is_available': config.is_available
+            }
+            for config in prop.configurations.all()
+        ]
+
+        amenities = [
+            {
+                'name': amenity.name,
+                'description': amenity.description or '',
+                'icon': amenity.icon or '✨'
+            }
+            for amenity in prop.amenities.all()
+        ]
+
+        progress = [
+            {
+                'stage': update.get_stage_display(),
+                'progress_percentage': update.progress_percentage,
+                'update_date': update.update_date.strftime('%Y-%m-%d'),
+                'description': update.description or '',
+                'images': [
+                    {
+                        'image': request.build_absolute_uri(img.image.url),
+                        'caption': img.caption or ''
+                    }
+                    for img in update.images.all() if img.image
+                ]
+            }
+            for update in prop.progress_updates.all().order_by('-update_date')
+        ]
+
+        properties_data.append({
+            'id': prop.id,
+            'name': prop.name,
+            'address': prop.address,
+            'location': extract_location(prop.address),
+            'description': prop.description or '',
+            'thumbnail': request.build_absolute_uri(prop.thumbnail.url) if prop.thumbnail else '',
+            'latitude': float(prop.latitude) if prop.latitude else 0,
+            'longitude': float(prop.longitude) if prop.longitude else 0,
+            'contact_name': prop.contact_name or '',
+            'contact_phone': prop.contact_phone or '',
+            'luxury_status': prop.luxury_status,
+            'completion_date': prop.completion_date.strftime('%Y-%m-%d') if prop.completion_date else '',
+            'is_active': prop.is_active,
+            'images': images,
+            'configurations': configurations,
+            'amenities': amenities,
+            'progress': progress,
+            'is_favorite': prop.id in favorite_ids,
+        })
+
+    return properties_data, filter_ranges, filter_ranges_json
 
 
 # Create your views here.
@@ -216,76 +398,60 @@ def landing_view(request):
         except ValueError:
             pass
 
-    # Ensure distinct results when filtering configurations
     properties = properties.distinct()
 
-    # Get filter ranges for form inputs
+    # Get filter ranges for the template
     all_configs = PropertyConfiguration.objects.filter(is_available=True, property__is_active=True)
 
-    # Get available years from completion dates
-    completion_years = Property.objects.filter(
-        is_active=True,
-        completion_date__isnull=False
-    ).dates('completion_date', 'year').distinct()
-
-    available_years = [date.year for date in completion_years]
-
-    filter_ranges = {
-        'luxury_choices': Property.luxury_status.field.choices,
-        'price_range': all_configs.aggregate(min_price=Min('price'), max_price=Max('price')),
-        'bedroom_range': all_configs.aggregate(min_bedrooms=Min('bedrooms'), max_bedrooms=Max('bedrooms')),
-        'bathroom_range': all_configs.aggregate(min_bathrooms=Min('bathrooms'), max_bathrooms=Max('bathrooms')),
+    aggregates = {
+        'price_range': all_configs.aggregate(min_price=Min('price'), max_price=Max('price')) or {},
+        'bedroom_range': all_configs.aggregate(min_bedrooms=Min('bedrooms'), max_bedrooms=Max('bedrooms')) or {},
+        'bathroom_range': all_configs.aggregate(min_bathrooms=Min('bathrooms'), max_bathrooms=Max('bathrooms')) or {},
         'square_footage_range': all_configs.aggregate(
             min_square_footage=Min('square_footage'),
             max_square_footage=Max('square_footage')
-        ),
-        'available_years': available_years,
-
+        ) or {},
     }
-    # Determine if user can see exact locations
-    is_internal_user = is_employee
+
+    # Get unique completion quarters and years
+    completion_dates = Property.objects.filter(
+        is_active=True,
+        completion_date__isnull=False
+    ).values_list('completion_date', flat=True).distinct()
+
+    quarter_year_options = []
+    seen_quarters = set()
+    for date in completion_dates:
+        if date:
+            year = date.year
+            month = date.month
+            quarter = (month - 1) // 3 + 1
+            label = f"Q{quarter} {year}"
+            if label not in seen_quarters:
+                seen_quarters.add(label)
+                quarter_year_options.append(label)
+    quarter_year_options.sort(key=lambda x: (int(x.split()[1]), int(x[1])))
+
+    filter_ranges = {
+        'luxury_choices': Property.luxury_status.field.choices,
+        **aggregates,
+        'quarter_year_options': quarter_year_options,
+    }
 
     context = {
         'properties': properties,
         'filters': filters,
         'filter_ranges': filter_ranges,
         'is_employee': is_employee,
-        'is_internal_user': is_internal_user,
+        'is_internal_user': is_employee,
         'can_sync_airtable': can_sync_airtable,
         'search_query': filters['search'],
     }
     return render(request, 'landing.html', context)
+
 @login_required
 def home(request):
     return render(request, 'home.html')
-
-@login_required
-def sync_airtable(request):
-    """Trigger Airtable sync for properties"""
-    try:
-        profile = request.user.profile
-        if not profile.is_employee:
-            logger.warning(f"User {request.user.username} attempted to sync Airtable without permission")
-            return JsonResponse({'error': 'Permission denied'}, status=403)
-    except UserProfile.DoesNotExist:
-        logger.warning(f"User {request.user.username} has no UserProfile")
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    if request.method == 'POST':
-        try:
-            # Run the sync_airtable_to_models command
-            call_command('sync_airtable')
-            logger.info(f"User {request.user.username} successfully triggered Airtable sync")
-            return JsonResponse({
-                'success': True,
-                'message': 'Airtable sync completed successfully'
-            })
-        except Exception as e:
-            logger.error(f"Airtable sync failed: {str(e)}")
-            return JsonResponse({'error': f'Sync failed: {str(e)}'}, status=500)
-    
-    logger.warning(f"Invalid request method: {request.method}")
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 def register_view(request):
     """Public registration view for external users (non-employees)"""
@@ -311,7 +477,7 @@ def register_view(request):
 def employee_register_view(request):
     """Public registration view for employee users (admin/agent)"""
     if request.user.is_authenticated:
-        return redirect('landing')
+        return redirect('temp')
 
     # Set session flag for OAuth adapter
     request.session['is_employee_signup'] = True
@@ -333,24 +499,9 @@ def employee_register_view(request):
 
 
 def custom_logout_view(request):
-    """Custom logout view that redirects based on user type"""
-    # Check if user is employee before logging out
-    is_employee = False
-    try:
-        if request.user.is_authenticated:
-            profile = request.user.profile
-            is_employee = profile.is_employee
-    except UserProfile.DoesNotExist:
-        pass
-
-    # Logout the user
+    """Custom logout view that redirects to login page"""
     logout(request)
-
-    # Redirect based on user type
-    if is_employee:
-        return redirect('landing')
-    else:
-        return redirect('login')
+    return redirect('login')
 
 
 def properties_api(request):
@@ -931,7 +1082,7 @@ def download_property_pdf(request, property_id):
     
     return response
 
-@login_required
+# @login_required
 @require_http_methods(["POST"])
 def compare_properties(request):
     """Compare multiple properties and return comparison data"""
@@ -1041,7 +1192,9 @@ def dashboard_view(request):
 
     context = {
         'is_internal_user': is_internal_user,
-        'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL
+        'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
+        'user_initials': get_user_initials(request.user),
+        'user_full_name': request.user.get_full_name() or request.user.username,
     }
 
     return render(request, 'dashboard.html', context)
@@ -1053,10 +1206,10 @@ def manage_shared_lists(request):
         profile = request.user.profile
         if not profile.can_share_properties:
             messages.error(request, 'Permission denied.')
-            return redirect('landing')
+            return redirect('temp')
     except UserProfile.DoesNotExist:
         messages.error(request, 'Permission denied.')
-        return redirect('landing')
+        return redirect('temp')
 
     shared_lists = SharedPropertyList.objects.filter(created_by=request.user)
 
@@ -1381,3 +1534,230 @@ def shared_properties_view(request, token):
     }
     
     return render(request, 'shared_properties.html', context)
+
+
+@login_required
+@require_POST
+def toggle_favorite(request, property_id):
+    """Toggle the favourite status for a property on behalf of the current user."""
+    property_obj = get_object_or_404(Property, pk=property_id, is_active=True)
+    favorite, created = PropertyFavorite.objects.get_or_create(
+        user=request.user,
+        property=property_obj,
+    )
+
+    if created:
+        is_favorite = True
+    else:
+        favorite.delete()
+        is_favorite = False
+
+    return JsonResponse({
+        'success': True,
+        'property_id': property_id,
+        'is_favorite': is_favorite,
+    })
+
+
+@login_required
+def favorites_view(request):
+    """Display the current user's favourite properties."""
+    favorite_entries = PropertyFavorite.objects.filter(user=request.user).select_related(
+        'property'
+    ).prefetch_related(
+        *(f'property__{pref}' for pref in PROPERTY_PREFETCHES)
+    ).order_by('-created_at')
+
+    favorite_ids = [entry.property_id for entry in favorite_entries]
+    properties = [entry.property for entry in favorite_entries]
+
+    config_queryset = PropertyConfiguration.objects.filter(
+        property_id__in=favorite_ids,
+        is_available=True
+    )
+
+    properties_data, filter_ranges, filter_ranges_json = build_property_payload(
+        request,
+        properties,
+        favorite_ids=set(favorite_ids),
+        config_queryset=config_queryset,
+    )
+
+    context = {
+        'properties_json': json.dumps(properties_data),
+        'filter_ranges_json': json.dumps(filter_ranges_json),
+        'filter_ranges': filter_ranges,
+        'search_query': '',
+        'is_favorites_page': True,
+        'user_initials': get_user_initials(request.user),
+        'user_full_name': request.user.get_full_name() or request.user.username,
+        'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
+    }
+    return render(request, 'favorites.html', context)
+
+
+def temp_view(request):
+    """Display and filter properties"""
+    properties = Property.objects.filter(is_active=True).prefetch_related(*PROPERTY_PREFETCHES)
+    favorite_ids = set(
+        PropertyFavorite.objects.filter(user=request.user).values_list('property_id', flat=True)
+    )
+
+    # Initialize filters
+    filters = {
+        'search': request.GET.get('search', '').strip(),
+        'luxury_status': request.GET.get('luxury_status', ''),
+        'min_price': request.GET.get('min_price', ''),
+        'max_price': request.GET.get('max_price', ''),
+        'min_bedrooms': request.GET.get('min_bedrooms', ''),
+        'max_bedrooms': request.GET.get('max_bedrooms', ''),
+        'min_bathrooms': request.GET.get('min_bathrooms', ''),
+        'max_bathrooms': request.GET.get('max_bathrooms', ''),
+        'completion_quarter': request.GET.get('completion_quarter', ''),
+        'completion_year': request.GET.get('completion_year', ''),
+        'min_square_footage': request.GET.get('min_square_footage', ''),
+        'max_square_footage': request.GET.get('max_square_footage', ''),
+    }
+
+    # Apply filters
+    if filters['search']:
+        properties =properties.filter(
+            Q(name__icontains=filters['search']) |
+            Q(address__icontains=filters['search']) |
+            Q(description__icontains=filters['search'])
+        )
+    
+    if filters['luxury_status']:
+        properties = properties.filter(luxury_status=filters['luxury_status'])
+    
+    # Filter by configuration fields (price, bedrooms, bathrooms)
+    if filters['min_price']:
+        try:
+            min_price = float(filters['min_price'])
+            properties = properties.filter(configurations__price__gte=min_price, configurations__is_available=True)
+        except ValueError:
+            pass
+    
+    if filters['max_price']:
+        try:
+            max_price = float(filters['max_price'])
+            properties = properties.filter(configurations__price__lte=max_price, configurations__is_available=True)
+        except ValueError:
+            pass
+    
+    if filters['min_bedrooms']:
+        try:
+            min_bedrooms = int(filters['min_bedrooms'])
+            properties = properties.filter(configurations__bedrooms__gte=min_bedrooms, configurations__is_available=True)
+        except ValueError:
+            pass
+    
+    if filters['max_bedrooms']:
+        try:
+            max_bedrooms = int(filters['max_bedrooms'])
+            properties = properties.filter(configurations__bedrooms__lte=max_bedrooms, configurations__is_available=True)
+        except ValueError:
+            pass
+    
+    if filters['min_bathrooms']:
+        try:
+            min_bathrooms = int(filters['min_bathrooms'])
+            properties = properties.filter(configurations__bathrooms__gte=min_bathrooms, configurations__is_available=True)
+        except ValueError:
+            pass
+    
+    if filters['max_bathrooms']:
+        try:
+            max_bathrooms = int(filters['max_bathrooms'])
+            properties = properties.filter(configurations__bathrooms__lte=max_bathrooms, configurations__is_available=True)
+        except ValueError:
+            pass
+    
+    # Filter by completion quarter and year
+    if filters['completion_quarter'] and filters['completion_year']:
+        try:
+            quarter = int(filters['completion_quarter'])
+            year = int(filters['completion_year'])
+
+            # Map quarter to date range
+            quarter_dates = {
+                1: (1, 1, 3, 31),    # Q1: Jan 1 - Mar 31
+                2: (4, 1, 6, 30),    # Q2: Apr 1 - Jun 30
+                3: (7, 1, 9, 30),    # Q3: Jul 1 - Sep 30
+                4: (10, 1, 12, 31),  # Q4: Oct 1 - Dec 31
+            }
+
+            if quarter in quarter_dates:
+                start_month, start_day, end_month, end_day = quarter_dates[quarter]
+                start_date = datetime(year, start_month, start_day).date()
+                end_date = datetime(year, end_month, end_day).date()
+
+                # Filter properties with completion date within the quarter
+                properties = properties.filter(
+                    completion_date__gte=start_date,
+                    completion_date__lte=end_date
+                )
+        except (ValueError, TypeError):
+            pass
+        
+    # square footage filters (based on configurations)
+    if filters['min_square_footage']:
+        try:
+            min_sqft = int(filters['min_square_footage'])
+            properties = properties.filter(
+                configurations__square_footage__gte=min_sqft,
+                configurations__is_available=True
+            )
+        except ValueError:
+            pass
+
+    if filters['max_square_footage']:
+        try:
+            max_sqft = int(filters['max_square_footage'])
+            properties = properties.filter(
+                configurations__square_footage__lte=max_sqft,
+                configurations__is_available=True
+            )
+        except ValueError:
+            pass
+
+    properties = properties.distinct()
+
+    all_configs = PropertyConfiguration.objects.filter(is_available=True, property__is_active=True)
+    completion_dates_qs = Property.objects.filter(
+        is_active=True,
+        completion_date__isnull=False
+    ).values_list('completion_date', flat=True).distinct()
+
+    properties_data, filter_ranges, filter_ranges_json = build_property_payload(
+        request,
+        properties,
+        favorite_ids=favorite_ids,
+        config_queryset=all_configs,
+        completion_dates_queryset=completion_dates_qs,
+    )
+    print(f"\n=== BACKEND DEBUG ===")
+    print(f"Total properties queryset: {len(properties)}")
+    print(f"Total properties_data sent to frontend: {len(properties_data)}")
+    print(f"Filter ranges being sent:")
+    print(f"  Price: {filter_ranges_json['min_price']} - {filter_ranges_json['max_price']}")
+    print(f"  Sqft: {filter_ranges_json['min_sqft']} - {filter_ranges_json['max_sqft']}")
+
+    # Show a few sample properties with their config details
+    print(f"\nSample properties with configs:")
+    for prop_data in properties_data[:5]:
+        print(f"  - {prop_data['name']} (ID: {prop_data['id']})")
+        for config in prop_data['configurations']:
+            print(f"    Config: {config['bedrooms']}bed, {config['bathrooms']}bath, {config['square_footage']}sqft, ${config['price']}")
+    print(f"====================\n")
+    context = {
+        'properties_json': json.dumps(properties_data),
+        'filter_ranges_json': json.dumps(filter_ranges_json),
+        'filter_ranges': filter_ranges,
+        'search_query': filters['search'],
+        'is_favorites_page': False,
+        'user_initials': get_user_initials(request.user),
+        'user_full_name': request.user.get_full_name() or request.user.username,
+        'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
+    }
+    return render(request, 'temp.html', context)
