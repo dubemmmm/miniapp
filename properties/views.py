@@ -1736,20 +1736,6 @@ def temp_view(request):
         config_queryset=all_configs,
         completion_dates_queryset=completion_dates_qs,
     )
-    print(f"\n=== BACKEND DEBUG ===")
-    print(f"Total properties queryset: {len(properties)}")
-    print(f"Total properties_data sent to frontend: {len(properties_data)}")
-    print(f"Filter ranges being sent:")
-    print(f"  Price: {filter_ranges_json['min_price']} - {filter_ranges_json['max_price']}")
-    print(f"  Sqft: {filter_ranges_json['min_sqft']} - {filter_ranges_json['max_sqft']}")
-
-    # Show a few sample properties with their config details
-    print(f"\nSample properties with configs:")
-    for prop_data in properties_data[:5]:
-        print(f"  - {prop_data['name']} (ID: {prop_data['id']})")
-        for config in prop_data['configurations']:
-            print(f"    Config: {config['bedrooms']}bed, {config['bathrooms']}bath, {config['square_footage']}sqft, ${config['price']}")
-    print(f"====================\n")
     context = {
         'properties_json': json.dumps(properties_data),
         'filter_ranges_json': json.dumps(filter_ranges_json),

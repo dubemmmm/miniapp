@@ -680,12 +680,12 @@ const closeModal = () => {
 
 const updatePriceLabel = () => {
     document.getElementById("priceRangeLabel").textContent =
-        `${formatCurrency(filters.priceRange[0])}  ${formatCurrency(filters.priceRange[1])}`;
+        `${formatCurrency(filters.priceRange[0])} - ${formatCurrency(filters.priceRange[1])}`;
 };
 
 const updateSqftLabel = () => {
     document.getElementById("sqftRangeLabel").textContent =
-        `${formatNumber(filters.sqftRange[0])}  ${formatNumber(filters.sqftRange[1])} sqft`;
+        `${formatNumber(filters.sqftRange[0])} - ${formatNumber(filters.sqftRange[1])} sqft`;
 };
 
 const initFilters = () => {
