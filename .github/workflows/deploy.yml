@@ -39,7 +39,22 @@ jobs:
       run: |
         aws ecs describe-task-definition \
           --task-definition realestate-task \
-          --query taskDefinition > task-definition.json
+          --query 'taskDefinition | 
+            {
+               family: family,
+               taskRoleArn: taskRoleArn,
+               executionRoleArn: executionRoleArn,
+               networkMode: networkMode,
+               containerDefinitions: containerDefinitions,
+               volumes: volumes,
+               placementConstraints: placementConstraints,
+               requiresCompatibilities: requiresCompatibilities,
+               cpu: cpu,
+               memory: memory,
+               runtimePlatform: runtimePlatform,
+               tags: tags
+               }' \
+            > task-definition.json
 
     - name: Update task definition with new image
       id: task-def
