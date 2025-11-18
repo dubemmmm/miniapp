@@ -33,7 +33,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
                 '127.0.0.1', 
-                'localhost', '18.188.180.17', 'offplan.cwlagos.com', '0.0.0.0']
+                'localhost', '18.188.180.17', 'offplan.cwlagos.com', '0.0.0.0', '3.129.25.168']
 
 
 # Application definition
