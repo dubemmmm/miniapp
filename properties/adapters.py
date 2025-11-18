@@ -11,7 +11,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         """
         Redirect all users to temp page after login
         """
-        return '/default'  # All users go to temp page
+        return '/'  # All users go to temp page
 
     def add_message(self, request, level, message_template, message_context=None, extra_tags=''):
         """
@@ -81,13 +81,13 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         """
         Redirect all users to temp page after social login
         """
-        return '/default'  # All users go to temp page
+        return '/'  # All users go to temp page
 
     def get_signup_redirect_url(self, request):
         """
         Redirect all users to temp page after signup
         """
-        return '/default'  # All users go to temp page
+        return '/'  # All users go to temp page
 
     def is_auto_signup_allowed(self, request, sociallogin):
         """

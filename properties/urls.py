@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.landing_view, name='landing'),
+    path('default', views.landing_view, name='landing'),
     path('home', views.home, name='home'),
     path('register/', views.register_view, name='register'),
     path('employee-register/', views.employee_register_view, name='employee_register'),
@@ -20,5 +20,5 @@ urlpatterns = [
     path('api/compare-properties/', views.compare_properties, name='compare_properties'),
     path('api/comparison-properties/<str:property_ids>/', views.comparison_pdf, name='comparison_pdf'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
-    path('default', views.temp_view, name='temp')
+    path('', views.temp_view, name='temp')
 ]
