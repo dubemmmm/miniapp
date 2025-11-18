@@ -22,10 +22,7 @@ RUN apt-get update && apt-get install -y \
 # Copy project
 COPY . .
 
-# Collect static (optional: you may do this in CI)
-RUN python manage.py collectstatic --noinput
-
 EXPOSE 80
 
-# Gunicorn command - changed to port 80
+# Gunicorn command
 CMD ["gunicorn", "miniapp.wsgi:application", "--bind", "0.0.0.0:80"]
