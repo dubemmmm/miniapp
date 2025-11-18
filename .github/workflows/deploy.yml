@@ -17,13 +17,18 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: us-east-2
 
     - name: Login to Amazon ECR
+      id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build, tag, and push Docker image
       id: build-image
+      env:
+       ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+       ECR_REPOSITORY: realestate-app  # ← ADD YOUR ECR REPO NAME HERE
+       IMAGE_TAG: ${{ github.sha }}
       run: |
         IMAGE_URI="${{ secrets.ECR_URI }}:${{ github.sha }}"
         docker build -t $IMAGE_URI .
@@ -33,7 +38,7 @@ jobs:
     - name: Download current task definition
       run: |
         aws ecs describe-task-definition \
-          --task-definition my-app-task \
+          --task-definition realestate-task \
           --query taskDefinition > task-definition.json
 
     - name: Update task definition with new image
@@ -48,6 +53,6 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: my-ecs-service
-        cluster: my-ecs-cluster
+        service: realestate-task-service-gv5mgag8aws ecs list-clusters
+        cluster: superb-bat-avwpyo
         wait-for-service-stability: true
