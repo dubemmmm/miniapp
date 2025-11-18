@@ -25,5 +25,7 @@ COPY . .
 # Collect static (optional: you may do this in CI)
 RUN python manage.py collectstatic --noinput
 
-# Gunicorn command
-CMD ["gunicorn", "miniapp.wsgi:application", "--bind", "0.0.0.0:8000"]
+EXPOSE 80
+
+# Gunicorn command - changed to port 80
+CMD ["gunicorn", "miniapp.wsgi:application", "--bind", "0.0.0.0:80"]
