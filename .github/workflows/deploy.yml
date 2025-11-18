@@ -68,6 +68,6 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: realestate-task-service-gv5mgag8aws ecs list-clusters
+        service: realestate-task-service-gv5mgag8
         cluster: superb-bat-avwpyo
         wait-for-service-stability: true
