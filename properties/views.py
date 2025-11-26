@@ -1596,6 +1596,7 @@ def favorites_view(request):
     return render(request, 'favorites.html', context)
 
 
+@login_required
 def temp_view(request):
     """Display and filter properties"""
     properties = Property.objects.filter(is_active=True).prefetch_related(*PROPERTY_PREFETCHES)
