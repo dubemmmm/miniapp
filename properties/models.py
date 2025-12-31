@@ -437,6 +437,67 @@ class EmployeeInvitation(models.Model):
         self.used_at = timezone.now()
         self.save()
 
+
+class ClientInvitation(models.Model):
+    """Invitation codes for client/external user registration"""
+    code = models.CharField(max_length=20, unique=True, db_index=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_client_invitations',
+        help_text="Admin who created this invitation"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiration date")
+    is_used = models.BooleanField(default=False)
+    used_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='used_client_invitation',
+        help_text="Client who used this code"
+    )
+    used_at = models.DateTimeField(null=True, blank=True)
+    max_uses = models.IntegerField(default=1, help_text="Number of times this code can be used")
+    use_count = models.IntegerField(default=0)
+    notes = models.TextField(blank=True, help_text="Internal notes about this invitation")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Client Invitation'
+        verbose_name_plural = 'Client Invitations'
+
+    def __str__(self):
+        status = "Used" if self.is_used else "Active"
+        return f"{self.code} - {status}"
+
+    def is_valid(self):
+        """Check if invitation code is still valid"""
+        # Check if already used (for single-use codes)
+        if self.max_uses == 1 and self.is_used:
+            return False
+
+        # Check if max uses reached
+        if self.use_count >= self.max_uses:
+            return False
+
+        # Check if expired
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+
+        return True
+
+    def mark_as_used(self, user):
+        """Mark invitation as used by a specific user"""
+        self.use_count += 1
+        if self.use_count >= self.max_uses:
+            self.is_used = True
+        self.used_by = user
+        self.used_at = timezone.now()
+        self.save()
+
     @staticmethod
     def generate_code():
         """Generate a unique random invitation code"""

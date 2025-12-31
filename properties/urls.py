@@ -19,6 +19,8 @@ urlpatterns = [
     path('api/property/<int:property_id>/request-unlock/', views.request_property_unlock, name='request_property_unlock'),
     path('api/compare-properties/', views.compare_properties, name='compare_properties'),
     path('api/comparison-properties/<str:property_ids>/', views.comparison_pdf, name='comparison_pdf'),
+    path('api/validate-invitation/', views.validate_invitation_code, name='validate_invitation'),
+    path('google-oauth-signup/', views.google_oauth_with_invitation, name='google_oauth_signup'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
     path('', views.temp_view, name='temp')
 ]

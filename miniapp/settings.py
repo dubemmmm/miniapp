@@ -227,9 +227,18 @@ CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
 CSP_CONNECT_SRC = ["'self'"]
 CSP_FORM_ACTION = ["'self'"]
 
+# Session Settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database-backed sessions
+SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cookies in same-site context
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_SAVE_EVERY_REQUEST = True  # Ensure session is saved on every request
+
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_USE_SESSIONS = False  # Use cookie-based CSRF tokens instead of session
 CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
 
 

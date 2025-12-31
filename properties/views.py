@@ -465,6 +465,12 @@ def register_view(request):
         form = ExternalUserRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
+
+            # Mark the invitation code as used
+            if hasattr(form, 'invitation'):
+                form.invitation.mark_as_used(user)
+                logger.info(f"Invitation code {form.invitation.code} used by {user.username}")
+
             messages.success(request, f'Account created successfully! Please log in.')
             logger.info(f"New external user registered: {user.username}")
             return redirect('login')
@@ -1748,3 +1754,80 @@ def temp_view(request):
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
     }
     return render(request, 'temp.html', context)
+
+
+@require_POST
+def validate_invitation_code(request):
+    """API endpoint to validate client invitation codes"""
+    import json as json_module
+    from .models import ClientInvitation
+
+    try:
+        data = json_module.loads(request.body)
+        code = data.get('code', '').strip()
+
+        if not code:
+            return JsonResponse({'valid': False, 'error': 'Invitation code is required'})
+
+        try:
+            invitation = ClientInvitation.objects.get(code=code)
+        except ClientInvitation.DoesNotExist:
+            return JsonResponse({'valid': False, 'error': 'Invalid invitation code'})
+
+        if not invitation.is_valid():
+            return JsonResponse({'valid': False, 'error': 'This invitation code has expired or has been fully used'})
+
+        # Store the invitation code in session for the OAuth flow
+        request.session['pending_invitation_code'] = code
+        # Explicitly save the session to ensure it persists across OAuth redirect
+        request.session.modified = True
+        request.session.save()
+
+        logger.info(f"Stored invitation code {code} in session for OAuth flow")
+
+        return JsonResponse({'valid': True})
+
+    except Exception as e:
+        logger.error(f"Error validating invitation code: {str(e)}")
+        return JsonResponse({'valid': False, 'error': 'An error occurred. Please try again.'})
+
+
+def google_oauth_with_invitation(request):
+    """
+    Custom view to handle Google OAuth initiation with invitation code.
+    This ensures the invitation code is properly stored in session before OAuth redirect.
+    """
+    from django.shortcuts import redirect
+    from .models import ClientInvitation
+
+    invitation_code = request.GET.get('invitation_code', '').strip()
+
+    if not invitation_code:
+        messages.error(request, 'Invitation code is required for registration.')
+        return redirect('register')
+
+    try:
+        invitation = ClientInvitation.objects.get(code=invitation_code)
+    except ClientInvitation.DoesNotExist:
+        messages.error(request, 'Invalid invitation code.')
+        return redirect('register')
+
+    if not invitation.is_valid():
+        messages.error(request, 'This invitation code has expired or has been fully used.')
+        return redirect('register')
+
+    # Store invitation code in session
+    request.session['pending_invitation_code'] = invitation_code
+    request.session['is_employee_signup'] = False
+
+    # Force session save
+    request.session.modified = True
+    request.session.save()
+
+    logger.info(f"Stored invitation code {invitation_code} in session for Google OAuth")
+    logger.info(f"Session key after save: {request.session.session_key}")
+    logger.info(f"Session data: {dict(request.session.items())}")
+
+    # Redirect to Google OAuth
+    from allauth.socialaccount.providers.google.views import oauth2_login
+    return oauth2_login(request)

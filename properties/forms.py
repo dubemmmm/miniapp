@@ -41,6 +41,15 @@ class ExternalUserRegistrationForm(BaseUserCreationForm):
         })
     )
 
+    invitation_code = forms.CharField(
+        max_length=20,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': 'Enter your invitation code'
+        })
+    )
+
     class Meta:
         model = User
         fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2')
@@ -71,8 +80,30 @@ class ExternalUserRegistrationForm(BaseUserCreationForm):
         self.fields['last_name'].label = 'Last Name'
         self.fields['email'].label = 'Email Address'
         self.fields['phone'].label = 'Phone Number'
+        self.fields['invitation_code'].label = 'Invitation Code'
         self.fields['password1'].label = 'Password'
         self.fields['password2'].label = 'Confirm Password'
+
+    def clean_invitation_code(self):
+        """Validate the invitation code"""
+        from .models import ClientInvitation
+
+        code = self.cleaned_data.get('invitation_code', '').strip()
+
+        if not code:
+            raise forms.ValidationError("Invitation code is required.")
+
+        try:
+            invitation = ClientInvitation.objects.get(code=code)
+        except ClientInvitation.DoesNotExist:
+            raise forms.ValidationError("Invalid invitation code.")
+
+        if not invitation.is_valid():
+            raise forms.ValidationError("This invitation code has expired or has been fully used.")
+
+        # Store the invitation object for later use
+        self.invitation = invitation
+        return code
 
     def save(self, commit=True):
         user = super().save(commit=False)

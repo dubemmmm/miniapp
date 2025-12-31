@@ -4,7 +4,7 @@ from django.utils import timezone
 from .models import (
     Property, PropertyConfiguration, PropertyImage, PropertyAmenity,
     SharedPropertyList, UserProfile, AirtableSyncLog, EmployeeInvitation,
-    PropertyProgress, PropertyProgressImage
+    ClientInvitation, PropertyProgress, PropertyProgressImage
 )
 
 
@@ -423,6 +423,98 @@ class EmployeeInvitationAdmin(admin.ModelAdmin):
         )
 
     generate_invitation_codes.short_description = "Generate 5 new invitation codes"
+
+
+@admin.register(ClientInvitation)
+class ClientInvitationAdmin(admin.ModelAdmin):
+    list_display = (
+        "code",
+        "status_badge",
+        "use_count_display",
+        "created_by",
+        "used_by",
+        "created_at",
+        "expires_at"
+    )
+    list_filter = ("is_used", "created_at", "expires_at")
+    search_fields = ("code", "created_by__username", "used_by__username", "notes")
+    readonly_fields = ("code", "created_at", "used_by", "used_at", "use_count")
+
+    fieldsets = (
+        ("Invitation Code", {
+            "fields": ("code",)
+        }),
+        ("Usage", {
+            "fields": ("max_uses", "use_count", "is_used", "used_by", "used_at")
+        }),
+        ("Validity", {
+            "fields": ("created_by", "created_at", "expires_at")
+        }),
+        ("Notes", {
+            "fields": ("notes",),
+            "classes": ("collapse",)
+        })
+    )
+
+    actions = ["generate_invitation_codes"]
+
+    def save_model(self, request, obj, form, change):
+        """Auto-generate code if creating new invitation"""
+        if not change:  # Only when creating new
+            if not obj.code:
+                obj.code = ClientInvitation.generate_code()
+            if not obj.created_by:
+                obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def status_badge(self, obj):
+        if obj.is_valid():
+            color = "green"
+            status = "Active"
+        elif obj.is_used or obj.use_count >= obj.max_uses:
+            color = "red"
+            status = "Used"
+        elif obj.expires_at and timezone.now() > obj.expires_at:
+            color = "orange"
+            status = "Expired"
+        else:
+            color = "gray"
+            status = "Inactive"
+
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            status
+        )
+    status_badge.short_description = "Status"
+
+    def use_count_display(self, obj):
+        return f"{obj.use_count} / {obj.max_uses}"
+    use_count_display.short_description = "Uses"
+
+    def generate_invitation_codes(self, request, queryset):
+        """Admin action to generate new client invitation codes"""
+        from .models import ClientInvitation
+
+        # Generate 5 new codes
+        count = 5
+        created_codes = []
+
+        for _ in range(count):
+            code = ClientInvitation.generate_code()
+            invitation = ClientInvitation.objects.create(
+                code=code,
+                created_by=request.user,
+                max_uses=1
+            )
+            created_codes.append(invitation.code)
+
+        self.message_user(
+            request,
+            f"Successfully generated {count} client invitation codes: {', '.join(created_codes)}"
+        )
+
+    generate_invitation_codes.short_description = "Generate 5 new client invitation codes"
 
 
 class PropertyProgressImageInline(admin.TabularInline):
