@@ -29,11 +29,14 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=None)
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
-                '127.0.0.1', 
-                'localhost', '18.188.180.17', 'offplan.cwlagos.com', '0.0.0.0', '3.129.25.168']
+ALLOWED_HOSTS = ['127.0.0.1', 
+                'localhost', 
+                '18.188.180.17', 
+                'offplan.cwlagos.com', 
+                '0.0.0.0', 
+                '3.129.25.168']
 
 
 # Application definition
@@ -227,7 +230,6 @@ CSP_FORM_ACTION = ["'self'"]
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database-backed sessions
 SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cookies in same-site context
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
-SESSION_COOKIE_SECURE = True  # Set to True in production with HTTPS
 SESSION_SAVE_EVERY_REQUEST = True  # Ensure session is saved on every request
 
 # --- Behind Nginx/HTTPS ---
@@ -237,16 +239,12 @@ USE_X_FORWARDED_HOST = True
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = True  # Set to True in production with HTTPS
 CSRF_USE_SESSIONS = False  # Use cookie-based CSRF tokens instead of session
 CSRF_TRUSTED_ORIGINS = [
     "https://offplan.cwlagos.com",
 ]
 
-SECURE_SSL_REDIRECT = True
-SECURE_HSTS_SECONDS = 3600  # increase later
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
@@ -321,3 +319,49 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400
 
 # N8N Chat Widget Settings
 N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')
+
+# Toggle between http and https for dev / prod testing
+# ENVIRONMENT = config("ENVIRONMENT", default="local")  # local or production
+# IS_PROD = ENVIRONMENT == "production"
+# DEBUG = not IS_PROD
+
+# if IS_PROD:
+#     SECURE_SSL_REDIRECT = True
+#     SECURE_HSTS_SECONDS = 3600
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+#     SECURE_HSTS_PRELOAD = True
+
+#     CSRF_COOKIE_SECURE = True
+#     SESSION_COOKIE_SECURE = True
+
+#     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+#     USE_X_FORWARDED_HOST = True
+
+#     CSRF_TRUSTED_ORIGINS = [
+#         "https://offplan.cwlagos.com",
+#         "https://cwproperty.org",
+#         "https://www.cwproperty.org",
+#     ]
+# else:
+#     # Local dev (HTTP)
+#     SECURE_SSL_REDIRECT = False
+#     SECURE_HSTS_SECONDS = 0
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+#     SECURE_HSTS_PRELOAD = False
+
+#     CSRF_COOKIE_SECURE = False
+#     SESSION_COOKIE_SECURE = False
+
+#     CSRF_TRUSTED_ORIGINS = [
+#         "http://localhost:8000",
+#         "http://127.0.0.1:8000",
+#     ]
+
+#change this to true when pushing to github
+deployment = True
+SECURE_SSL_REDIRECT = deployment
+CSRF_COOKIE_SECURE = deployment
+SESSION_COOKIE_SECURE = deployment
+SECURE_HSTS_SECONDS = 5000 if deployment == True else 0 # change to 5000 when pushing to github
+SECURE_HSTS_INCLUDE_SUBDOMAINS = deployment
+SECURE_HSTS_PRELOAD = deployment
