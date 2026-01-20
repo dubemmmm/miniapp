@@ -29,7 +29,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=None)
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['cwproperty.org', 'www.cwproperty.org', 
                 '127.0.0.1', 
@@ -143,10 +143,6 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# WhiteNoise configuration
-WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = True  # Only for development, remove in production
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -231,16 +227,26 @@ CSP_FORM_ACTION = ["'self'"]
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database-backed sessions
 SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cookies in same-site context
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SECURE = True  # Set to True in production with HTTPS
 SESSION_SAVE_EVERY_REQUEST = True  # Ensure session is saved on every request
+
+# --- Behind Nginx/HTTPS ---
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = True  # Set to True in production with HTTPS
 CSRF_USE_SESSIONS = False  # Use cookie-based CSRF tokens instead of session
-CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
+CSRF_TRUSTED_ORIGINS = [
+    "https://offplan.cwlagos.com",
+]
 
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_SECONDS = 3600  # increase later
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
