@@ -15,8 +15,24 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
+    # Existing Airtable sync
     "run-sync-airtable-daily": {
-        "task": "properties.tasks.run_sync_airtable",  # adjust to your app name
-        "schedule": crontab(hour=0, minute=0),  # every day at midnight UTC
+        "task": "properties.tasks.run_sync_airtable",
+        "schedule": crontab(hour=0, minute=0),  # daily at midnight UTC
+    },
+    # CRM: mark overdue leads every 30 minutes
+    "crm-sweep-overdue-leads": {
+        "task": "crm.tasks.sweep_overdue_leads",
+        "schedule": crontab(minute="*/30"),
+    },
+    # CRM: escalate stale overdue leads every hour
+    "crm-sweep-escalations": {
+        "task": "crm.tasks.sweep_escalations",
+        "schedule": crontab(minute=0),  # top of every hour
+    },
+    # CRM: recompute agent response scores daily at 02:00 UTC
+    "crm-compute-response-scores": {
+        "task": "crm.tasks.compute_response_scores",
+        "schedule": crontab(hour=2, minute=0),
     },
 }

@@ -29,7 +29,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=None)
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = ['127.0.0.1', 
                 'localhost', 
@@ -60,6 +60,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'properties',
+    'crm',
     "storages",
 ]
 
@@ -232,9 +233,7 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cookies in same-site context
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
 SESSION_SAVE_EVERY_REQUEST = True  # Ensure session is saved on every request
 
-# --- Behind Nginx/HTTPS ---
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-USE_X_FORWARDED_HOST = True
+
 
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
@@ -320,6 +319,16 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400
 # N8N Chat Widget Settings
 N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')
 
+# CRM / SendGrid Settings
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='cwresocial@gmail.com')
+SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
+# CRM SLA defaults (overridable via SLAConfig model)
+CRM_SLA_HOURS = 2
+CRM_DEDUP_WINDOW_HOURS = 6
+CRM_ESCALATION_HOURS = 24
+
 # Toggle between http and https for dev / prod testing
 # ENVIRONMENT = config("ENVIRONMENT", default="local")  # local or production
 # IS_PROD = ENVIRONMENT == "production"
@@ -357,11 +366,16 @@ N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')
 #         "http://127.0.0.1:8000",
 #     ]
 
-#change this to true when pushing to github
-deployment = True
+deployment = config('DEPLOYMENT', default=False, cast=bool)
 SECURE_SSL_REDIRECT = deployment
 CSRF_COOKIE_SECURE = deployment
 SESSION_COOKIE_SECURE = deployment
 SECURE_HSTS_SECONDS = 5000 if deployment == True else 0 # change to 5000 when pushing to github
 SECURE_HSTS_INCLUDE_SUBDOMAINS = deployment
 SECURE_HSTS_PRELOAD = deployment
+
+if deployment:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+CSRF_TRUSTED_ORIGINS = [config('SITE_URL', default='http://localhost:8000')]
+USE_X_FORWARDED_HOST = True

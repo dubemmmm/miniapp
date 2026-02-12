@@ -287,11 +287,70 @@
 
                     <div class="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 pt-2">
                         <button id="contactBtn" class="flex flex-1 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-rose-500 px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white shadow-lg shadow-rose-500/30 transition hover:bg-rose-400">
-                            <i class="fas fa-phone"></i> Contact Us
+                            <i class="fas fa-envelope"></i> Enquire Now
                         </button>
                         <button id="brochureBtn" class="flex flex-1 items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-slate-700 transition hover:bg-slate-50">
                             <i class="fas fa-file-pdf"></i> Download Brochure
                         </button>
+                    </div>
+
+                    <!-- Enquiry Form Panel (toggled by Enquire Now button) -->
+                    <div id="enquiryFormPanel" class="hidden mt-4 border-t border-slate-100 pt-4">
+                        <p class="text-xs uppercase tracking-widest text-slate-400 mb-3">Send an Enquiry</p>
+
+                        <!-- Success state -->
+                        <div id="enquirySuccess" class="hidden text-center py-4">
+                            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <p class="font-semibold text-slate-700 text-sm">Enquiry sent!</p>
+                            <p class="text-xs text-slate-400 mt-1">An agent will contact you within 2 business hours.</p>
+                        </div>
+
+                        <!-- Form -->
+                        <form id="enquiryForm" class="space-y-2.5" novalidate>
+                            {% csrf_token %}
+                            <div style="display:none"><input type="text" name="website" value=""></div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <input type="text" name="first_name" placeholder="First name *"
+                                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                                    <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="first_name"></p>
+                                </div>
+                                <div>
+                                    <input type="text" name="last_name" placeholder="Last name *"
+                                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                                    <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="last_name"></p>
+                                </div>
+                            </div>
+                            <div>
+                                <input type="email" name="email" placeholder="Email address *"
+                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                                <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="email"></p>
+                            </div>
+                            <div>
+                                <input type="text" name="phone" placeholder="Phone number (optional)"
+                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                            </div>
+                            <div>
+                                <textarea name="message" rows="3" placeholder="I'm interested in this property and would like to know more... *"
+                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 resize-none"></textarea>
+                                <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="message"></p>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <input type="checkbox" name="consent" id="enqConsent" class="mt-0.5 rounded">
+                                <label for="enqConsent" class="text-xs text-slate-500 leading-relaxed">
+                                    I agree to be contacted by CW Real Estate about this property.
+                                </label>
+                            </div>
+                            <p class="text-red-400 text-xs hidden enq-error" data-field="consent"></p>
+                            <p id="enqGeneralError" class="text-red-400 text-xs hidden"></p>
+                            <button type="submit" id="enqSubmitBtn"
+                                class="w-full bg-rose-500 hover:bg-rose-400 text-white font-semibold py-2.5 rounded-xl text-sm transition">
+                                Send Enquiry
+                            </button>
+                            <p class="text-xs text-slate-400 text-center"><i class="fas fa-lock mr-1"></i>Your details are kept private.</p>
+                        </form>
                     </div>
                 </div>
             </div>

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<style>
+  /* Sidebar transitions */
+  #sidebar { transition: transform 0.25s cubic-bezier(.4,0,.2,1); }
+  #sidebarOverlay { transition: opacity 0.2s ease; }
+
+  /* Sidebar active link */
+  .nav-link.active {
+    background: rgba(244,63,94,0.12);
+    color: #f43f5e;
+    font-weight: 600;
+  }
+  .nav-link.active .nav-icon { color: #f43f5e; }
+
+  /* Toast slide-in */
+  @keyframes slideInRight {
+    from { transform: translateX(120%); opacity: 0; }
+    to   { transform: translateX(0);   opacity: 1; }
+  }
+  .toast-item { animation: slideInRight 0.3s ease forwards; }
+
+  /* Scrollbar styling */
+  .crm-scroll::-webkit-scrollbar { width: 4px; }
+  .crm-scroll::-webkit-scrollbar-track { background: transparent; }
+  .crm-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+
+  /* Table row hover */
+  .leads-table tbody tr:hover { background: #fff1f3; cursor: pointer; }
+
+  /* Focus ring */
+  .crm-input:focus { outline: 2px solid #f43f5e; outline-offset: 1px; border-color: #f43f5e; }
+
+  /* Badge base */
+  .badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:11px; font-weight:600; letter-spacing:.02em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex h-screen bg-slate-50 overflow-hidden antialiased">
+
+  <!-- ── SIDEBAR OVERLAY (mobile) ────────────────── -->
+  <div id="sidebarOverlay"
+       class="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm hidden lg:hidden"
+       onclick="closeSidebar()"></div>
+
+  <!-- ── SIDEBAR ────────────────────────────────── -->
+  <aside id="sidebar"
+         class="fixed lg:static inset-y-0 left-0 z-40 w-60 bg-slate-950 flex flex-col flex-shrink-0
+                -translate-x-full lg:translate-x-0">
+
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-slate-800 flex-shrink-0">
+      <div class="w-8 h-8 rounded-lg bg-rose-500 flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-building text-white text-xs"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-white font-semibold text-sm truncate">CW Real Estate</p>
+        <p class="text-slate-400 text-xs">CRM</p>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto crm-scroll">
+      <p class="text-slate-500 text-xs font-semibold uppercase tracking-wider px-3 mb-2">Menu</p>
+
+      <a href="{% url 'crm:leads_list' %}"
+         class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all text-sm
+                {% if request.resolver_match.url_name == 'leads_list' or request.resolver_match.url_name == 'lead_detail' %}active{% endif %}">
+        <span class="nav-icon w-4 text-center"><i class="fas fa-inbox text-sm"></i></span>
+        <span>Leads</span>
+        {% if request.resolver_match.url_name == 'leads_list' and paginator %}
+        <span class="ml-auto bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ paginator.count }}</span>
+        {% endif %}
+      </a>
+
+      {% if is_admin %}
+      <a href="{% url 'crm:agent_workload' %}"
+         class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all text-sm
+                {% if request.resolver_match.url_name == 'agent_workload' %}active{% endif %}">
+        <span class="nav-icon w-4 text-center"><i class="fas fa-users text-sm"></i></span>
+        <span>Agents</span>
+      </a>
+
+      <a href="{% url 'crm:settings' %}"
+         class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all text-sm
+                {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+        <span class="nav-icon w-4 text-center"><i class="fas fa-cog text-sm"></i></span>
+        <span>Settings</span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <!-- User footer -->
+    <div class="px-4 py-4 border-t border-slate-800 flex-shrink-0 space-y-3">
+      <!-- Availability toggle (agents only) -->
+      {% if request.user.profile.role == 'agent' %}
+      <button id="toggleAvailBtn"
+              data-available="{{ request.user.profile.is_available|yesno:'true,false' }}"
+              class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition
+                     {% if request.user.profile.is_available %}bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25{% else %}bg-slate-700 text-slate-400 hover:bg-slate-600{% endif %}">
+        <span class="w-2 h-2 rounded-full flex-shrink-0 {% if request.user.profile.is_available %}bg-emerald-400{% else %}bg-slate-500{% endif %}"></span>
+        {% if request.user.profile.is_available %}Available{% else %}Offline{% endif %}
+        <i class="fas fa-toggle-{% if request.user.profile.is_available %}on text-emerald-400{% else %}off text-slate-500{% endif %} ml-auto"></i>
+      </button>
+      {% endif %}
+
+      <!-- User info -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+          {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-slate-200 text-xs font-semibold truncate">{{ request.user.get_full_name|default:request.user.username }}</p>
+          <p class="text-slate-500 text-xs capitalize truncate">{{ request.user.profile.role|default:"—" }}</p>
+        </div>
+        <a href="{% url 'logout' %}" class="text-slate-500 hover:text-rose-400 transition" title="Sign out">
+          <i class="fas fa-sign-out-alt text-sm"></i>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN AREA ───────────────────────────────── -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Topbar -->
+    <header class="bg-white border-b border-slate-100 px-4 lg:px-6 h-16 flex items-center gap-4 flex-shrink-0 shadow-sm">
+      <!-- Mobile menu button -->
+      <button onclick="openSidebar()"
+              class="lg:hidden text-slate-500 hover:text-slate-900 transition p-1 -ml-1">
+        <i class="fas fa-bars text-lg"></i>
+      </button>
+
+      <!-- Page title -->
+      <div class="flex-1 min-w-0">
+        <h1 class="text-lg font-bold text-slate-900 truncate">{% block page_title %}CRM{% endblock %}</h1>
+        <p class="text-xs text-slate-400 truncate">{% block page_subtitle %}{% endblock %}</p>
+      </div>
+
+      <!-- Right actions -->
+      <div class="flex items-center gap-3 flex-shrink-0">
+        {% block topbar_actions %}{% endblock %}
+        <!-- Back to site -->
+        <a href="/" class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition border border-slate-200 rounded-lg px-3 py-1.5 hover:border-slate-300">
+          <i class="fas fa-arrow-left text-xs"></i><span class="hidden sm:inline ml-1">Site</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto crm-scroll px-4 lg:px-6 py-6">
+      {% block crm_content %}{% endblock %}
+    </main>
+
+  </div>
+</div>
+
+<!-- ── TOAST CONTAINER ──────────────────────────── -->
+<div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── SIDEBAR ──────────────────────────────────────────
+function openSidebar() {
+  document.getElementById('sidebar').classList.remove('-translate-x-full');
+  document.getElementById('sidebarOverlay').classList.remove('hidden');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.add('-translate-x-full');
+  document.getElementById('sidebarOverlay').classList.add('hidden');
+}
+
+// ── TOAST ────────────────────────────────────────────
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  const colors = {
+    success: 'bg-slate-900 text-white',
+    error:   'bg-rose-500 text-white',
+    info:    'bg-slate-700 text-white',
+  };
+  const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+  const el = document.createElement('div');
+  el.className = `toast-item pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-sm font-medium max-w-xs ${colors[type] || colors.success}`;
+  el.innerHTML = `<i class="fas ${icons[type] || icons.success}"></i><span>${message}</span>`;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ── AVAILABILITY TOGGLE ──────────────────────────────
+const availBtn = document.getElementById('toggleAvailBtn');
+if (availBtn) {
+  availBtn.addEventListener('click', () => {
+    fetch("{% url 'crm:toggle_availability' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.is_available ? 'You are now available' : 'You are now offline');
+        setTimeout(() => location.reload(), 800);
+      }
+    });
+  });
+}
+</script>
+{% block crm_js %}{% endblock %}
+{% endblock %}

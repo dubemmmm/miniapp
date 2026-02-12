@@ -1,0 +1,20 @@
+{% comment %}
+Usage: {% include "crm/_status_badge.html" with status=lead.lead_status display=lead.get_lead_status_display %}
+{% endcomment %}
+{% if status == 'NEW' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">{{ display }}</span>
+{% elif status == 'CONTACTED' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">{{ display }}</span>
+{% elif status == 'VIEWING_SCHEDULED' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">{{ display }}</span>
+{% elif status == 'NEGOTIATION' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">{{ display }}</span>
+{% elif status == 'WON' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">{{ display }}</span>
+{% elif status == 'LOST' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">{{ display }}</span>
+{% elif status == 'UNRESPONSIVE' %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-400">{{ display }}</span>
+{% else %}
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">{{ display }}</span>
+{% endif %}

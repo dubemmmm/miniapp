@@ -583,6 +583,19 @@ const openModal = (property) => {
     selectedProperty = property;
     carouselIndex = 0;
 
+    // Reset enquiry form state for every new property
+    const panel = document.getElementById('enquiryFormPanel');
+    const form = document.getElementById('enquiryForm');
+    const success = document.getElementById('enquirySuccess');
+    if (panel) panel.classList.add('hidden');
+    if (form) { form.reset(); form.classList.remove('hidden'); }
+    if (success) success.classList.add('hidden');
+    document.querySelectorAll('.enq-error').forEach(el => { el.classList.add('hidden'); el.textContent = ''; });
+    const genErr = document.getElementById('enqGeneralError');
+    if (genErr) genErr.classList.add('hidden');
+    const btn = document.getElementById('enqSubmitBtn');
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Enquiry'; }
+
     const addressParts = property.address.split(',');
     const city = addressParts[addressParts.length - 2]?.trim() || '';
     const state = addressParts[addressParts.length - 1]?.trim() || '';
@@ -880,16 +893,69 @@ const formatWhatsAppNumber = (phoneNumber) => {
 };
 
 document.getElementById("contactBtn").addEventListener("click", () => {
-    if (selectedProperty) {
-        const phoneNumber = extractPhoneNumber(selectedProperty.contact_phone);
-        console.log('Extracted phone number:', phoneNumber);
-        const whatsappNumber = formatWhatsAppNumber(phoneNumber);
-        console.log('Formatted WhatsApp number:', whatsappNumber);
-        const whatsappMessage = encodeURIComponent(`Hi! I'm interested in the property: ${selectedProperty.name} at ${selectedProperty.address}. Could you please provide more information?`);
-        const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
-        console.log('WhatsApp link:', whatsappLink);
-        window.open(whatsappLink, '_blank');
+    const panel = document.getElementById('enquiryFormPanel');
+    const success = document.getElementById('enquirySuccess');
+    if (!panel) return;
+    // Reset form when opening fresh (not after a successful submission)
+    if (panel.classList.contains('hidden')) {
+        const form = document.getElementById('enquiryForm');
+        if (form && (success && success.classList.contains('hidden'))) {
+            form.reset();
+            document.querySelectorAll('.enq-error').forEach(el => el.classList.add('hidden'));
+            const genErr = document.getElementById('enqGeneralError');
+            if (genErr) genErr.classList.add('hidden');
+        }
     }
+    panel.classList.toggle('hidden');
+});
+
+// Enquiry form submission
+document.getElementById('enquiryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!selectedProperty) return;
+
+    // Clear previous errors
+    document.querySelectorAll('.enq-error').forEach(el => { el.classList.add('hidden'); el.textContent = ''; });
+    const genErr = document.getElementById('enqGeneralError');
+    genErr.classList.add('hidden');
+
+    const btn = document.getElementById('enqSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    const formData = new FormData(this);
+    const csrfToken = getCsrfToken();
+
+    fetch(`/crm/enquire/${selectedProperty.id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('enquiryForm').classList.add('hidden');
+            document.getElementById('enquirySuccess').classList.remove('hidden');
+        } else if (data.errors) {
+            Object.entries(data.errors).forEach(([field, errs]) => {
+                const el = document.querySelector(`.enq-error[data-field="${field}"]`);
+                if (el) { el.textContent = Array.isArray(errs) ? errs[0] : errs; el.classList.remove('hidden'); }
+            });
+            btn.disabled = false;
+            btn.textContent = 'Send Enquiry';
+        } else {
+            genErr.textContent = data.error || 'An error occurred. Please try again.';
+            genErr.classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = 'Send Enquiry';
+        }
+    })
+    .catch(() => {
+        genErr.textContent = 'Network error. Please try again.';
+        genErr.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Send Enquiry';
+    });
 });
 
 // Property comparison functions

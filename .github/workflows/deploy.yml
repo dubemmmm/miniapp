@@ -24,3 +24,5 @@ jobs:
           python manage.py collectstatic --noinput
           sudo systemctl restart gunicorn
           sudo systemctl reload nginx
+          sudo systemctl restart celery-worker
+          sudo systemctl restart celery-beat

@@ -16,7 +16,6 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from . import views
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
@@ -26,6 +25,7 @@ from properties.views import custom_logout_view
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('properties.urls')),
+    path('crm/', include('crm.urls')),
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', custom_logout_view, name='logout'),
     path('accounts/', include('allauth.urls')),  # Allauth URLs (includes Google OAuth)

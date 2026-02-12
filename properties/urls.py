@@ -20,5 +20,6 @@ urlpatterns = [
     path('api/validate-invitation/', views.validate_invitation_code, name='validate_invitation'),
     path('google-oauth-signup/', views.google_oauth_with_invitation, name='google_oauth_signup'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
+    path('property/<int:property_pk>/', views.property_detail_view, name='property_detail'),
     path('', views.temp_view, name='temp')
 ]

@@ -1,0 +1,112 @@
+{% extends "crm/base_crm.html" %}
+
+{% block page_title %}Agent Workload{% endblock %}
+{% block page_subtitle %}{{ agents|length }} agent{{ agents|length|pluralize }}{% endblock %}
+
+{% block crm_content %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+  {% for agent in agents %}
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-4">
+
+    <!-- Agent header -->
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-base flex-shrink-0">
+        {{ agent.user.first_name|first|upper }}{{ agent.user.last_name|first|upper }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold text-slate-900 truncate">{{ agent.user.get_full_name|default:agent.user.username }}</p>
+        <p class="text-xs text-slate-400 truncate">{{ agent.user.email }}</p>
+      </div>
+      {% if agent.is_available %}
+        <span class="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-medium flex-shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Available
+        </span>
+      {% elif agent.on_leave_until %}
+        <span class="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full font-medium flex-shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>On leave
+        </span>
+      {% else %}
+        <span class="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full font-medium flex-shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span>Offline
+        </span>
+      {% endif %}
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="bg-slate-50 rounded-xl p-3">
+        <p class="text-2xl font-bold text-slate-800">{{ agent.current_open_leads }}</p>
+        <p class="text-xs text-slate-400 mt-0.5">Open</p>
+      </div>
+      <div class="rounded-xl p-3 {% if agent.current_overdue_leads > 0 %}bg-rose-50{% else %}bg-slate-50{% endif %}">
+        <p class="text-2xl font-bold {% if agent.current_overdue_leads > 0 %}text-rose-600{% else %}text-slate-400{% endif %}">
+          {{ agent.current_overdue_leads }}
+        </p>
+        <p class="text-xs {% if agent.current_overdue_leads > 0 %}text-rose-400{% else %}text-slate-400{% endif %} mt-0.5">Overdue</p>
+      </div>
+      <div class="bg-slate-50 rounded-xl p-3">
+        <p class="text-2xl font-bold text-slate-800">{{ agent.total_leads_won }}</p>
+        <p class="text-xs text-slate-400 mt-0.5">Won</p>
+      </div>
+    </div>
+
+    <!-- Response score bar -->
+    <div>
+      <div class="flex justify-between text-xs mb-1.5">
+        <span class="text-slate-500 font-medium">Response score</span>
+        <span class="font-semibold text-slate-700">{{ agent.response_score|floatformat:0 }}%</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-1.5">
+        <div class="h-1.5 rounded-full transition-all
+          {% if agent.response_score >= 70 %}bg-emerald-500
+          {% elif agent.response_score >= 40 %}bg-amber-400
+          {% else %}bg-rose-500{% endif %}"
+          style="width: {{ agent.response_score|floatformat:0 }}%">
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta info -->
+    <div class="space-y-1">
+      {% if agent.last_assigned_at %}
+      <p class="text-xs text-slate-400">
+        <i class="fas fa-clock w-3.5 text-slate-300"></i> Last assigned {{ agent.last_assigned_at|date:"d M Y H:i" }}
+      </p>
+      {% endif %}
+      {% if agent.on_leave_until %}
+      <p class="text-xs text-amber-500 font-medium">
+        <i class="fas fa-calendar-times w-3.5"></i> Leave until {{ agent.on_leave_until|date:"d M Y" }}
+      </p>
+      {% endif %}
+      {% if agent.coverage_locations %}
+      <p class="text-xs text-slate-400 truncate">
+        <i class="fas fa-map-marker-alt w-3.5 text-slate-300"></i> {{ agent.coverage_locations }}
+      </p>
+      {% endif %}
+      {% if agent.property_specialties %}
+      <p class="text-xs text-slate-400 truncate">
+        <i class="fas fa-tag w-3.5 text-slate-300"></i> {{ agent.property_specialties }}
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Action -->
+    <a href="{% url 'crm:leads_list' %}?agent_id={{ agent.user.id }}"
+       class="mt-auto block text-center text-sm font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl transition border border-slate-200">
+      <i class="fas fa-list mr-1.5 text-xs"></i>View leads
+    </a>
+
+  </div>
+  {% empty %}
+  <div class="col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm p-16 text-center">
+    <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-users text-slate-300 text-2xl"></i>
+    </div>
+    <p class="font-semibold text-slate-600">No agents found</p>
+    <p class="text-sm text-slate-400 mt-1">Add agents via Admin or Employee Registration.</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

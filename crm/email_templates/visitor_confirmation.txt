@@ -1,0 +1,24 @@
+Subject: Your enquiry for ${property_title} has been received
+
+Hi ${first_name},
+
+Thank you for reaching out about ${property_title} in ${property_location}. We've received your enquiry and a dedicated agent will be in touch with you shortly.
+
+YOUR ASSIGNED AGENT
+${agent_name}
+Email: ${agent_email}
+
+WHAT HAPPENS NEXT
+1. Your agent will review your enquiry within 2 business hours.
+2. They will contact you to discuss the property and answer your questions.
+3. If you're interested, they'll arrange a viewing at a time that suits you.
+
+View the full property listing here:
+${property_link}
+
+If you have urgent questions, contact your agent directly using the details above.
+
+NOTE: If you are expecting further emails from us, please add cwresocial@gmail.com to your contacts or mark this email as "Not Spam" to ensure our messages reach your inbox.
+
+Warm regards,
+The CW Real Estate Team

@@ -1,0 +1,170 @@
+{% extends "crm/base_crm.html" %}
+
+{% block page_title %}CRM Settings{% endblock %}
+{% block page_subtitle %}Admin configuration{% endblock %}
+
+{% block crm_content %}
+
+<!-- Tab nav -->
+<div class="flex gap-1 border-b border-slate-200 mb-6 overflow-x-auto">
+  {% for tab_id, tab_label in tab_list %}
+  <button type="button"
+    class="tab-btn flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap
+      {% if forloop.first %}border-rose-500 text-rose-600{% else %}border-transparent text-slate-500 hover:text-slate-700{% endif %}"
+    data-tab="{{ tab_id }}">{{ tab_label }}</button>
+  {% endfor %}
+</div>
+
+<!-- Tab: SLA -->
+<div class="tab-panel" id="tab-sla">
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 max-w-lg">
+    <h2 class="font-semibold text-slate-800 mb-1">SLA &amp; Deduplication</h2>
+    <p class="text-sm text-slate-400 mb-5">Configure response time requirements and lead deduplication windows.</p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="sla">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">First contact SLA (hours)</label>
+          <input type="number" name="first_contact_hours" min="1" max="72"
+                 value="{{ sla_config.first_contact_hours }}"
+                 class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-400">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Escalation threshold (hours after overdue)</label>
+          <input type="number" name="escalation_overdue_hours" min="1" max="168"
+                 value="{{ sla_config.escalation_overdue_hours }}"
+                 class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-400">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Deduplication window (hours)</label>
+          <input type="number" name="dedup_window_hours" min="1" max="48"
+                 value="{{ sla_config.dedup_window_hours }}"
+                 class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-400">
+        </div>
+        <button type="submit"
+          class="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition">
+          <i class="fas fa-save mr-1.5"></i>Save SLA Settings
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tab: Assignment Weights -->
+<div class="tab-panel hidden" id="tab-weights">
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 max-w-lg">
+    <h2 class="font-semibold text-slate-800 mb-1">Assignment Algorithm Weights</h2>
+    <p class="text-sm text-slate-400 mb-5">
+      Tune the Weighted Least-Load algorithm. Lower score = preferred agent.
+      Additive weights (w1–w2) penalise load. Subtractive weights (w3–w5) reward quality.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="weights">
+      <div class="space-y-3">
+        {% for field_name, label, val in weight_fields %}
+        <div class="flex items-center gap-4">
+          <label class="text-sm text-slate-600 flex-1">{{ label }}</label>
+          <input type="number" name="{{ field_name }}" step="0.01" min="0" max="1"
+                 value="{{ val }}"
+                 class="border border-slate-200 rounded-xl px-3 py-2 text-sm w-24 text-center bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-400">
+        </div>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-slate-400 mt-4 bg-slate-50 rounded-xl px-3 py-2">
+        <i class="fas fa-info-circle mr-1"></i>
+        w1+w2 are additive (penalise load). w3+w4+w5 are subtractive (reward quality).
+      </p>
+      <button type="submit"
+        class="mt-4 bg-rose-500 hover:bg-rose-600 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition">
+        <i class="fas fa-save mr-1.5"></i>Save Weights
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Tab: Agents -->
+<div class="tab-panel hidden" id="tab-agents">
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-100">
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Agent</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Email</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 hidden md:table-cell">Phone</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 hidden lg:table-cell">Coverage</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Available</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for agent in agents %}
+        <tr class="hover:bg-slate-50/50 transition">
+          <td class="px-5 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                {{ agent.user.first_name|first|upper }}{{ agent.user.last_name|first|upper }}
+              </div>
+              <span class="font-medium text-slate-800">{{ agent.user.get_full_name|default:agent.user.username }}</span>
+            </div>
+          </td>
+          <td class="px-5 py-4 text-slate-500 text-xs">{{ agent.user.email }}</td>
+          <td class="px-5 py-4 text-slate-500 text-xs hidden md:table-cell">{{ agent.phone|default:"—" }}</td>
+          <td class="px-5 py-4 text-slate-500 text-xs hidden lg:table-cell max-w-[160px] truncate">{{ agent.coverage_locations|default:"All" }}</td>
+          <td class="px-5 py-4">
+            {% if agent.is_available %}
+              <span class="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>Yes
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1.5 text-xs bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>No
+              </span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-4">
+            <a href="/admin/properties/userprofile/{{ agent.pk }}/change/"
+               target="_blank"
+               class="text-xs text-rose-500 hover:text-rose-600 font-medium">Edit <i class="fas fa-external-link-alt ml-0.5 text-[10px]"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-5 py-16 text-center">
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <i class="fas fa-users text-slate-300 text-xl"></i>
+              </div>
+              <p class="text-slate-500 font-medium">No agents found</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block crm_js %}
+<script>
+const tabs = document.querySelectorAll('.tab-btn');
+const panels = document.querySelectorAll('.tab-panel');
+
+tabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabs.forEach(t => {
+      t.classList.remove('border-rose-500', 'text-rose-600');
+      t.classList.add('border-transparent', 'text-slate-500');
+    });
+    panels.forEach(p => p.classList.add('hidden'));
+
+    btn.classList.add('border-rose-500', 'text-rose-600');
+    btn.classList.remove('border-transparent', 'text-slate-500');
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+  });
+});
+</script>
+{% endblock %}

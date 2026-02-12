@@ -1,0 +1,18 @@
+Subject: [ESCALATION] Overdue lead requires attention — ${property_title}
+
+Hi Admin,
+
+A lead has been overdue for more than ${overdue_hours} hours without agent contact.
+
+LEAD DETAILS
+Visitor:        ${visitor_name}
+Email:          ${visitor_email}
+Property:       ${property_title}
+Assigned Agent: ${agent_name}
+SLA Deadline:   ${sla_deadline}
+Overdue Since:  ${overdue_since}
+
+Please review and reassign if necessary:
+${crm_lead_url}
+
+— CW Real Estate CRM (Automated Alert)

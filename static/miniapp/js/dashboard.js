@@ -386,26 +386,60 @@ function createModalHTML(property) {
 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
-                    <button onclick="showContact()" class="btn btn-contact">
-                        <i class="fas fa-phone-alt"></i> Contact Agent
+                    <button onclick="toggleDashboardEnquiry()" class="btn btn-contact" id="dashEnquireBtn">
+                        <i class="fas fa-envelope"></i> Enquire Now
                     </button>
                     <button onclick="downloadBrochure('${property.brochure}')" class="btn btn-download">
                         <i class="fas fa-file-download"></i> Brochure
                     </button>
                 </div>
 
-                <!-- Contact Info -->
-                <div id="contactDisplay" class="contact-info-panel">
-                    <div class="contact-agent">
-                        <i class="fas fa-user-circle"></i>
-                        <span>${property.contact}</span>
+                <!-- Enquiry Form Panel -->
+                <div id="dashEnquiryPanel" style="display:none; margin-top:16px;">
+                    <div id="dashEnquirySuccess" style="display:none; padding:16px; background:#f0fdf4; border-radius:8px; text-align:center; color:#166534;">
+                        <i class="fas fa-check-circle" style="font-size:1.5rem; margin-bottom:8px; display:block;"></i>
+                        <strong>Thank you!</strong> We've received your enquiry and will be in touch shortly.
                     </div>
-                    <a href="${whatsappLink}" target="_blank" class="btn-whatsapp-contact">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.465 3.516"/>
-                        </svg>
-                        Message on WhatsApp
-                    </a>
+                    <div id="dashEnquiryForm">
+                        <input type="text" name="website" id="dashHoneypot" style="display:none;" autocomplete="off" tabindex="-1">
+                        <div id="dashEnquiryError" style="display:none; padding:10px; background:#fef2f2; border-radius:6px; color:#991b1b; font-size:13px; margin-bottom:10px;"></div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                            <div>
+                                <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">First name *</label>
+                                <input type="text" id="dashFirstName" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="Jane">
+                                <div id="dashFirstNameErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Last name *</label>
+                                <input type="text" id="dashLastName" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="Doe">
+                                <div id="dashLastNameErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Email *</label>
+                            <input type="email" id="dashEmail" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="jane@example.com">
+                            <div id="dashEmailErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Phone</label>
+                            <input type="tel" id="dashPhone" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="+234 800 000 0000">
+                            <div id="dashPhoneErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Message *</label>
+                            <textarea id="dashMessage" rows="3" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box; resize:vertical;" placeholder="I'm interested in this property..."></textarea>
+                            <div id="dashMessageErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                        </div>
+                        <div style="margin-bottom:12px; display:flex; align-items:flex-start; gap:8px;">
+                            <input type="checkbox" id="dashConsent" style="margin-top:2px; flex-shrink:0;">
+                            <label for="dashConsent" style="font-size:12px; color:#6b7280; cursor:pointer;">I agree to be contacted about this property and consent to my data being processed. *</label>
+                        </div>
+                        <div id="dashConsentErr" style="display:none; font-size:11px; color:#dc2626; margin-bottom:8px;"></div>
+                        <button onclick="submitDashboardEnquiry(${property.id})" id="dashSubmitBtn"
+                            style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:10px; font-size:14px; font-weight:600; cursor:pointer;">
+                            Send Enquiry
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -436,6 +470,95 @@ function closeModal() {
     } else {
         console.error('Modal element not found');
     }
+}
+
+function toggleDashboardEnquiry() {
+    const panel = document.getElementById('dashEnquiryPanel');
+    const btn = document.getElementById('dashEnquireBtn');
+    if (!panel) return;
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+    if (btn) btn.innerHTML = visible
+        ? '<i class="fas fa-envelope"></i> Enquire Now'
+        : '<i class="fas fa-times"></i> Close Form';
+}
+
+function submitDashboardEnquiry(propertyId) {
+    // Clear previous errors
+    ['dashFirstNameErr','dashLastNameErr','dashEmailErr','dashPhoneErr','dashMessageErr','dashConsentErr','dashEnquiryError'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.style.display = 'none'; el.textContent = ''; }
+    });
+
+    const honeypot = document.getElementById('dashHoneypot');
+    if (honeypot && honeypot.value) return; // bot trap
+
+    const firstName = (document.getElementById('dashFirstName') || {}).value || '';
+    const lastName  = (document.getElementById('dashLastName')  || {}).value || '';
+    const email     = (document.getElementById('dashEmail')     || {}).value || '';
+    const phone     = (document.getElementById('dashPhone')     || {}).value || '';
+    const message   = (document.getElementById('dashMessage')   || {}).value || '';
+    const consent   = document.getElementById('dashConsent') && document.getElementById('dashConsent').checked;
+
+    const body = new URLSearchParams({
+        first_name: firstName,
+        last_name:  lastName,
+        email:      email,
+        phone:      phone,
+        message:    message,
+        consent:    consent ? 'on' : '',
+    });
+
+    // Read CSRF token from cookie
+    const csrfToken = (document.cookie.split(';').find(c => c.trim().startsWith('csrftoken=')) || '').split('=')[1] || '';
+
+    const submitBtn = document.getElementById('dashSubmitBtn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending…'; }
+
+    fetch(`/crm/enquire/${propertyId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken,
+        },
+        body: body.toString(),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const formDiv = document.getElementById('dashEnquiryForm');
+            const successDiv = document.getElementById('dashEnquirySuccess');
+            if (formDiv) formDiv.style.display = 'none';
+            if (successDiv) successDiv.style.display = 'block';
+            const btn = document.getElementById('dashEnquireBtn');
+            if (btn) btn.style.display = 'none';
+        } else if (data.errors) {
+            const fieldMap = {
+                first_name: 'dashFirstNameErr',
+                last_name:  'dashLastNameErr',
+                email:      'dashEmailErr',
+                phone:      'dashPhoneErr',
+                message:    'dashMessageErr',
+                consent:    'dashConsentErr',
+            };
+            Object.entries(data.errors).forEach(([field, msgs]) => {
+                const errId = fieldMap[field];
+                if (errId) {
+                    const el = document.getElementById(errId);
+                    if (el) { el.textContent = msgs[0]; el.style.display = 'block'; }
+                } else {
+                    const gen = document.getElementById('dashEnquiryError');
+                    if (gen) { gen.textContent = msgs[0]; gen.style.display = 'block'; }
+                }
+            });
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send Enquiry'; }
+        }
+    })
+    .catch(() => {
+        const gen = document.getElementById('dashEnquiryError');
+        if (gen) { gen.textContent = 'Something went wrong. Please try again.'; gen.style.display = 'block'; }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send Enquiry'; }
+    });
 }
 
 function changeImage(delta, propertyId) {
@@ -493,17 +616,6 @@ function updateGalleryIndicators() {
     });
 }
 
-function showContact() {
-    console.log('showContact called');
-    const contactDisplay = document.getElementById('contactDisplay');
-    console.log('contactDisplay element:', contactDisplay);
-    if (contactDisplay) {
-        contactDisplay.classList.add('active');
-        console.log('Added active class');
-    } else {
-        console.error('contactDisplay element not found');
-    }
-}
 
 function downloadBrochure(url) {
     if (url) {

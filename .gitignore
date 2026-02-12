@@ -16,6 +16,10 @@ db.sqlite3
 /staticfiles/
 /media/
 
+# Redis
+dump.rdb
+*.rdb
+
 # Environment
 .env
 *.env

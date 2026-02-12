@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ property.name }} — CW Real Estate{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+
+  <!-- Nav -->
+  <nav class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
+    <a href="{% url 'temp' %}" class="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm">
+      <i class="fas fa-arrow-left"></i> Back to listings
+    </a>
+    {% include "partials/profile_menu.html" %}
+  </nav>
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Image gallery -->
+    {% if images %}
+    <div class="grid grid-cols-3 gap-2 rounded-xl overflow-hidden mb-8 h-80">
+      <div class="col-span-2 row-span-2">
+        <img src="{{ images.0.image.url }}" alt="{{ images.0.alt_text|default:property.name }}"
+             class="w-full h-full object-cover">
+      </div>
+      {% for img in images|slice:"1:3" %}
+      <div>
+        <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:property.name }}"
+             class="w-full h-40 object-cover">
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-3 gap-8">
+
+      <!-- Main content -->
+      <div class="col-span-2 space-y-6">
+
+        <!-- Title & quick stats -->
+        <div>
+          <div class="flex items-start justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900">{{ property.name }}</h1>
+              <p class="text-gray-500 mt-1"><i class="fas fa-map-marker-alt mr-1 text-red-400"></i>{{ property.address }}</p>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold
+              {% if property.luxury_status == 'luxurious' %}bg-amber-100 text-amber-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+              {{ property.get_luxury_status_display }}
+            </span>
+          </div>
+          {% if property.completion_date %}
+          <p class="text-sm text-gray-500 mt-2">
+            <i class="fas fa-calendar-check mr-1"></i> Completion: {{ property.completion_date|date:"F Y" }}
+          </p>
+          {% endif %}
+        </div>
+
+        <!-- Description -->
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <h2 class="font-semibold text-gray-800 mb-3">About this property</h2>
+          <p class="text-gray-600 leading-relaxed">{{ property.description }}</p>
+        </div>
+
+        <!-- Configurations -->
+        {% if configurations %}
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <h2 class="font-semibold text-gray-800 mb-4">Available Units</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-xs uppercase text-gray-500 border-b">
+                <tr>
+                  <th class="pb-2 text-left">Type</th>
+                  <th class="pb-2 text-left">Beds</th>
+                  <th class="pb-2 text-left">Baths</th>
+                  <th class="pb-2 text-left">Sq ft</th>
+                  <th class="pb-2 text-left">Price</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                {% for config in configurations %}
+                <tr class="py-2">
+                  <td class="py-2 font-medium text-gray-800">{{ config.type }}</td>
+                  <td class="py-2 text-gray-600">{{ config.bedrooms }}</td>
+                  <td class="py-2 text-gray-600">{{ config.bathrooms }}</td>
+                  <td class="py-2 text-gray-600">{{ config.square_footage|default:"—" }}</td>
+                  <td class="py-2 text-gray-700 font-semibold">
+                    {% if config.price %}₦{{ config.price|floatformat:0 }}{% else %}Contact us{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Amenities -->
+        {% if amenities %}
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <h2 class="font-semibold text-gray-800 mb-4">Amenities</h2>
+          <div class="grid grid-cols-2 gap-2">
+            {% for amenity in amenities %}
+            <div class="flex items-center gap-2 text-sm text-gray-600">
+              <i class="{{ amenity.icon|default:'fas fa-check' }} text-green-500 w-4"></i>
+              {{ amenity.name }}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Progress -->
+        {% if progress %}
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <h2 class="font-semibold text-gray-800 mb-3">Construction Progress</h2>
+          <div class="flex items-center gap-4 mb-3">
+            <div class="flex-1 bg-gray-100 rounded-full h-3">
+              <div class="bg-blue-500 h-3 rounded-full transition-all" style="width: {{ progress.progress_percentage }}%"></div>
+            </div>
+            <span class="text-sm font-semibold text-gray-700">{{ progress.progress_percentage }}%</span>
+          </div>
+          <p class="text-sm text-gray-600">
+            <strong>Stage:</strong> {{ progress.get_stage_display }}
+          </p>
+          {% if progress.description %}
+          <p class="text-sm text-gray-500 mt-1">{{ progress.description }}</p>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- ENQUIRY FORM -->
+      <div class="col-span-1">
+        <div class="bg-white rounded-xl shadow-sm p-5 sticky top-8">
+          <h2 class="font-semibold text-gray-800 mb-1">Enquire about this property</h2>
+          <p class="text-xs text-gray-400 mb-4">An agent will contact you within 2 business hours.</p>
+
+          <!-- Success state (hidden by default) -->
+          <div id="enquirySuccess" class="hidden text-center py-6">
+            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <i class="fas fa-check text-green-600 text-xl"></i>
+            </div>
+            <h3 class="font-semibold text-gray-800 mb-1">Enquiry received!</h3>
+            <p class="text-sm text-gray-500">An agent will be in touch shortly.</p>
+            <p class="text-xs text-gray-400 mt-1">A confirmation email has been sent to you. If you don't see it, please check your spam or junk folder.</p>
+          </div>
+
+          <!-- Form -->
+          <form id="enquiryForm" class="space-y-3" novalidate>
+            {% csrf_token %}
+            <!-- Honeypot -->
+            <div style="display:none">{{ form.website }}</div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">First name *</label>
+                {{ form.first_name }}
+                <p class="text-red-500 text-xs mt-0.5 hidden field-error" data-field="first_name"></p>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Last name *</label>
+                {{ form.last_name }}
+                <p class="text-red-500 text-xs mt-0.5 hidden field-error" data-field="last_name"></p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Email *</label>
+              {{ form.email }}
+              <p class="text-red-500 text-xs mt-0.5 hidden field-error" data-field="email"></p>
+            </div>
+
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Phone</label>
+              {{ form.phone }}
+              <p class="text-red-500 text-xs mt-0.5 hidden field-error" data-field="phone"></p>
+            </div>
+
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Message *</label>
+              {{ form.message }}
+              <p class="text-red-500 text-xs mt-0.5 hidden field-error" data-field="message"></p>
+            </div>
+
+            <div class="flex items-start gap-2">
+              {{ form.consent }}
+              <label class="text-xs text-gray-500 leading-relaxed">
+                I agree to be contacted by CW Real Estate about this property and related services.
+              </label>
+            </div>
+            <p class="text-red-500 text-xs hidden field-error" data-field="consent"></p>
+
+            <!-- General error -->
+            <p id="formError" class="text-red-500 text-xs hidden"></p>
+
+            <button type="submit" id="submitBtn"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg text-sm transition">
+              Send Enquiry
+            </button>
+
+            <p class="text-xs text-gray-400 text-center">
+              <i class="fas fa-lock mr-1"></i> Your details are kept private.
+            </p>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('enquiryForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  // Clear previous errors
+  document.querySelectorAll('.field-error').forEach(el => {
+    el.classList.add('hidden');
+    el.textContent = '';
+  });
+  document.getElementById('formError').classList.add('hidden');
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  const formData = new FormData(this);
+
+  fetch("{{ enquiry_url }}", {
+    method: 'POST',
+    headers: {'X-CSRFToken': formData.get('csrfmiddlewaretoken')},
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('enquiryForm').classList.add('hidden');
+      document.getElementById('enquirySuccess').classList.remove('hidden');
+    } else if (data.errors) {
+      // Show field-level errors
+      Object.entries(data.errors).forEach(([field, errs]) => {
+        const el = document.querySelector(`.field-error[data-field="${field}"]`);
+        if (el) {
+          el.textContent = Array.isArray(errs) ? errs[0] : errs;
+          el.classList.remove('hidden');
+        }
+      });
+      btn.disabled = false;
+      btn.textContent = 'Send Enquiry';
+    } else {
+      document.getElementById('formError').textContent = data.error || 'An error occurred. Please try again.';
+      document.getElementById('formError').classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Send Enquiry';
+    }
+  })
+  .catch(() => {
+    document.getElementById('formError').textContent = 'Network error. Please check your connection and try again.';
+    document.getElementById('formError').classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Send Enquiry';
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,270 @@
+{% extends "crm/base_crm.html" %}
+
+{% block page_title %}Leads{% endblock %}
+{% block page_subtitle %}{{ paginator.count }} total lead{{ paginator.count|pluralize }}{% endblock %}
+
+{% block crm_content %}
+
+<!-- KPI CARDS -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Leads</p>
+        <p class="text-3xl font-bold text-slate-900 mt-1">{{ paginator.count }}</p>
+      </div>
+      <span class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+        <i class="fas fa-inbox text-sm"></i>
+      </span>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">New</p>
+        <p class="text-3xl font-bold text-rose-500 mt-1">{{ new_count|default:"0" }}</p>
+      </div>
+      <span class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-400">
+        <i class="fas fa-star text-sm"></i>
+      </span>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Overdue</p>
+        <p class="text-3xl font-bold text-rose-500 mt-1">{{ overdue_count|default:"0" }}</p>
+      </div>
+      <span class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-400">
+        <i class="fas fa-exclamation-triangle text-sm"></i>
+      </span>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Won</p>
+        <p class="text-3xl font-bold text-slate-900 mt-1">{{ won_count|default:"0" }}</p>
+      </div>
+      <span class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+        <i class="fas fa-trophy text-sm"></i>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="bg-white rounded-2xl border border-slate-100 shadow-sm mb-5">
+
+  <!-- Collapsible header (visible on mobile, hidden on md+) -->
+  <button type="button" id="filterToggleBtn"
+          class="md:hidden w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700"
+          onclick="toggleFilters()">
+    <span class="flex items-center gap-2">
+      <i class="fas fa-filter text-rose-400 text-xs"></i>
+      Filters
+      {% if has_filters %}
+      <span class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold">!</span>
+      {% endif %}
+    </span>
+    <i id="filterChevron" class="fas fa-chevron-down text-slate-400 text-xs transition-transform {% if has_filters %}rotate-180{% endif %}"></i>
+  </button>
+
+  <!-- Filter body: always visible on md+, toggleable on mobile -->
+  <div id="filterBody" class="{% if not has_filters %}hidden{% endif %} md:block px-4 pb-4 {% if has_filters %}pt-0{% else %}pt-4{% endif %} md:pt-4">
+    <form method="get" class="flex flex-wrap gap-3 items-end">
+    <div class="flex-1 min-w-[180px]">
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">Search</label>
+      <div class="relative">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+        <input type="text" name="search" value="{{ params.search }}" placeholder="Name, email…"
+               class="crm-input w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-sm text-slate-700 bg-slate-50">
+      </div>
+    </div>
+    <div class="w-36">
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">Status</label>
+      <select name="status" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50">
+        <option value="">All statuses</option>
+        {% for val, label in lead_statuses %}
+          <option value="{{ val }}" {% if params.status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="w-36">
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">Follow-up</label>
+      <select name="followup_status" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50">
+        <option value="">All</option>
+        {% for val, label in followup_statuses %}
+          <option value="{{ val }}" {% if params.followup_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if is_admin %}
+    <div class="w-40">
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">Agent</label>
+      <select name="agent_id" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50">
+        <option value="">All agents</option>
+        {% for ap in agents %}
+          <option value="{{ ap.user.id }}" {% if params.agent_id == ap.user.id|stringformat:"s" %}selected{% endif %}>
+            {{ ap.user.get_full_name|default:ap.user.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">From</label>
+      <input type="date" name="date_from" value="{{ params.date_from }}"
+             class="crm-input border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">To</label>
+      <input type="date" name="date_to" value="{{ params.date_to }}"
+             class="crm-input border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-slate-50">
+    </div>
+    <div class="flex items-center gap-2 pb-1">
+      <input type="checkbox" id="overdueOnly" name="overdue_only" value="1"
+             {% if params.overdue_only == '1' %}checked{% endif %}
+             class="w-4 h-4 rounded border-slate-300">
+      <label for="overdueOnly" class="text-sm font-medium text-rose-500 whitespace-nowrap">Overdue only</label>
+    </div>
+    <div class="flex items-end gap-2 pb-0.5">
+      <button type="submit" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm">
+        <i class="fas fa-filter mr-1.5"></i>Filter
+      </button>
+      <a href="{% url 'crm:leads_list' %}" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition border border-slate-200">Clear</a>
+    </div>
+  </form>
+  </div><!-- /filterBody -->
+</div><!-- /filter card -->
+
+<!-- DESKTOP TABLE -->
+<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hidden md:block">
+  <table class="w-full text-sm leads-table">
+    <thead>
+      <tr class="bg-slate-50 border-b border-slate-100">
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Visitor</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Property</th>
+        {% if is_admin %}<th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Agent</th>{% endif %}
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Follow-up</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">SLA</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Created</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-50">
+      {% for lead in leads %}
+      <tr onclick="window.location='{% url 'crm:lead_detail' lead.pk %}'"
+          class="transition {% if lead.is_overdue %}bg-rose-50/40{% endif %}">
+        <td class="px-5 py-4">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs flex-shrink-0">
+              {{ lead.first_name|first|upper }}{{ lead.last_name|first|upper }}
+            </div>
+            <div class="min-w-0">
+              <p class="font-semibold text-slate-900 truncate">{{ lead.full_name }}</p>
+              <p class="text-slate-400 text-xs truncate">{{ lead.email }}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-5 py-4 max-w-[200px]">
+          <p class="text-slate-700 truncate text-sm">{{ lead.property_title_snapshot|truncatechars:36 }}</p>
+          <p class="text-xs text-slate-400 truncate">{{ lead.property_location_snapshot|truncatechars:28 }}</p>
+        </td>
+        {% if is_admin %}
+        <td class="px-5 py-4">
+          {% if lead.current_agent %}
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+              {{ lead.current_agent.first_name|first|upper }}
+            </div>
+            <span class="text-slate-600 text-sm truncate">{{ lead.current_agent.get_full_name }}</span>
+          </div>
+          {% else %}<span class="text-slate-400 text-sm">Unassigned</span>{% endif %}
+        </td>
+        {% endif %}
+        <td class="px-5 py-4">{% include "crm/_status_badge.html" with status=lead.lead_status display=lead.get_lead_status_display %}</td>
+        <td class="px-5 py-4">{% include "crm/_followup_badge.html" with status=lead.followup_status display=lead.get_followup_status_display %}</td>
+        <td class="px-5 py-4">
+          <p class="text-xs {% if lead.is_overdue %}text-rose-600 font-semibold{% else %}text-slate-500{% endif %}">
+            {{ lead.sla_deadline|date:"d M Y" }}{% if lead.is_overdue %} <i class="fas fa-exclamation-circle"></i>{% endif %}
+          </p>
+          <p class="text-xs text-slate-400">{{ lead.sla_deadline|date:"H:i" }}</p>
+        </td>
+        <td class="px-5 py-4 text-xs text-slate-400">{{ lead.created_at|date:"d M Y" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="px-5 py-16 text-center">
+          <div class="flex flex-col items-center gap-3">
+            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+              <i class="fas fa-inbox text-slate-300 text-2xl"></i>
+            </div>
+            <p class="font-semibold text-slate-600">No leads found</p>
+            <p class="text-sm text-slate-400">Adjust your filters or wait for new enquiries.</p>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MOBILE CARDS -->
+<div class="md:hidden space-y-3">
+  {% for lead in leads %}
+  <a href="{% url 'crm:lead_detail' lead.pk %}"
+     class="block bg-white rounded-2xl border border-slate-100 shadow-sm p-4 {% if lead.is_overdue %}border-rose-200{% endif %}">
+    <div class="flex items-start justify-between gap-3 mb-2">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm flex-shrink-0">
+          {{ lead.first_name|first|upper }}{{ lead.last_name|first|upper }}
+        </div>
+        <div class="min-w-0">
+          <p class="font-semibold text-slate-900 truncate text-sm">{{ lead.full_name }}</p>
+          <p class="text-xs text-slate-400 truncate">{{ lead.email }}</p>
+        </div>
+      </div>
+      {% include "crm/_status_badge.html" with status=lead.lead_status display=lead.get_lead_status_display %}
+    </div>
+    <p class="text-xs text-slate-500 truncate"><i class="fas fa-building text-slate-300 mr-1"></i>{{ lead.property_title_snapshot }}</p>
+    <div class="flex items-center justify-between mt-2">
+      <p class="text-xs text-slate-400">{{ lead.created_at|date:"d M Y" }}</p>
+      {% if lead.is_overdue %}<span class="text-xs font-semibold text-rose-500"><i class="fas fa-exclamation-triangle mr-1"></i>Overdue</span>{% endif %}
+    </div>
+  </a>
+  {% empty %}
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
+    <i class="fas fa-inbox text-slate-300 text-3xl mb-3 block"></i>
+    <p class="text-slate-500 font-medium">No leads found</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- PAGINATION -->
+{% if leads.has_other_pages %}
+<div class="flex items-center justify-between mt-6">
+  <p class="text-sm text-slate-400">Page <span class="font-semibold text-slate-700">{{ leads.number }}</span> of <span class="font-semibold text-slate-700">{{ leads.paginator.num_pages }}</span></p>
+  <div class="flex items-center gap-2">
+    {% if leads.has_previous %}
+    <a href="?page={{ leads.previous_page_number }}&{{ params.urlencode }}" class="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition"><i class="fas fa-chevron-left mr-1 text-xs"></i> Prev</a>
+    {% endif %}
+    {% if leads.has_next %}
+    <a href="?page={{ leads.next_page_number }}&{{ params.urlencode }}" class="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Next <i class="fas fa-chevron-right ml-1 text-xs"></i></a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block crm_js %}
+<script>
+function toggleFilters() {
+  const body = document.getElementById('filterBody');
+  const chevron = document.getElementById('filterChevron');
+  const isHidden = body.classList.toggle('hidden');
+  chevron.classList.toggle('rotate-180', !isHidden);
+}
+</script>
+{% endblock %}

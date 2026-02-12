@@ -362,8 +362,60 @@ class UserProfile(models.Model):
         help_text="Properties for which this user can see exact location"
     )
 
+    # CRM agent fields
+    is_available = models.BooleanField(
+        default=True,
+        help_text="Agent can toggle offline to pause lead assignment"
+    )
+    on_leave_until = models.DateField(
+        null=True, blank=True,
+        help_text="If set and today <= this date, agent is excluded from assignment"
+    )
+    whatsapp_number = models.CharField(max_length=20, blank=True)
+    coverage_locations = models.TextField(
+        blank=True,
+        help_text="Comma-separated list of cities/areas this agent covers"
+    )
+    property_specialties = models.TextField(
+        blank=True,
+        help_text="Comma-separated list of property categories this agent specialises in"
+    )
+    response_score = models.FloatField(
+        default=1.0,
+        help_text="0.0–1.0 ratio of leads contacted within SLA (last 30 days). Recomputed daily."
+    )
+    current_open_leads = models.PositiveIntegerField(
+        default=0,
+        help_text="Denormalized count of currently open leads assigned to this agent"
+    )
+    current_overdue_leads = models.PositiveIntegerField(
+        default=0,
+        help_text="Denormalized count of overdue leads assigned to this agent"
+    )
+    last_assigned_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Timestamp of most recent lead assignment (used for tie-breaking)"
+    )
+    total_leads_assigned = models.PositiveIntegerField(default=0)
+    total_leads_won = models.PositiveIntegerField(default=0)
+
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
+
+    @property
+    def is_eligible_for_assignment(self):
+        """True when the agent can receive new lead assignments."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        if self.role != 'agent':
+            return False
+        if not self.user.is_active:
+            return False
+        if not self.is_available:
+            return False
+        if self.on_leave_until and self.on_leave_until >= today:
+            return False
+        return True
 
     def unlock_property(self, property_obj):
         """Grant user access to exact location of a property"""

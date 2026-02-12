@@ -1,0 +1,419 @@
+{% extends "crm/base_crm.html" %}
+
+{% block page_title %}{{ lead.full_name }}{% endblock %}
+{% block page_subtitle %}
+  {% include "crm/_status_badge.html" with status=lead.lead_status display=lead.get_lead_status_display %}
+{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'crm:leads_list' %}"
+   class="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5">
+  <i class="fas fa-chevron-left text-xs"></i><span class="hidden sm:inline ml-0.5">Leads</span>
+</a>
+{% endblock %}
+
+{% block crm_content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+  <!-- ── LEFT COLUMN ── -->
+  <div class="lg:col-span-1 space-y-4">
+
+    <!-- Visitor card -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 font-bold text-lg flex-shrink-0">
+          {{ lead.first_name|first|upper }}{{ lead.last_name|first|upper }}
+        </div>
+        <div class="min-w-0">
+          <p class="font-bold text-slate-900 text-base truncate">{{ lead.full_name }}</p>
+          {% include "crm/_status_badge.html" with status=lead.lead_status display=lead.get_lead_status_display %}
+        </div>
+      </div>
+      <div class="space-y-2">
+        <a href="mailto:{{ lead.email }}" class="flex items-center gap-2.5 text-sm text-slate-600 hover:text-rose-500 transition group">
+          <span class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-400 transition flex-shrink-0"><i class="fas fa-envelope text-xs"></i></span>
+          <span class="truncate">{{ lead.email }}</span>
+        </a>
+        {% if lead.phone %}
+        <a href="tel:{{ lead.phone }}" class="flex items-center gap-2.5 text-sm text-slate-600 hover:text-rose-500 transition group">
+          <span class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-400 transition flex-shrink-0"><i class="fas fa-phone text-xs"></i></span>
+          <span>{{ lead.phone }}</span>
+        </a>
+        {% endif %}
+      </div>
+      {% if lead.message %}
+      <div class="mt-4 p-3 bg-slate-50 rounded-xl border-l-2 border-rose-200">
+        <p class="text-xs text-slate-400 font-medium mb-1">Message</p>
+        <p class="text-sm text-slate-600 italic">"{{ lead.message }}"</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Property card -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Interested In</p>
+      <p class="font-semibold text-slate-900 text-sm">{{ lead.property_title_snapshot }}</p>
+      <p class="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
+        <i class="fas fa-map-marker-alt text-rose-400 text-xs"></i>
+        {{ lead.property_location_snapshot }}
+      </p>
+      {% if lead.property_url_snapshot %}
+      <a href="{{ lead.property_url_snapshot }}" target="_blank"
+         class="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-rose-500 hover:text-rose-600 transition">
+        <i class="fas fa-external-link-alt"></i> View listing
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Details card -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Details</p>
+      <dl class="space-y-2.5">
+        <div class="flex items-center justify-between">
+          <dt class="text-xs text-slate-400">Created</dt>
+          <dd class="text-xs font-medium text-slate-700">{{ lead.created_at|date:"d M Y H:i" }}</dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt class="text-xs text-slate-400">SLA Deadline</dt>
+          <dd class="text-xs font-medium {% if lead.is_overdue %}text-rose-600{% else %}text-slate-700{% endif %}">
+            {{ lead.sla_deadline|date:"d M Y H:i" }}{% if lead.is_overdue %} <i class="fas fa-exclamation-circle"></i>{% endif %}
+          </dd>
+        </div>
+        {% if lead.utm_source %}
+        <div class="flex items-center justify-between">
+          <dt class="text-xs text-slate-400">Source</dt>
+          <dd class="text-xs font-medium text-slate-700">{{ lead.utm_source }}{% if lead.utm_medium %} / {{ lead.utm_medium }}{% endif %}</dd>
+        </div>
+        {% endif %}
+        <div class="flex items-center justify-between">
+          <dt class="text-xs text-slate-400">Consent</dt>
+          <dd class="text-xs font-medium {% if lead.consent_given %}text-emerald-600{% else %}text-rose-400{% endif %}">
+            {% if lead.consent_given %}<i class="fas fa-check-circle mr-1"></i>Given{% else %}<i class="fas fa-times-circle mr-1"></i>Not given{% endif %}
+          </dd>
+        </div>
+        {% if lead.is_duplicate %}
+        <div class="mt-1 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1.5">
+          <i class="fas fa-copy"></i> Duplicate submission
+        </div>
+        {% endif %}
+      </dl>
+    </div>
+
+  </div>
+
+  <!-- ── CENTER: TIMELINE ── -->
+  <div class="lg:col-span-1">
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 h-full">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-5">Activity Timeline</p>
+      <div class="space-y-4 max-h-[70vh] overflow-y-auto crm-scroll pr-1">
+        {% for entry in activity_logs %}
+        {% if not entry.is_private or is_admin %}
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-xs
+              {% if entry.event_type == 'LEAD_CREATED' %}bg-slate-100 text-slate-600
+              {% elif entry.event_type == 'CALL_LOGGED' %}bg-slate-800 text-white
+              {% elif entry.event_type == 'EMAIL_SENT' %}bg-rose-100 text-rose-600
+              {% elif entry.event_type == 'WHATSAPP_LOGGED' %}bg-slate-700 text-white
+              {% elif entry.event_type == 'NOTE_ADDED' %}bg-slate-100 text-slate-600
+              {% elif entry.event_type == 'AGENT_ASSIGNED' or entry.event_type == 'AGENT_REASSIGNED' %}bg-rose-500 text-white
+              {% elif entry.event_type == 'OVERDUE_FLAGGED' or entry.event_type == 'ESCALATED' %}bg-rose-500 text-white
+              {% else %}bg-slate-100 text-slate-400{% endif %}">
+              {% if entry.event_type == 'LEAD_CREATED' %}<i class="fas fa-plus"></i>
+              {% elif entry.event_type == 'CALL_LOGGED' %}<i class="fas fa-phone"></i>
+              {% elif entry.event_type == 'EMAIL_SENT' %}<i class="fas fa-envelope"></i>
+              {% elif entry.event_type == 'WHATSAPP_LOGGED' %}<i class="fab fa-whatsapp"></i>
+              {% elif entry.event_type == 'NOTE_ADDED' %}<i class="fas fa-sticky-note"></i>
+              {% elif entry.event_type == 'AGENT_ASSIGNED' or entry.event_type == 'AGENT_REASSIGNED' %}<i class="fas fa-user-check"></i>
+              {% elif entry.event_type == 'STATUS_CHANGED' %}<i class="fas fa-exchange-alt"></i>
+              {% elif entry.event_type == 'OVERDUE_FLAGGED' %}<i class="fas fa-clock"></i>
+              {% elif entry.event_type == 'ESCALATED' %}<i class="fas fa-bell"></i>
+              {% else %}<i class="fas fa-circle"></i>{% endif %}
+            </div>
+            {% if not forloop.last %}<div class="w-px flex-1 bg-slate-100 my-1"></div>{% endif %}
+          </div>
+          <div class="flex-1 pb-2">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+              <p class="text-sm font-semibold text-slate-800">
+                {{ entry.get_event_type_display }}
+                {% if entry.is_private %}<span class="text-xs text-slate-400 font-normal ml-1">(private)</span>{% endif %}
+              </p>
+              <p class="text-xs text-slate-400 flex-shrink-0">{{ entry.created_at|date:"d M, H:i" }}</p>
+            </div>
+            {% if entry.old_value and entry.new_value %}
+            <p class="text-xs text-slate-500 mb-0.5">
+              <span class="line-through text-slate-400">{{ entry.old_value }}</span>
+              <i class="fas fa-arrow-right mx-1 text-xs text-slate-300"></i>
+              <span class="text-slate-700 font-medium">{{ entry.new_value }}</span>
+            </p>
+            {% endif %}
+            {% if entry.note %}<p class="text-sm text-slate-600">{{ entry.note }}</p>{% endif %}
+            <p class="text-xs text-slate-400 mt-0.5">
+              {% if entry.actor %}{{ entry.actor.get_full_name|default:entry.actor.username }}{% else %}System{% endif %}
+            </p>
+          </div>
+        </div>
+        {% endif %}
+        {% empty %}
+        <div class="text-center py-8">
+          <i class="fas fa-stream text-slate-200 text-3xl mb-2 block"></i>
+          <p class="text-sm text-slate-400">No activity yet.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT COLUMN: ACTIONS ── -->
+  <div class="lg:col-span-1 space-y-4">
+
+    <!-- Assigned Agent -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Assigned Agent</p>
+      {% if current_assignment and current_assignment.agent %}
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 font-bold flex-shrink-0">
+          {{ current_assignment.agent.first_name|first|upper }}{{ current_assignment.agent.last_name|first|upper }}
+        </div>
+        <div class="min-w-0">
+          <p class="font-semibold text-slate-900 text-sm truncate">{{ current_assignment.agent.get_full_name }}</p>
+          <p class="text-xs text-slate-400 truncate">{{ current_assignment.agent.email }}</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400">Assigned {{ current_assignment.assigned_at|date:"d M Y H:i" }}</p>
+      <p class="text-xs text-slate-400">Via: {{ current_assignment.get_assignment_reason_display }}</p>
+      {% else %}
+      <div class="flex items-center gap-2 text-amber-600 bg-amber-50 rounded-xl p-3">
+        <i class="fas fa-exclamation-triangle text-sm"></i>
+        <p class="text-sm font-medium">Unassigned</p>
+      </div>
+      {% endif %}
+      {% if is_admin %}
+      <button id="reassignBtn"
+              class="mt-3 w-full flex items-center justify-center gap-2 border border-slate-200 hover:border-rose-300 text-slate-600 hover:text-rose-500 text-sm font-medium py-2 rounded-xl transition">
+        <i class="fas fa-exchange-alt text-xs"></i> Reassign Lead
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Update Status -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Lead Status</p>
+      <select id="statusSelect"
+              class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 bg-slate-50 font-medium">
+        {% for val, label in lead_statuses %}
+          <option value="{{ val }}" {% if lead.lead_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-slate-400 mt-1.5">Changes save automatically.</p>
+    </div>
+
+    <!-- Log Activity -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Log Activity</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="log-btn flex items-center justify-center gap-2 text-sm px-3 py-2.5 bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-700 rounded-xl border border-slate-200 hover:border-slate-900 transition font-medium"
+                data-event="CALL_LOGGED" data-method="PHONE">
+          <i class="fas fa-phone text-xs"></i> Call
+        </button>
+        <button class="log-btn flex items-center justify-center gap-2 text-sm px-3 py-2.5 bg-slate-50 hover:bg-rose-500 hover:text-white text-slate-700 rounded-xl border border-slate-200 hover:border-rose-500 transition font-medium"
+                data-event="EMAIL_SENT" data-method="EMAIL">
+          <i class="fas fa-envelope text-xs"></i> Email
+        </button>
+        <button class="log-btn flex items-center justify-center gap-2 text-sm px-3 py-2.5 bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-700 rounded-xl border border-slate-200 hover:border-slate-900 transition font-medium"
+                data-event="WHATSAPP_LOGGED" data-method="WHATSAPP">
+          <i class="fab fa-whatsapp text-xs"></i> WhatsApp
+        </button>
+        <button class="log-btn flex items-center justify-center gap-2 text-sm px-3 py-2.5 bg-slate-50 hover:bg-slate-800 hover:text-white text-slate-700 rounded-xl border border-slate-200 hover:border-slate-800 transition font-medium"
+                data-event="NOTE_ADDED" data-method="">
+          <i class="fas fa-sticky-note text-xs"></i> Note
+        </button>
+      </div>
+      <div id="noteArea" class="mt-3 hidden">
+        <textarea id="activityNote" rows="3"
+                  class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none"
+                  placeholder="Add a note…"></textarea>
+        <label class="flex items-center gap-2 text-xs text-slate-500 mt-2 cursor-pointer">
+          <input type="checkbox" id="notePrivate" class="w-3.5 h-3.5 rounded border-slate-300"> Private note
+        </label>
+        <button id="submitNote"
+                class="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-xl transition">
+          Save Note
+        </button>
+      </div>
+    </div>
+
+    <!-- Follow-ups -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Follow-ups</p>
+        <button id="addFollowupBtn"
+                class="text-xs font-semibold text-rose-500 hover:text-rose-600 transition">
+          + Add
+        </button>
+      </div>
+      {% for fu in followups %}
+      <div class="flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0
+          {% if fu.status == 'OVERDUE' %}text-rose-600{% elif fu.status == 'COMPLETED' %}text-slate-400{% else %}text-slate-700{% endif %}">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5
+            {% if fu.status == 'OVERDUE' %}bg-rose-50 text-rose-500
+            {% elif fu.status == 'COMPLETED' %}bg-slate-100 text-slate-400
+            {% else %}bg-slate-100 text-slate-600{% endif %}">
+          <i class="fas fa-{% if fu.followup_type == 'CALL' %}phone{% elif fu.followup_type == 'EMAIL' %}envelope{% elif fu.followup_type == 'WHATSAPP' %}whatsapp{% else %}calendar{% endif %} text-xs"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium {% if fu.status == 'COMPLETED' %}line-through{% endif %}">{{ fu.get_followup_type_display }}</p>
+          <p class="text-xs text-slate-400">{{ fu.due_at|date:"d M, H:i" }}</p>
+          {% if fu.notes %}<p class="text-xs text-slate-500 truncate mt-0.5">{{ fu.notes }}</p>{% endif %}
+        </div>
+        {% include "crm/_followup_badge.html" with status=fu.status display=fu.get_status_display %}
+      </div>
+      {% empty %}
+      <div class="text-center py-5">
+        <i class="fas fa-calendar text-slate-200 text-2xl mb-2 block"></i>
+        <p class="text-sm text-slate-400">No follow-ups scheduled.</p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+<!-- REASSIGN MODAL -->
+{% if is_admin %}
+<div id="reassignModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onclick="document.getElementById('reassignModal').classList.add('hidden')"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+    <h3 class="font-bold text-slate-900 text-base mb-4">Reassign Lead</h3>
+    <label class="block text-xs font-medium text-slate-500 mb-1.5">New Agent</label>
+    <select id="newAgentSelect" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3">
+      <option value="">Select agent…</option>
+      {% for ap in agents %}
+      <option value="{{ ap.user.id }}">
+        {{ ap.user.get_full_name|default:ap.user.username }} ({{ ap.current_open_leads }} open)
+      </option>
+      {% endfor %}
+    </select>
+    <label class="block text-xs font-medium text-slate-500 mb-1.5">Reason (optional)</label>
+    <textarea id="reassignNote" rows="2" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4" placeholder="Why are you reassigning?"></textarea>
+    <div class="flex gap-2">
+      <button id="confirmReassign" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold py-2.5 rounded-xl transition">Confirm</button>
+      <button id="cancelReassign" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2.5 rounded-xl transition">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ADD FOLLOW-UP MODAL -->
+<div id="addFollowupModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onclick="document.getElementById('addFollowupModal').classList.add('hidden')"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+    <h3 class="font-bold text-slate-900 text-base mb-4">Schedule Follow-up</h3>
+    <label class="block text-xs font-medium text-slate-500 mb-1.5">Type</label>
+    <select id="followupType" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3">
+      {% for val, label in followup_types %}
+      <option value="{{ val }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    <label class="block text-xs font-medium text-slate-500 mb-1.5">Date & Time</label>
+    <input type="datetime-local" id="followupDue" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3">
+    <label class="block text-xs font-medium text-slate-500 mb-1.5">Notes (optional)</label>
+    <textarea id="followupNotes" rows="2" class="crm-input w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4" placeholder="Add context…"></textarea>
+    <div class="flex gap-2">
+      <button id="confirmFollowup" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold py-2.5 rounded-xl transition">Schedule</button>
+      <button id="cancelFollowup" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2.5 rounded-xl transition">Cancel</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block crm_js %}
+<script>
+const LEAD_ID = '{{ lead.pk }}';
+const CSRF = '{{ csrf_token }}';
+
+function apiPost(url, data) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(data),
+  }).then(r => r.json());
+}
+
+// Status change
+document.getElementById('statusSelect').addEventListener('change', function() {
+  apiPost("{% url 'crm:update_status' lead.pk %}", { status: this.value })
+    .then(d => {
+      if (d.success) showToast('Status updated');
+      else showToast(d.error || 'Update failed', 'error');
+    });
+});
+
+// Log activity buttons
+let activeEvent = null, activeMethod = null;
+document.querySelectorAll('.log-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeEvent = btn.dataset.event;
+    activeMethod = btn.dataset.method;
+    if (activeEvent === 'NOTE_ADDED') {
+      document.getElementById('noteArea').classList.remove('hidden');
+      document.getElementById('activityNote').focus();
+    } else {
+      document.getElementById('noteArea').classList.add('hidden');
+      apiPost("{% url 'crm:log_activity' lead.pk %}", {
+        event_type: activeEvent, contact_method: activeMethod, note: ''
+      }).then(d => {
+        if (d.success) { showToast('Activity logged'); setTimeout(() => location.reload(), 800); }
+        else showToast(d.error || 'Failed', 'error');
+      });
+    }
+  });
+});
+
+document.getElementById('submitNote').addEventListener('click', () => {
+  const note = document.getElementById('activityNote').value.trim();
+  const is_private = document.getElementById('notePrivate').checked;
+  if (!note) return;
+  apiPost("{% url 'crm:log_activity' lead.pk %}", {
+    event_type: 'NOTE_ADDED', contact_method: '', note, is_private
+  }).then(d => {
+    if (d.success) { showToast('Note saved'); setTimeout(() => location.reload(), 800); }
+    else showToast(d.error || 'Failed', 'error');
+  });
+});
+
+// Reassign
+{% if is_admin %}
+const reassignModal = document.getElementById('reassignModal');
+document.getElementById('reassignBtn').addEventListener('click', () => reassignModal.classList.remove('hidden'));
+document.getElementById('cancelReassign').addEventListener('click', () => reassignModal.classList.add('hidden'));
+document.getElementById('confirmReassign').addEventListener('click', () => {
+  const agent_id = document.getElementById('newAgentSelect').value;
+  const note = document.getElementById('reassignNote').value;
+  if (!agent_id) { showToast('Please select an agent', 'error'); return; }
+  apiPost("{% url 'crm:reassign_lead' lead.pk %}", { agent_id, note })
+    .then(d => {
+      if (d.success) { showToast('Lead reassigned'); setTimeout(() => location.reload(), 800); }
+      else showToast(d.error || 'Reassign failed', 'error');
+    });
+});
+{% endif %}
+
+// Follow-up modal
+const fuModal = document.getElementById('addFollowupModal');
+document.getElementById('addFollowupBtn').addEventListener('click', () => fuModal.classList.remove('hidden'));
+document.getElementById('cancelFollowup').addEventListener('click', () => fuModal.classList.add('hidden'));
+document.getElementById('confirmFollowup').addEventListener('click', () => {
+  const due_at = document.getElementById('followupDue').value;
+  const followup_type = document.getElementById('followupType').value;
+  const notes = document.getElementById('followupNotes').value;
+  if (!due_at) { showToast('Please select a date and time', 'error'); return; }
+  apiPost("{% url 'crm:add_followup' lead.pk %}", { due_at, followup_type, notes })
+    .then(d => {
+      if (d.success) { showToast('Follow-up scheduled'); setTimeout(() => location.reload(), 800); }
+      else showToast(d.error || 'Failed', 'error');
+    });
+});
+</script>
+{% endblock %}

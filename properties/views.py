@@ -1630,3 +1630,30 @@ def google_oauth_with_invitation(request):
     # Redirect to Google OAuth
     from allauth.socialaccount.providers.google.views import oauth2_login
     return oauth2_login(request)
+
+
+def property_detail_view(request, property_pk):
+    """
+    HTML property detail page with enquiry form.
+    Public — no login required (visitors need to be able to submit enquiries).
+    """
+    from crm.forms import EnquiryForm
+
+    prop = get_object_or_404(Property, pk=property_pk, is_active=True)
+    images = prop.images.order_by('order')
+    configurations = prop.configurations.filter(is_available=True)
+    amenities = prop.amenities.all()
+    progress = prop.progress_updates.filter(is_latest=True).first()
+
+    form = EnquiryForm()
+
+    context = {
+        'property': prop,
+        'images': images,
+        'configurations': configurations,
+        'amenities': amenities,
+        'progress': progress,
+        'form': form,
+        'enquiry_url': f'/crm/enquire/{prop.pk}/',
+    }
+    return render(request, 'property_detail.html', context)
