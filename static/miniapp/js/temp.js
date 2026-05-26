@@ -30,7 +30,7 @@ const getHeartIcon = (isActive) => isActive
 const favoriteButtonTemplate = (property) => `
     <button
         type="button"
-        class="favorite-toggle w-8 h-8 rounded-full flex items-center justify-center transition shadow-lg hover:scale-105 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 ${property.is_favorite ? 'bg-rose-500/90 text-white shadow-rose-400/50' : 'bg-white/80 text-slate-500'}"
+        class="favorite-toggle heart-btn-v2 ${property.is_favorite ? 'saved' : ''}"
         data-property-id="${property.id}"
         aria-pressed="${property.is_favorite}"
         aria-label="${property.is_favorite ? 'Remove from favourites' : 'Save to favourites'}"
@@ -44,11 +44,7 @@ const updateFavoriteButtonVisual = (button, isFavorite) => {
     button.setAttribute('aria-pressed', isFavorite);
     button.setAttribute('aria-label', isFavorite ? 'Remove from favourites' : 'Save to favourites');
     button.innerHTML = getHeartIcon(isFavorite);
-    button.classList.toggle('bg-rose-500/90', isFavorite);
-    button.classList.toggle('text-white', isFavorite);
-    button.classList.toggle('shadow-rose-400/50', isFavorite);
-    button.classList.toggle('bg-white/80', !isFavorite);
-    button.classList.toggle('text-slate-500', !isFavorite);
+    button.classList.toggle('saved', isFavorite);
 };
 
 const applyFavoriteState = (propertyId, isFavorite) => {
@@ -149,7 +145,7 @@ const toggleCurrency = async () => {
                     </div>
                     <div class="text-right flex-shrink-0">
                         <p class="text-base sm:text-lg font-semibold text-rose-500">${formatCurrency(config.price)}</p>
-                        <p class="text-[10px] sm:text-xs ${config.is_available ? 'text-emerald-600' : 'text-slate-400'}">${config.is_available ? ' Available' : 'Sold Out'}</p>
+                <span class="status-v2 ${config.is_available ? 'available' : 'sold'}" style="padding:3px 8px;margin-top:4px;"><span class="dot"></span>${config.is_available ? 'Available' : 'Sold out'}</span>
                     </div>
                 </div>
             </div>
@@ -348,41 +344,64 @@ const createPropertyCard = (property, isCompact = true) => {
     const avgSqft = Math.round(property.configurations.reduce((sum, c) => sum + c.square_footage, 0) / property.configurations.length);
 
     const isCompleted = new Date(property.completion_date) <= new Date();
-    const statusClass = isCompleted ? statusStyles.completed : statusStyles.in_progress;
     const badgeClass = badgePalette[property.luxury_status] || badgePalette.non_luxurious;
+    const bedsLabel = minBedrooms === 0 ? 'Studio' : minBedrooms === maxBedrooms ? `${minBedrooms}` : `${minBedrooms}-${maxBedrooms}`;
 
     const card = document.createElement("article");
-    card.className = isCompact
-        ? "group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition flex-shrink-0 w-64"
-        : "group cursor-pointer overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl transition";
-
     const isSelected = selectedForComparison.has(property.id);
 
-    card.innerHTML = `
-        <div class="relative ${isCompact ? 'h-40' : 'h-40 sm:h-56 md:h-64'} overflow-hidden">
-            <img src="${property.thumbnail}" alt="${property.name}" class="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" />
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent"></div>
-            <div class="absolute left-2 top-2 flex items-center gap-1 text-xs font-medium flex-wrap">
+    if (isCompact) {
+        // Card A style — Editorial Overlay (image fills, text over gradient)
+        card.className = "card-editorial group flex-shrink-0";
+        card.style.width = "220px";
+        card.innerHTML = `
+            <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
+            <div class="card-gradient"></div>
+            <div class="card-top">
                 ${favoriteButtonTemplate(property)}
-                ${property.luxury_status === 'luxurious' ? `<span class="rounded-full bg-gradient-to-r ${badgeClass} px-2 py-1 text-white/90 shadow-lg text-[10px]"><i class="fas fa-star"></i></span>` : ''}
-            </div>
-            <div class="absolute right-2 top-2">
-                <div class="compare-checkbox w-6 h-6 rounded-full ${isSelected ? 'bg-rose-500' : 'bg-white/90'} backdrop-blur-sm flex items-center justify-center cursor-pointer hover:scale-110 transition shadow-lg" data-property-id="${property.id}">
-                    ${isSelected ? '<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
+                <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison — click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--coral)' : 'rgba(255,255,255,0.9)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(255,77,93,0.35), 0 2px 8px rgba(11,16,36,0.10)' : '0 2px 8px rgba(11,16,36,0.10)'};backdrop-filter:blur(6px);" data-property-id="${property.id}">
+                    ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B1024" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
                 </div>
             </div>
-            <div class="absolute bottom-2 left-2 right-2">
-                <p class="text-xs font-semibold text-white truncate">${property.name}</p>
-                <p class="text-base font-bold text-white">${formatCurrency(minConfig.price)}</p>
+            ${property.luxury_status === 'luxurious' ? `<div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:2;"><span class="status-v2 new"><span class="dot"></span>Luxury</span></div>` : ''}
+            <div class="card-bottom">
+                <div class="card-location">${property.address.split(',')[0]}</div>
+                <div class="card-name">${property.name}</div>
+                <div class="card-price">${formatCurrency(minConfig.price)}</div>
+                <div class="card-specs">
+                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v11M22 12v8M2 16h20M6 12a2 2 0 0 1 2-2h4v6H2v-3a3 3 0 0 1 3-3"/><path d="M12 10h6a3 3 0 0 1 3 3v3H12z"/></svg> ${bedsLabel}</span>
+                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M6 12V6a2 2 0 0 1 4 0M6 19l-1 2M18 19l1 2"/></svg> ${maxBathrooms}</span>
+                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 21M8 6l2 2M11 9l2 2M14 12l2 2M17 15l2 2"/></svg> ${formatNumber(avgSqft)} sqft</span>
+                </div>
+            </div>`;
+    } else {
+        // Card B style — Split (image top, white info below)
+        card.className = "card-split group";
+        card.innerHTML = `
+            <div class="card-img-wrap">
+                <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
+                <div class="card-top">
+                    ${favoriteButtonTemplate(property)}
+                    <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison — click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--coral)' : 'rgba(255,255,255,0.9)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(255,77,93,0.35), 0 2px 8px rgba(11,16,36,0.10)' : '0 2px 8px rgba(11,16,36,0.10)'};backdrop-filter:blur(6px);" data-property-id="${property.id}">
+                        ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B1024" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
+                    </div>
+                </div>
+                ${property.luxury_status === 'luxurious' ? `<div style="position:absolute;bottom:12px;left:12px;"><span class="status-v2 new"><span class="dot"></span>Luxury</span></div>` : ''}
             </div>
-        </div>
-        <div class="p-3 space-y-2">
-            <div class="flex items-center gap-3 text-xs text-slate-600">
-                <span><i class="fas fa-bed"></i> ${minBedrooms === 0 ? 'Studio' : minBedrooms === maxBedrooms ? `${minBedrooms}` : `${minBedrooms}-${maxBedrooms}`}</span>
-                <span><i class="fas fa-bath"></i> ${maxBathrooms}</span>
-                <span><i class="fas fa-ruler-combined"></i> ${formatNumber(avgSqft)} sqft+</span>
-            </div>
-        </div>`;
+            <div class="card-info">
+                <div class="card-location">${property.address.split(',')[0]}</div>
+                <div class="card-name">${property.name}</div>
+                <div class="card-price-row">
+                    <div class="card-price">${formatCurrency(minConfig.price)}</div>
+                    <span class="status-v2 ${isCompleted ? 'available' : 'progress'}"><span class="dot"></span>${isCompleted ? 'Available' : 'In Progress'}</span>
+                </div>
+                <div class="card-specs">
+                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v11M22 12v8M2 16h20M6 12a2 2 0 0 1 2-2h4v6H2v-3a3 3 0 0 1 3-3"/><path d="M12 10h6a3 3 0 0 1 3 3v3H12z"/></svg> ${bedsLabel}</span>
+                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M6 12V6a2 2 0 0 1 4 0M6 19l-1 2M18 19l1 2"/></svg> ${maxBathrooms}</span>
+                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 21M8 6l2 2M11 9l2 2M14 12l2 2M17 15l2 2"/></svg> ${formatNumber(avgSqft)} sqft</span>
+                </div>
+            </div>`;
+    }
 
     // Add event listeners
     card.addEventListener("click", (e) => {
@@ -397,6 +416,13 @@ const createPropertyCard = (property, isCompact = true) => {
     checkbox.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePropertySelection(property.id);
+    });
+    checkbox.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePropertySelection(property.id);
+        }
     });
 
     const favoriteButton = card.querySelector('.favorite-toggle');
@@ -416,7 +442,7 @@ const renderCards = () => {
     locationSections.innerHTML = "";
 
     if (!filteredProperties.length) {
-        locationSections.innerHTML = `<div class="rounded-3xl border border-slate-200 bg-slate-50 p-10 text-center text-slate-600">
+        locationSections.innerHTML = `<div style="border-radius: var(--r-lg); border: 1px solid var(--slate-200); background: rgba(255,255,255,0.6); padding: 40px; text-align: center; color: var(--slate-600);">
             No properties match your filters. Try adjusting your search criteria.
         </div>`;
         updateStats([]);
@@ -441,19 +467,22 @@ const renderCards = () => {
 
         const header = document.createElement("div");
         header.className = "flex items-center justify-between";
+        header.style.padding = "0";
+        header.style.marginBottom = "14px";
         header.innerHTML = `
             <div>
-                <h3 class="text-base font-bold uppercase tracking-[0.1em] text-slate-700">Properties in ${location}</h3>
-                <p class="text-sm text-slate-500">${locationProps.length} ${locationProps.length === 1 ? 'property' : 'properties'}</p>
+                <div class="eyebrow ink" style="font-size: 11.5px;">Properties in ${location}</div>
+                <div style="font-size: 13px; color: var(--slate-500); margin-top: 2px;">${locationProps.length} ${locationProps.length === 1 ? 'listing' : 'listings'}</div>
             </div>
-            <button class="view-all-btn text-sm font-medium text-rose-500 hover:text-rose-600 transition" data-location="${location}">
-                View All -->
+            <button class="view-all-btn" style="color: var(--coral); font-size: 13.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background: none; border: none;" data-location="${location}">
+                View all <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
         `;
 
         const scrollContainer = document.createElement("div");
-        scrollContainer.className = "flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-rose-500 scrollbar-track-slate-200";
-        scrollContainer.style.scrollbarWidth = "thin";
+        scrollContainer.className = "flex gap-3 sm:gap-4 overflow-x-auto pb-4 no-scroll";
+        scrollContainer.style.padding = "4px 0 4px";
+        scrollContainer.style.maxWidth = "100%";
 
         // Show first 10 properties in horizontal scroll
         locationProps.slice(0, 10).forEach(prop => {
@@ -575,7 +604,7 @@ const handleFavoriteToggle = async (propertyId) => {
 const updateCarouselDots = (images) => {
     const dots = document.getElementById("carouselDots");
     dots.innerHTML = images.map((_, index) =>
-        `<span class="h-1.5 w-4 sm:h-2 sm:w-6 rounded-full ${index === carouselIndex ? "bg-slate-900" : "bg-slate-300"}"></span>`
+        `<span style="flex:1;height:5px;border-radius:3px;background:${index === carouselIndex ? 'white' : 'rgba(255,255,255,0.35)'};"></span>`
     ).join("");
 };
 
@@ -610,24 +639,31 @@ const openModal = (property) => {
 
     const isCompleted = new Date(property.completion_date) <= new Date();
     const statusClass = isCompleted ? statusStyles.completed : statusStyles.in_progress;
-    document.getElementById("modalStatusBadge").className = `rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`;
-    document.getElementById("modalStatusBadge").textContent = isCompleted ? 'Completed' : 'In Progress';
+    document.getElementById("modalStatusBadge").className = `status-v2 ${isCompleted ? 'available' : 'progress'}`;
+    document.getElementById("modalStatusBadge").innerHTML = `<span class="dot"></span>${isCompleted ? 'Completed' : 'In Progress'}`;
 
-    document.getElementById("modalMeta").innerHTML = `
-        <span class="inline-flex items-center gap-1 sm:gap-2 text-slate-600"><span class="text-rose-400"><i class="fas fa-map-marker-alt"></i></span> <span class="text-xs sm:text-sm truncate">${property.address}</span></span>
-        <span class="inline-flex items-center gap-1 sm:gap-2 text-slate-600"><span class="text-rose-400"><i class="fas fa-user"></i></span> <span class="text-xs sm:text-sm">${property.contact_name}</span></span>
-        <span class="inline-flex items-center gap-1 sm:gap-2 text-slate-600"><span class="text-rose-400"><i class="fas fa-phone"></i></span> <span class="text-xs sm:text-sm">${property.contact_phone}</span></span>
-    `;
+    const metaParts = [
+        `<span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,0.85)" stroke="none"><path d="M12 22s7-6.13 7-12a7 7 0 1 0-14 0c0 5.87 7 12 7 12z"/><circle cx="12" cy="10" r="2.5" fill="white"/></svg> <span style="font-size:13px;">${property.address}</span></span>`
+    ];
+    if (property.contact_name) {
+        metaParts.push(`<span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg> <span style="font-size:13px;">${property.contact_name}</span></span>`);
+    }
+    if (property.contact_phone) {
+        metaParts.push(`<span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,0.85)" stroke="none"><path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57a1 1 0 0 0-1.02.24l-2.2 2.2a15.05 15.05 0 0 1-6.59-6.59l2.2-2.2a1 1 0 0 0 .24-1.02A11.5 11.5 0 0 1 8.5 4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1c0 9.39 7.61 17 17 17a1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z"/></svg> <span style="font-size:13px;">${property.contact_phone}</span></span>`);
+    }
+    document.getElementById("modalMeta").innerHTML = metaParts.join('');
 
     document.getElementById("modalConfigurations").innerHTML = property.configurations.map(config => `
-        <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4 shadow-sm">
-            <div class="flex justify-between items-start gap-2">
-                <div class="flex-1 min-w-0">
-                    <p class="font-semibold text-slate-900 text-sm sm:text-base truncate">${config.type}</p>
-                    <p class="text-xs sm:text-sm text-slate-600 mt-1">${config.bedrooms} bed " ${config.bathrooms} bath " ${formatNumber(config.square_footage)} sqft</p>
+        <div class="config-row ${config.is_available ? '' : 'sold-out'}">
+            <div>
+                <div style="font-weight:600;font-size:14.5px;">${config.type}</div>
+                <div style="font-size:12.5px;color:var(--slate-500);font-family:var(--font-mono);margin-top:2px;">
+                    ${config.bedrooms} bd · ${config.bathrooms} ba · ${formatNumber(config.square_footage)} sqft
                 </div>
-                <div class="text-right flex-shrink-0">
-                    <p class="text-base sm:text-lg font-semibold text-rose-500">${formatCurrency(config.price)}</p>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:600;font-size:14px;color:${config.is_available ? 'var(--coral-700)' : 'var(--slate-400)'};font-variant-numeric:tabular-nums;">
+                    ${formatCurrency(config.price)}</div>
                     <p class="text-[10px] sm:text-xs ${config.is_available ? 'text-emerald-600' : 'text-slate-400'}">${config.is_available ? ' Available' : 'Sold Out'}</p>
                 </div>
             </div>
@@ -635,11 +671,11 @@ const openModal = (property) => {
     `).join('');
 
     document.getElementById("modalAmenities").innerHTML = property.amenities.map(amenity => `
-        <div class="flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:p-3 text-xs sm:text-sm text-slate-700">
-            <span class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-rose-100 text-rose-600 flex-shrink-0 text-sm sm:text-base">${amenity.icon}</span>
-            <div class="flex-1 min-w-0">
-                <p class="font-medium truncate">${amenity.name}</p>
-                <p class="text-[10px] sm:text-xs text-slate-500 truncate">${amenity.description}</p>
+        <div class="amenity-chip">
+            <span class="amenity-icon">${amenity.icon}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:500;font-size:13px;">${amenity.name}</div>
+                <div style="font-size:11px;color:var(--slate-500);">${amenity.description}</div>
             </div>
         </div>
     `).join('');
@@ -649,20 +685,22 @@ const openModal = (property) => {
     if (property.progress && property.progress.length > 0) {
         progressSection.classList.remove("hidden");
         document.getElementById("modalProgress").innerHTML = property.progress.map(progress => `
-            <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4 shadow-sm space-y-3">
-                <div class="flex justify-between items-start mb-2 gap-2">
-                    <p class="font-semibold text-slate-900 text-sm sm:text-base">${progress.stage}</p>
-                    <p class="text-rose-500 font-semibold text-sm sm:text-base flex-shrink-0">${progress.progress_percentage}%</p>
+            <div style="background:white;border:1px solid var(--slate-200);border-radius:var(--r-md);padding:16px 18px;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <div style="font-weight:600;font-size:14px;">${progress.stage}</div>
+                    <div style="font-family:var(--font-mono);font-size:13px;color:var(--coral);">${progress.progress_percentage}%</div>
                 </div>
-                <div class="w-full h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden mb-2">
-                    <div class="h-full bg-gradient-to-r from-rose-500 to-fuchsia-500" style="width: ${progress.progress_percentage}%"></div>
+                <div class="progress-bar-v2" style="margin-top:10px;">
+                    <div class="fill" style="width: ${progress.progress_percentage}%"></div>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-600">${progress.description}</p>
-                <p class="text-[10px] sm:text-xs text-slate-400 mt-1">${new Date(progress.update_date).toLocaleDateString()}</p>
+                <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12.5px;">
+                    <span style="color:var(--slate-600);">${progress.description}</span>
+                    <span style="color:var(--slate-400);font-family:var(--font-mono);">${new Date(progress.update_date).toLocaleDateString()}</span>
+                </div>
                 ${progress.images && progress.images.length > 0 ? `
-                    <div class="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-rose-500 scrollbar-track-slate-200">
+                    <div class="flex gap-2 overflow-x-auto pb-2 no-scroll" style="margin-top:10px;">
                         ${progress.images.map(img => `
-                            <img src="${img.image}" alt="${img.caption || 'Progress update image'}" class="h-24 sm:h-32 w-auto rounded-lg object-cover flex-shrink-0 snap-start border border-slate-200" />
+                            <img src="${img.image}" alt="${img.caption || 'Progress update image'}" style="height:80px;width:auto;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;border:1px solid var(--slate-200);" />
                         `).join('')}
                     </div>
                 ` : ''}
@@ -974,18 +1012,39 @@ const togglePropertySelection = (propertyId) => {
 };
 
 const updateCompareButton = () => {
-    const compareButton = document.getElementById('compareButton');
-    const compareCount = document.getElementById('compareCount');
-    compareCount.textContent = selectedForComparison.size;
+    const wrapper = document.getElementById('compareButton');
+    const trigger = document.getElementById('compareTrigger');
+    const label = document.getElementById('compareBtnLabel');
+    const n = selectedForComparison.size;
 
-    if (selectedForComparison.size >= 2) {
-        compareButton.classList.remove('hidden');
+    if (n === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+    wrapper.classList.remove('hidden');
+
+    if (n === 1) {
+        // One picked — guide the user to the second so the feature is discoverable.
+        label.textContent = 'Select 1 more to compare';
+        trigger.style.background = 'white';
+        trigger.style.color = 'var(--ink)';
+        trigger.style.border = '1px solid var(--slate-200)';
+        trigger.style.boxShadow = 'var(--shadow-lg)';
+        trigger.style.cursor = 'default';
     } else {
-        compareButton.classList.add('hidden');
+        label.textContent = `Compare (${n})`;
+        trigger.style.background = 'var(--coral)';
+        trigger.style.color = 'white';
+        trigger.style.border = 'none';
+        trigger.style.boxShadow = 'var(--shadow-coral)';
+        trigger.style.cursor = 'pointer';
     }
 };
 
 const showComparison = async () => {
+    // Need at least two to compare; the button is in a hint state at one.
+    if (selectedForComparison.size < 2) return;
+
     const propertyIds = Array.from(selectedForComparison);
 
     // Get property data for comparison
@@ -1134,6 +1193,79 @@ if (profileMenuButton && profileMenu) {
     window.addEventListener('blur', closeMenu);
 }
 
+// ——— Populate hero featured card & stats ———
+const populateHero = () => {
+    if (!properties.length) return;
+
+    // Stats
+    const countEl = document.getElementById('heroStatCount');
+    const districtsEl = document.getElementById('heroStatDistricts');
+    const highestEl = document.getElementById('heroStatHighest');
+
+    if (countEl) countEl.textContent = properties.length;
+
+    if (districtsEl) {
+        const districts = new Set(properties.map(p => p.location || '').filter(Boolean));
+        districtsEl.textContent = districts.size;
+    }
+
+    if (highestEl) {
+        let highest = 0;
+        properties.forEach(p => {
+            p.configurations.forEach(c => { if (c.price > highest) highest = c.price; });
+        });
+        if (highest > 0) {
+            if (highest >= 1e9) highestEl.textContent = '₦' + (highest / 1e9).toFixed(1) + 'B';
+            else if (highest >= 1e6) highestEl.textContent = '₦' + (highest / 1e6).toFixed(0) + 'M';
+            else highestEl.textContent = formatCurrency(highest);
+        }
+    }
+
+    // Featured card — pick luxury or first property
+    const featured = properties.find(p => p.luxury_status === 'luxurious') || properties[0];
+    const card = document.getElementById('heroFeaturedCard');
+    if (!card || !featured) return;
+
+    const minConfig = featured.configurations.reduce((min, c) => c.price < min.price ? c : min);
+
+    card.style.background = `url(${featured.thumbnail}) center/cover, var(--slate-200)`;
+    card.innerHTML = `
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(11,16,36,0.10) 0%, rgba(11,16,36,0) 30%, rgba(11,16,36,0.85) 100%);"></div>
+        <div style="position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:center;z-index:2;">
+            <span class="status-v2 new" style="background:rgba(255,255,255,0.95);color:var(--coral-700);">
+                <span class="dot"></span>Editor's pick${featured.luxury_status === 'luxurious' ? ' · Luxury' : ''}
+            </span>
+            ${favoriteButtonTemplate(featured)}
+        </div>
+        <div style="position:absolute;left:24px;right:24px;bottom:22px;color:white;z-index:2;">
+            <div class="eyebrow" style="color:rgba(255,255,255,0.9);font-size:10.5px;">${featured.address.split(',')[0]}</div>
+            <div class="serif-display" style="font-size:44px;margin:4px 0 6px;">
+                ${featured.name.split(' ')[0]} <span class="italic-accent">${featured.name.split(' ').slice(1).join(' ')}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="font-weight:600;font-size:18px;font-variant-numeric:tabular-nums;">${formatCurrency(minConfig.price)}</div>
+                <button class="btn-v2" style="background:white;color:var(--ink);padding:9px 16px;border:none;cursor:pointer;" onclick="event.stopPropagation();">
+                    Open · <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Click opens modal
+    card.addEventListener('click', () => openModal(featured));
+
+    // Favorite button
+    const favBtn = card.querySelector('.favorite-toggle');
+    if (favBtn) {
+        favBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleFavoriteToggle(featured.id);
+        });
+    }
+};
+
+populateHero();
+
 try {
     initFilters();
     if (filtersVisible) {
@@ -1143,9 +1275,9 @@ try {
 } catch (error) {
     console.error('Initialization error:', error);
     document.getElementById("locationSections").innerHTML = `
-        <div class="rounded-3xl border border-red-200 bg-red-50 p-10 text-center text-red-600">
-            <p class="font-semibold mb-2">Error loading properties</p>
-            <p class="text-sm">${error.message}</p>
-            <p class="text-xs mt-2">Check console for details</p>
+        <div style="border-radius: var(--r-lg); border: 1px solid var(--coral-100); background: var(--coral-50); padding: 40px; text-align: center; color: var(--coral-700);">
+            <p style="font-weight:600;margin-bottom:8px;">Error loading properties</p>
+            <p style="font-size:14px;">${error.message}</p>
+            <p style="font-size:12px;margin-top:8px;color:var(--slate-500);">Check console for details</p>
         </div>`;
 }

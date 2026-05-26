@@ -1,154 +1,96 @@
-<!DOCTYPE html>
+{% extends "auth_base.html" %}
 {% load static socialaccount %}
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Sign Up</title>
-    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .gradient-border {
-            background: linear-gradient(white, white) padding-box,
-                        linear-gradient(135deg, #667eea 0%, #764ba2 100%) border-box;
-            border: 2px solid transparent;
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-md w-full">
-        <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 mb-4">
-                <i class="fas fa-building text-white text-2xl"></i>
-            </div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Employee Access</h1>
-            <p class="text-gray-500 text-sm">Administrator & Agent Portal</p>
-        </div>
 
-        <div class="bg-white rounded-2xl shadow-xl p-8 gradient-border">
+{% block title %}Employee Sign Up — CW Real Estate{% endblock %}
 
-           
+{% block portal_chip %}
+<div class="eyebrow coral" style="margin-bottom: 10px;">● Employee portal</div>
+{% endblock %}
 
-            {% if form.non_field_errors %}
-                <div class="mb-6 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
-                    {{ form.non_field_errors }}
-                </div>
-            {% endif %}
+{% block heading %}Staff <span class="italic-accent">access</span>{% endblock %}
+{% block subtitle %}Administrator &amp; Agent registration{% endblock %}
 
-            <div class="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
-                <div class="flex items-start gap-3">
-                    <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
-                    <div class="text-sm text-blue-800">
-                        <p class="font-semibold mb-1">Employee Registration</p>
-                        <p>You need a valid invitation code from your administrator to create an employee account.</p>
-                    </div>
-                </div>
-            </div>
+{% block card %}
+{% if form.non_field_errors %}
+<div class="auth-alert error">{{ form.non_field_errors }}</div>
+{% endif %}
 
-            <form method="post" class="space-y-5">
-                {% csrf_token %}
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="id_first_name" class="block text-sm font-semibold text-gray-700 mb-1.5">First Name</label>
-                        {{ form.first_name }}
-                        {% if form.first_name.errors %}
-                            <p class="mt-1 text-xs text-red-600">{{ form.first_name.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <label for="id_last_name" class="block text-sm font-semibold text-gray-700 mb-1.5">Last Name</label>
-                        {{ form.last_name }}
-                        {% if form.last_name.errors %}
-                            <p class="mt-1 text-xs text-red-600">{{ form.last_name.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div>
-                    <label for="id_email" class="block text-sm font-semibold text-gray-700 mb-1.5">Work Email</label>
-                    {{ form.email }}
-                    {% if form.email.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.email.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_username" class="block text-sm font-semibold text-gray-700 mb-1.5">Username</label>
-                    {{ form.username }}
-                    {% if form.username.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.username.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_phone" class="block text-sm font-semibold text-gray-700 mb-1.5">Phone <span class="text-gray-400 font-normal">(Optional)</span></label>
-                    {{ form.phone }}
-                    {% if form.phone.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.phone.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_role" class="block text-sm font-semibold text-gray-700 mb-1.5">Role</label>
-                    {{ form.role }}
-                    {% if form.role.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.role.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_invitation_code" class="block text-sm font-semibold text-gray-700 mb-1.5">
-                        Invitation Code
-                        <span class="text-xs font-normal text-gray-500">(Required)</span>
-                    </label>
-                    {{ form.invitation_code }}
-                    {% if form.invitation_code.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.invitation_code.errors.0 }}</p>
-                    {% else %}
-                        <p class="mt-1 text-xs text-gray-500">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Enter the invitation code provided by your administrator
-                        </p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_password1" class="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
-                    {{ form.password1 }}
-                    {% if form.password1.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.password1.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_password2" class="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
-                    {{ form.password2 }}
-                    {% if form.password2.errors %}
-                        <p class="mt-1 text-xs text-red-600">{{ form.password2.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <button
-                    type="submit"
-                    class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40"
-                >
-                    Create Account
-                </button>
-            </form>
-
-            <div class="mt-6 pt-6 border-t border-gray-200">
-                <p class="text-center text-sm text-gray-600">
-                    Already registered?
-                    <a href="{% url 'login' %}" class="font-semibold text-blue-600 hover:text-blue-700">Sign in</a>
-                </p>
-                <p class="text-center text-sm text-gray-600 mt-3">
-                    Client portal
-                    <a href="{% url 'register' %}" class="font-semibold text-blue-600 hover:text-blue-700">here</a>
-                </p>
-            </div>
+<div class="auth-alert info">
+    <div style="display: flex; align-items: flex-start; gap: 10px;">
+        <i class="fas fa-info-circle" style="margin-top: 2px;"></i>
+        <div>
+            <p style="font-weight: 600; margin-bottom: 2px;">Employee registration</p>
+            <p>You need a valid invitation code from your administrator to create an employee account.</p>
         </div>
     </div>
-</body>
-</html>
+</div>
+
+<form method="post" class="space-y-4">
+    {% csrf_token %}
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="id_first_name" class="block text-sm font-semibold" style="margin-bottom: 6px;">First Name</label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}<p class="auth-field-error">{{ form.first_name.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label for="id_last_name" class="block text-sm font-semibold" style="margin-bottom: 6px;">Last Name</label>
+            {{ form.last_name }}
+            {% if form.last_name.errors %}<p class="auth-field-error">{{ form.last_name.errors.0 }}</p>{% endif %}
+        </div>
+    </div>
+    <div>
+        <label for="id_email" class="block text-sm font-semibold" style="margin-bottom: 6px;">Work Email</label>
+        {{ form.email }}
+        {% if form.email.errors %}<p class="auth-field-error">{{ form.email.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="id_username" class="block text-sm font-semibold" style="margin-bottom: 6px;">Username</label>
+        {{ form.username }}
+        {% if form.username.errors %}<p class="auth-field-error">{{ form.username.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="id_phone" class="block text-sm font-semibold" style="margin-bottom: 6px;">Phone <span style="color: var(--slate-400); font-weight: 400;">(Optional)</span></label>
+        {{ form.phone }}
+        {% if form.phone.errors %}<p class="auth-field-error">{{ form.phone.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="id_role" class="block text-sm font-semibold" style="margin-bottom: 6px;">Role</label>
+        {{ form.role }}
+        {% if form.role.errors %}<p class="auth-field-error">{{ form.role.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="id_invitation_code" class="block text-sm font-semibold" style="margin-bottom: 6px;">
+            Invitation Code <span style="color: var(--coral);">*</span>
+        </label>
+        {{ form.invitation_code }}
+        {% if form.invitation_code.errors %}
+        <p class="auth-field-error">{{ form.invitation_code.errors.0 }}</p>
+        {% else %}
+        <p style="margin-top: 4px; font-size: 12px; color: var(--slate-500);">
+            <i class="fas fa-info-circle"></i> Enter the invitation code provided by your administrator
+        </p>
+        {% endif %}
+    </div>
+    <div>
+        <label for="id_password1" class="block text-sm font-semibold" style="margin-bottom: 6px;">Password</label>
+        {{ form.password1 }}
+        {% if form.password1.errors %}<p class="auth-field-error">{{ form.password1.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="id_password2" class="block text-sm font-semibold" style="margin-bottom: 6px;">Confirm Password</label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}<p class="auth-field-error">{{ form.password2.errors.0 }}</p>{% endif %}
+    </div>
+    <button type="submit" class="auth-btn">Create Account</button>
+</form>
+
+<div style="margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--slate-200); text-align: center;">
+    <p style="font-size: 13.5px; color: var(--slate-600);">
+        Already registered? <a href="{% url 'login' %}" class="auth-link">Sign in</a>
+    </p>
+    <p style="font-size: 13.5px; color: var(--slate-600); margin-top: 8px;">
+        Looking for the <a href="{% url 'register' %}" class="auth-link">client portal</a>?
+    </p>
+</div>
+{% endblock %}

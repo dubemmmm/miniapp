@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CW Real Estate{% endblock %}</title>
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v2.css' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Auth shell — shared by every sign-in / registration screen */
+        .auth-wrap {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background: var(--bg-gradient);
+            font-family: var(--font-sans);
+            color: var(--ink);
+        }
+        .auth-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: var(--r-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 28px;
+        }
+
+        /* Normalize every Django-rendered / inline form control to the v2 look,
+           regardless of the utility classes the widgets ship with. */
+        .auth-card input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+        .auth-card select,
+        .auth-card textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--slate-200);
+            border-radius: var(--r-md);
+            font-size: 14px;
+            font-family: var(--font-sans);
+            background: white;
+            color: var(--ink);
+            box-shadow: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .auth-card input:focus,
+        .auth-card select:focus,
+        .auth-card textarea:focus {
+            outline: none;
+            border-color: var(--coral);
+            box-shadow: 0 0 0 3px rgba(255, 77, 93, 0.15);
+        }
+        .auth-card label { color: var(--ink-700); }
+
+        .auth-btn {
+            width: 100%;
+            background: var(--coral);
+            color: white;
+            font-weight: 600;
+            padding: 11px;
+            border: none;
+            border-radius: var(--r-md);
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: var(--shadow-coral);
+            transition: transform .15s, background .15s;
+        }
+        .auth-btn:hover { transform: translateY(-1px); background: var(--coral-600); }
+
+        .auth-google {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: white;
+            border: 1px solid var(--slate-200);
+            color: var(--ink-700);
+            font-weight: 500;
+            font-size: 14px;
+            padding: 11px;
+            border-radius: var(--r-md);
+            cursor: pointer;
+            text-decoration: none;
+            transition: border-color .15s, background .15s;
+        }
+        .auth-google:hover { border-color: var(--slate-400); background: var(--slate-100); }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 22px 0;
+            color: var(--slate-400);
+            font-size: 12.5px;
+        }
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--slate-200);
+        }
+
+        .auth-link { color: var(--coral); font-weight: 600; text-decoration: none; }
+        .auth-link:hover { color: var(--coral-700); }
+
+        .auth-alert {
+            margin-bottom: 20px;
+            padding: 14px 16px;
+            border-radius: var(--r-md);
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+        .auth-alert.error { background: var(--coral-50); color: var(--coral-700); border: 1px solid var(--coral-100); }
+        .auth-alert.info  { background: #EEF1FA; color: var(--ink-700); border: 1px solid var(--slate-200); }
+        .auth-alert.success { background: #E7F6EF; color: #16774E; border: 1px solid #C7EAD9; }
+
+        .auth-field-error { margin-top: 4px; font-size: 12px; color: var(--coral); }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="auth-wrap">
+    <div class="w-full" style="max-width: 460px;">
+        <div class="text-center" style="margin-bottom: 28px;">
+            <div class="logo-mark" style="margin: 0 auto 16px;">cw</div>
+            {% block portal_chip %}{% endblock %}
+            <h1 class="serif-display" style="font-size: clamp(30px, 5vw, 40px); margin: 0 0 6px; letter-spacing: -0.02em;">
+                {% block heading %}Welcome{% endblock %}
+            </h1>
+            <p style="font-size: 14px; color: var(--slate-600);">{% block subtitle %}{% endblock %}</p>
+        </div>
+
+        <div class="auth-card">
+            {% block card %}{% endblock %}
+        </div>
+
+        {% block below_card %}{% endblock %}
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

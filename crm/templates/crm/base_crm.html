@@ -3,6 +3,27 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<script>
+  /* Remap Tailwind's "rose" scale to the v2 coral tokens so every existing
+     rose-* utility across the CRM renders in brand coral with no class churn. */
+  window.tailwind = window.tailwind || {};
+  window.tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          rose: {
+            50: '#FFF1F3', 100: '#FFE2E6', 200: '#FFC9D0', 300: '#FFA7B2',
+            400: '#FF8A95', 500: '#FF4D5D', 600: '#E83E4E', 700: '#C8293A',
+            800: '#A21F2F', 900: '#86202C',
+          },
+        },
+        fontFamily: {
+          sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Inter', 'system-ui', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
 <style>
   /* Sidebar transitions */
   #sidebar { transition: transform 0.25s cubic-bezier(.4,0,.2,1); }
@@ -10,11 +31,11 @@
 
   /* Sidebar active link */
   .nav-link.active {
-    background: rgba(244,63,94,0.12);
-    color: #f43f5e;
+    background: rgba(255,77,93,0.12);
+    color: #FF4D5D;
     font-weight: 600;
   }
-  .nav-link.active .nav-icon { color: #f43f5e; }
+  .nav-link.active .nav-icon { color: #FF4D5D; }
 
   /* Toast slide-in */
   @keyframes slideInRight {
@@ -32,7 +53,7 @@
   .leads-table tbody tr:hover { background: #fff1f3; cursor: pointer; }
 
   /* Focus ring */
-  .crm-input:focus { outline: 2px solid #f43f5e; outline-offset: 1px; border-color: #f43f5e; }
+  .crm-input:focus { outline: 2px solid #FF4D5D; outline-offset: 1px; border-color: #FF4D5D; }
 
   /* Badge base */
   .badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:11px; font-weight:600; letter-spacing:.02em; }

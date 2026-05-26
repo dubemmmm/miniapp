@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shared Lists Management - Elite Estates</title>
+    <title>Shared Lists Management — CW Real Estate</title>
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -20,7 +20,7 @@
                     <p class="text-gray-300 text-sm">Manage your property sharing links and track performance</p>
                 </div>
                 <nav class="flex items-center gap-3">
-                    <a href="{% url 'landing' %}" class="btn btn-primary">
+                    <a href="{% url 'temp' %}" class="btn btn-primary">
                         <i class="fas fa-arrow-left"></i>
                         <span class="hidden sm:inline">Back to Properties</span>
                     </a>
@@ -51,12 +51,7 @@
                 </div>
                 <div class="stat-content">
                     <h3>Active Lists</h3>
-                    <p>
-                        {% regroup shared_lists by is_valid as grouped_lists %}
-                        {% for group in grouped_lists %}
-                            {% if group.grouper %}{{ group.list|length }}{% endif %}
-                        {% empty %}0{% endfor %}
-                    </p>
+                    <p>{{ active_count }}</p>
                 </div>
             </div>
             <div class="card stat-card">
@@ -65,14 +60,7 @@
                 </div>
                 <div class="stat-content">
                     <h3>Total Views</h3>
-                    <p>
-                        {% with total=0 %}
-                            {% for list in shared_lists %}
-                                {% with total=total|add:list.view_count %}{% endwith %}
-                            {% endfor %}
-                            {{ total }}
-                        {% endwith %}
-                    </p>
+                    <p>{{ total_views }}</p>
                 </div>
             </div>
         </div>
@@ -90,7 +78,7 @@
                             <i class="fas fa-sync-alt"></i>
                             Refresh
                         </button>
-                        <a href="{% url 'landing' %}" class="btn btn-primary btn-sm">
+                        <a href="{% url 'temp' %}" class="btn btn-primary btn-sm">
                             <i class="fas fa-plus"></i>
                             New List
                         </a>
@@ -203,7 +191,7 @@
                     <i class="fas fa-share-alt empty-state-icon"></i>
                     <h3 class="text-xl font-semibold text-gray-600 mb-2">No Shared Lists Yet</h3>
                     <p class="text-gray-500 mb-6">Create your first shared property list to start sharing with clients.</p>
-                    <a href="{% url 'landing' %}" class="btn btn-primary">
+                    <a href="{% url 'temp' %}" class="btn btn-primary">
                         <i class="fas fa-plus"></i>
                         Create Shared List
                     </a>

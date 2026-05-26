@@ -4,12 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CW Real Estate • Premium Real Estate</title>
+    <title>CW Real Estate · Premium Real Estate</title>
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v2.css' %}">
     <link rel="stylesheet" href="{% static 'miniapp/css/chat-widget.css' %}">
     <link rel="stylesheet" href="{% static 'miniapp/css/temp.css' %}">
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
@@ -21,8 +22,9 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ["Inter", "system-ui", "sans-serif"],
-                        display: ["Playfair Display", "serif"],
+                        sans: ["Geist", "-apple-system", "BlinkMacSystemFont", "Inter", "system-ui", "sans-serif"],
+                        display: ["Instrument Serif", "Cormorant Garamond", "Times New Roman", "serif"],
+                        mono: ["Geist Mono", "JetBrains Mono", "ui-monospace", "monospace"],
                     },
                     boxShadow: {
                         glass: "0 25px 65px -25px rgba(15, 23, 42, 0.8)",
@@ -32,68 +34,119 @@
         };
     </script>
 </head>
-<body class="antialiased bg-slate-50">
+<body class="antialiased" style="background: var(--bg-gradient); min-height: 100vh; font-family: var(--font-sans); color: var(--ink);">
+
     <div class="relative min-h-screen pb-24">
-        <div class="pointer-events-none absolute inset-0">
-            <div class="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-white via-slate-50/50 to-transparent"></div>
-        </div>
 
-        <div class="relative z-10 mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
-            <header class="flex flex-col gap-8 text-slate-900">
-                <div class="flex flex-wrap items-center justify-center gap-6">
-                    {% block hero_text %}
-                    <div class="max-w-2xl space-y-4 text-center">
-                        <p class="text-m font-bold uppercase tracking-[0.5em] text-slate-700">CW Real Estate</p>
-                    </div>
-                    {% endblock %}
-                </div>
-            </header>
+        <!-- Chrome Header -->
+        <header class="chrome-header">
+            <div class="flex items-center gap-2.5">
+                <div class="logo-mark">cw</div>
+                <span class="eyebrow ink" style="letter-spacing: 0.25em; font-size: 11.5px;">CW REAL ESTATE</span>
+            </div>
 
-            <main class="mt-10 space-y-8 text-slate-900">
-                {% block hero_cta %}
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div></div>
-                    <div class="flex items-center gap-3">
-                        {% include "partials/profile_menu.html" %}
-                    </div>
-                </div>
+            <nav class="hidden md:flex items-center gap-1">
+                <a href="{% url 'temp' %}" class="active" style="color: var(--ink); font-weight: 500; padding: 8px 14px; font-size: 13.5px; text-decoration: none;">Portfolio</a>
+                <a href="{% url 'dashboard' %}" style="padding: 8px 14px; font-size: 13.5px; color: var(--slate-600); text-decoration: none;">Map view</a>
+                <a href="{% url 'favorites' %}" style="padding: 8px 14px; font-size: 13.5px; color: var(--slate-600); text-decoration: none;">Saved</a>
+            </nav>
+
+            <!-- Mobile nav links (visible below header on small screens) -->
+            <div class="flex md:hidden items-center gap-1" style="margin-left: auto; margin-right: 8px;">
+                <a href="{% url 'dashboard' %}" style="padding: 6px 10px; font-size: 11px; color: var(--slate-600); text-decoration: none; border: 1px solid var(--slate-200); border-radius: var(--r-full); background: rgba(255,255,255,0.7);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:3px;"><path d="M9 3l-6 3v15l6-3 6 3 6-3V3l-6 3-6-3zM9 3v15M15 6v15"/></svg>Map
+                </a>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+                {% block header_extras %}
+                <a href="{% url 'favorites' %}" style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--slate-200); background: rgba(255,255,255,0.7); display: inline-flex; align-items: center; justify-content: center; color: var(--ink); text-decoration: none;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </a>
                 {% endblock %}
+                {% include "partials/profile_menu.html" %}
+            </div>
+        </header>
 
-                <!-- Compact Filter Bar -->
-                <section id="filtersSection" class="space-y-4 rounded-2xl sm:rounded-3xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-rose-50/70 p-4 sm:p-6 shadow-lg shadow-rose-200/60 transition-all duration-300">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <svg class="h-5 w-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 6H3"/><path d="M7 12H3"/><path d="M21 18H3"/><path d="M17 3v6"/><path d="m14 15 3 3 3-3"/>
-                            </svg>
-                            <h3 class="text-base sm:text-lg font-semibold text-slate-900">Filters</h3>
-                            <span id="activeFilterCount" class="hidden items-center justify-center rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white"></span>
+        <div class="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-10">
+
+            <!-- Hero Section -->
+            {% block hero_section %}
+            <section style="padding: 24px 0 0;">
+                <div class="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-9 items-end">
+                    <!-- Left — text + stats -->
+                    <div>
+                        <div class="eyebrow coral hero-eyebrow" style="margin-bottom: 18px;">● Curated for {{ user_full_name|default:"you" }} · May 2026</div>
+                        <h1 class="serif-display" style="font-size: clamp(48px, 6vw, 78px); margin: 0 0 16px; letter-spacing: -0.02em;">
+                            Lagos, <span class="italic-accent">refined</span>.
+                        </h1>
+                        <p class="hidden sm:block" style="font-size: 15px; color: var(--slate-600); max-width: 520px; line-height: 1.55; margin: 0 0 22px;">
+                            Active developments across the city's most considered addresses — from Parkview's quiet
+                            terraces to Eko Atlantic's new shoreline.
+                        </p>
+                        <p class="sm:hidden" style="font-size: 14px; color: var(--slate-600); line-height: 1.5; margin: 0 0 16px;">
+                            Premium developments across Lagos' finest addresses.
+                        </p>
+                        <!-- Stats counters -->
+                        <div class="hero-stats" style="display: flex; gap: 24px; align-items: center;">
+                            <div>
+                                <div id="heroStatCount" class="serif-display stat-value" style="font-size: 32px;">0</div>
+                                <div class="eyebrow stat-label" style="font-size: 10px;">active properties</div>
+                            </div>
+                            <div class="stat-divider" style="width: 1px; height: 36px; background: var(--slate-200);"></div>
+                            <div>
+                                <div id="heroStatDistricts" class="serif-display stat-value" style="font-size: 32px;">0</div>
+                                <div class="eyebrow stat-label" style="font-size: 10px;">premium districts</div>
+                            </div>
+                            <div class="stat-divider" style="width: 1px; height: 36px; background: var(--slate-200);"></div>
+                            <div>
+                                <div id="heroStatHighest" class="serif-display stat-value" style="font-size: 32px;">—</div>
+                                <div class="eyebrow stat-label" style="font-size: 10px;">highest listing</div>
+                            </div>
                         </div>
-                        <button id="toggleFilters" class="flex items-center gap-2 text-sm font-medium text-rose-600 hover:text-rose-800 transition">
-                            <span id="toggleFiltersText">Hide</span>
-                            <svg id="toggleFiltersIcon" class="h-4 w-4 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m18 15-6-6-6 6"/>
-                            </svg>
-                        </button>
                     </div>
 
-                    <div id="filterContent" class="space-y-4 transition-all duration-300 overflow-hidden">
+                    <!-- Right — Featured / Editor's Pick card (hidden on mobile) -->
+                    <div id="heroFeaturedCard" class="hidden lg:block" style="position: relative; border-radius: var(--r-xl); overflow: hidden; height: 340px; box-shadow: var(--shadow-lg); background: var(--slate-200); cursor: pointer;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+            {% endblock %}
+
+            <main class="mt-4 space-y-6">
+
+                <!-- Compact Filter Bar (glassmorphic chip row) -->
+                <section id="filtersSection">
+                    <div class="filter-bar-v2">
+                        <button id="toggleFilters" class="filter-trigger">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                            <span id="toggleFiltersText">Filters</span>
+                            <span id="activeFilterCount" class="hidden" style="background: rgba(255,255,255,0.3); padding: 1px 7px; border-radius: 999px; font-size: 11px;"></span>
+                        </button>
+                        <span class="chip-v2" style="font-size: 12.5px;">
+                            <svg id="toggleFiltersIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s;"><path d="M6 9l6 6 6-6"/></svg>
+                        </span>
+                    </div>
+
+                    <div id="filterContent" class="filter-panel-v2">
                         <!-- Quick Search -->
-                        <div class="relative">
-                            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="relative mb-4">
+                            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style="color: var(--slate-400);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                             </svg>
                             <input
                                 id="searchInput"
                                 type="text"
                                 placeholder="Search by name or location..."
-                                class="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition"
+                                class="w-full pl-10 pr-4 py-2.5 text-sm focus:outline-none transition"
+                                style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white;"
                             />
                         </div>
 
                         <!-- Filter Pills -->
-                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
-                            <select id="bedroomsSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
+                            <select id="bedroomsSelect" class="appearance-none px-3 py-2 text-sm cursor-pointer focus:outline-none transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
                                 <option value="all">All Bedrooms</option>
                                 <option value="0">Studio</option>
                                 <option value="1">1 Bed</option>
@@ -103,7 +156,7 @@
                                 <option value="5+">5+ Beds</option>
                             </select>
 
-                            <select id="completionQuarterSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                            <select id="completionQuarterSelect" class="appearance-none px-3 py-2 text-sm cursor-pointer focus:outline-none transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
                                 <option value="all">Any Quarter</option>
                                 <option value="1">Q1</option>
                                 <option value="2">Q2</option>
@@ -111,36 +164,34 @@
                                 <option value="4">Q4</option>
                             </select>
 
-                            <select id="completionYearSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                            <select id="completionYearSelect" class="appearance-none px-3 py-2 text-sm cursor-pointer focus:outline-none transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
                                 <option value="all">Any Year</option>
-                                <!-- Options will be populated dynamically from Django -->
                             </select>
 
-                            <select id="luxurySelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                            <select id="luxurySelect" class="appearance-none px-3 py-2 text-sm cursor-pointer focus:outline-none transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
                                 <option value="all">All Types</option>
                                 <option value="luxurious">Luxurious</option>
                                 <option value="non_luxurious">Non-Luxurious</option>
                             </select>
 
-                            <button id="resetFilters" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-rose-500 hover:border-rose-200 transition">
+                            <button id="resetFilters" class="px-3 py-2 text-sm font-medium transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--slate-600);">
                                 Clear All
                             </button>
                         </div>
 
                         <!-- Price Range and Square Footage -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Price Range -->
-                            <div class="bg-gradient-to-br from-slate-50 to-white rounded-xl p-4 border border-slate-200">
+                            <div style="background: linear-gradient(135deg, var(--slate-100), white); border-radius: var(--r-md); padding: 16px; border: 1px solid var(--slate-200);">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Price Range</span>
-                                    <span id="priceRangeLabel" class="text-sm font-semibold text-slate-700"></span>
+                                    <span class="eyebrow">Price Range</span>
+                                    <span id="priceRangeLabel" class="text-sm font-semibold" style="color: var(--ink);"></span>
                                 </div>
                                 <div class="space-y-2">
-                                    <input id="minPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
-                                    <input id="maxPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
+                                    <input id="minPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
+                                    <input id="maxPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
                                 </div>
                                 <div class="mt-3 flex justify-end">
-                                    <button id="currencyToggle" onclick="toggleCurrency()" class="text-xs font-medium text-rose-500 hover:text-rose-600 transition flex items-center gap-1">
+                                    <button id="currencyToggle" onclick="toggleCurrency()" class="text-xs font-medium transition flex items-center gap-1" style="color: var(--coral);">
                                         <span id="currencyLabel">Switch to USD</span>
                                         <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
@@ -149,15 +200,14 @@
                                 </div>
                             </div>
 
-                            <!-- Square Footage -->
-                            <div class="bg-gradient-to-br from-slate-50 to-white rounded-xl p-4 border border-slate-200">
+                            <div style="background: linear-gradient(135deg, var(--slate-100), white); border-radius: var(--r-md); padding: 16px; border: 1px solid var(--slate-200);">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Square Footage</span>
-                                    <span id="sqftRangeLabel" class="text-sm font-semibold text-slate-700"></span>
+                                    <span class="eyebrow">Square Footage</span>
+                                    <span id="sqftRangeLabel" class="text-sm font-semibold" style="color: var(--ink);"></span>
                                 </div>
                                 <div class="space-y-2">
-                                    <input id="minSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
-                                    <input id="maxSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full bg-slate-200 accent-rose-500" />
+                                    <input id="minSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
+                                    <input id="maxSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
                                 </div>
                             </div>
                         </div>
@@ -165,16 +215,18 @@
                 </section>
 
                 <!-- Sort & View Options -->
-                <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
                     <div>
-                        <p class="text-sm uppercase tracking-[0.3em] text-slate-500">Portfolio</p>
-                        <p id="portfolioCount"  class="text-m font-semibold uppercase tracking-[0.2em] text-slate-700">0 properties</p>
+                        <div class="eyebrow" style="margin-bottom: 4px;">portfolio</div>
+                        <div class="serif-display portfolio-title" style="font-size: 28px;">
+                            <span id="portfolioCount">0 properties</span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <select id="sortSelect" class="appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 focus:outline-none transition cursor-pointer">
+                    <div class="flex items-center gap-2">
+                        <select id="sortSelect" class="appearance-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer focus:outline-none transition" style="border-radius: var(--r-full); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
                             <option value="featured">Featured</option>
-                            <option value="price-asc">Price: Low to High</option>
-                            <option value="price-desc">Price: High to Low</option>
+                            <option value="price-asc">Price: Low → High</option>
+                            <option value="price-desc">Price: High → Low</option>
                             <option value="newest">Newest First</option>
                         </select>
                     </div>
@@ -186,14 +238,12 @@
 
                 <!-- Hidden: Full property grid for "View All" in a location -->
                 <section id="locationViewAll" class="hidden">
-                    <button id="backToLocations" class="mb-4 flex items-center gap-2 text-rose-500 hover:text-rose-600 font-medium">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 12H5M12 19l-7-7 7-7"/>
-                        </svg>
+                    <button id="backToLocations" class="mb-4 flex items-center gap-2 font-medium transition" style="color: var(--coral);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
                         Back to all locations
                     </button>
-                    <h2 id="locationViewAllTitle" class="text-2xl font-semibold text-slate-900 mb-4"></h2>
-                    <div id="locationViewAllGrid" class="grid gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+                    <h2 id="locationViewAllTitle" class="serif-display mb-4" style="font-size: clamp(22px, 4vw, 32px);"></h2>
+                    <div id="locationViewAllGrid" class="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
                 </section>
 
             </main>
@@ -202,155 +252,158 @@
 
     <!-- Floating Compare Button -->
     <div id="compareButton" class="fixed bottom-6 right-6 z-40 hidden">
-        <button class="flex items-center gap-2 rounded-full bg-rose-500 px-6 py-3 text-white shadow-2xl hover:bg-rose-600 transition-all hover:scale-105">
+        <button id="compareTrigger" class="flex items-center gap-2 px-6 py-3 transition-all hover:scale-105" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
             </svg>
-            <span>Compare (<span id="compareCount">0</span>)</span>
+            <span id="compareBtnLabel">Compare</span>
         </button>
     </div>
 
     <!-- Comparison Modal -->
-    <div id="comparisonModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 sm:px-4 py-4 sm:py-10">
-        <div class="relative flex w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[95vh]">
-            <div class="flex items-center justify-between border-b border-slate-200 p-4 sm:p-6">
-                <h2 class="text-xl sm:text-2xl font-semibold text-slate-900">Property Comparison</h2>
-                <button id="closeComparisonModal" class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+    <div id="comparisonModal" class="fixed inset-0 z-50 hidden items-center justify-center px-2 sm:px-4 py-4 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
+        <div class="relative flex w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl max-h-[95vh]" style="border-radius: var(--r-xl); border: 1px solid var(--slate-200);">
+            <div class="flex items-center justify-between p-4 sm:p-6" style="border-bottom: 1px solid var(--slate-200);">
+                <h2 class="serif-display" style="font-size: 24px;">Property Comparison</h2>
+                <button id="closeComparisonModal" class="flex h-9 w-9 items-center justify-center transition" style="border-radius: 50%; background: var(--slate-100); color: var(--ink);">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
                     </svg>
                 </button>
             </div>
             <div id="comparisonContent" class="overflow-auto p-4 sm:p-6">
-                <!-- Comparison table will be inserted here -->
             </div>
         </div>
     </div>
 
-    <!-- Property Modal -->
-    <div id="propertyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/40 backdrop-blur-sm px-2 sm:px-4 py-4 sm:py-10">
-        <div class="relative flex w-full max-w-6xl flex-col gap-4 sm:gap-8 overflow-hidden rounded-2xl sm:rounded-[2.5rem] border border-slate-200 bg-white p-4 sm:p-8 shadow-2xl max-h-[95vh] overflow-y-auto">
-            <button id="closeModal" class="absolute right-3 sm:right-6 top-3 sm:top-6 flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition z-10">
-                <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                </svg>
+    <!-- Property Modal (new editorial split layout) -->
+    <div id="propertyModal" class="fixed inset-0 z-50 hidden items-center justify-center px-1 sm:px-4 py-2 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
+        <div class="relative flex w-full max-w-6xl flex-col overflow-hidden bg-white max-h-[98vh] sm:max-h-[95vh]" style="border-radius: var(--r-lg); box-shadow: 0 40px 100px -30px rgba(11,16,36,0.40);">
+            <!-- Close button -->
+            <button id="closeModal" aria-label="Close" class="absolute right-3 sm:right-4 top-3 sm:top-4 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center transition z-10" style="border-radius: 50%; border: 1px solid var(--slate-200); background: white; color: var(--ink);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
             </button>
-            <div class="grid gap-4 sm:gap-8 lg:grid-cols-[1.1fr,0.9fr]">
-                <div class="space-y-3 sm:space-y-6">
-                    <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50">
-                        <img id="carouselImage" class="h-48 sm:h-64 md:h-[28rem] w-full object-cover" alt="Property gallery" />
-                        <button id="prevImage" class="absolute left-2 sm:left-4 top-1/2 flex h-8 w-8 sm:h-11 sm:w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 hover:bg-white text-slate-700 transition shadow-lg">
-                            <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m15 18-6-6 6-6" />
-                            </svg>
-                        </button>
-                        <button id="nextImage" class="absolute right-2 sm:right-4 top-1/2 flex h-8 w-8 sm:h-11 sm:w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 hover:bg-white text-slate-700 transition shadow-lg">
-                            <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m9 18 6-6-6-6" />
-                            </svg>
-                        </button>
-                        <div id="carouselDots" class="absolute bottom-3 sm:bottom-5 left-1/2 flex -translate-x-1/2 gap-1 sm:gap-2"></div>
-                    </div>
-                    <div class="space-y-2 sm:space-y-4">
-                        <p id="modalCity" class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500"></p>
-                        <h2 id="modalTitle" class="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900"></h2>
-                        <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600" id="modalMeta"></div>
-                        <p id="modalDescription" class="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed"></p>
+
+            <div class="grid gap-0 lg:grid-cols-[1.05fr,0.95fr] lg:items-stretch overflow-y-auto">
+                <!-- Left — visuals -->
+                <div id="modalVisual" class="relative">
+                    <img id="carouselImage" class="absolute inset-0 w-full h-full object-cover" alt="Property gallery" />
+                    <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(11,16,36,0) 0%, rgba(11,16,36,0) 50%, rgba(11,16,36,0.80) 100%);"></div>
+
+                    <!-- Carousel arrows -->
+                    <button id="prevImage" aria-label="Previous image" class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center transition" style="border-radius: 50%; background: rgba(255,255,255,0.92); border: none; cursor: pointer;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button id="nextImage" aria-label="Next image" class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center transition" style="border-radius: 50%; background: rgba(255,255,255,0.92); border: none; cursor: pointer;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+
+                    <!-- Identity panel at bottom of image -->
+                    <div class="absolute left-4 right-4 sm:left-6 sm:right-6 bottom-3 sm:bottom-5" style="color: white; z-index: 2;">
+                        <p id="modalCity" class="eyebrow" style="color: rgba(255,255,255,0.9); font-size: 9px;"></p>
+                        <h2 id="modalTitle" class="serif-display" style="font-size: clamp(22px, 4vw, 44px); margin-top: 4px; margin-bottom: 6px;"></h2>
+                        <div id="modalMeta" class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm" style="color: rgba(255,255,255,0.85);"></div>
+                        <div id="carouselDots" class="flex gap-1 sm:gap-1.5 mt-3 sm:mt-4"></div>
                     </div>
                 </div>
-                <div class="space-y-4 sm:space-y-6">
-                    <div class="rounded-2xl sm:rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-6 shadow-lg">
-                        <div class="flex items-start justify-between gap-3 sm:gap-4">
+
+                <!-- Right — info panel -->
+                <div class="p-4 sm:p-5 lg:p-7 overflow-auto no-scroll" style="max-height: 80vh;">
+
+                    <!-- Price card -->
+                    <div class="price-card-v2 mb-4 sm:mb-5" style="margin-top: 8px; padding: 16px;">
+                        <div class="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-3">
                             <div>
-                                <p class="text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Starting Price</p>
-                                <p id="modalPrice" class="mt-2 text-2xl sm:text-3xl font-semibold text-slate-900"></p>
-                                <p id="modalCompletionDate" class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600"></p>
+                                <div class="eyebrow" style="font-size: 10px;">Starting from</div>
+                                <p id="modalPrice" class="serif-display" style="font-size: clamp(24px, 4vw, 32px); line-height: 1.05; margin: 4px 0 2px;"></p>
+                                <p id="modalCompletionDate" class="text-xs sm:text-sm" style="color: var(--slate-500);"></p>
                             </div>
-                            <span id="modalStatusBadge" class="rounded-full px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold"></span>
+                            <span id="modalStatusBadge" class="status-v2" style="padding: 3px 8px;"></span>
+                        </div>
+                        <p id="modalDescription" class="text-xs sm:text-sm mt-2 sm:mt-3" style="color: var(--slate-600); line-height: 1.55;"></p>
+                        <div class="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4">
+                            <button id="contactBtn" class="flex-1 flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm text-white transition" style="border-radius: var(--r-full); background: var(--coral); box-shadow: var(--shadow-coral); padding: 9px 14px; border: none; cursor: pointer;">
+                                <i class="fas fa-envelope"></i> Enquire Now
+                            </button>
+                            <button id="brochureBtn" class="flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm transition" style="border-radius: var(--r-full); background: rgba(255,255,255,0.6); border: 1px solid var(--slate-200); color: var(--ink); padding: 9px 14px; cursor: pointer;">
+                                <i class="fas fa-file-pdf"></i> Brochure
+                            </button>
                         </div>
                     </div>
-                    
-                    <div class="space-y-3 sm:space-y-4">
-                        <p class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Configurations</p>
-                        <div id="modalConfigurations" class="space-y-2 sm:space-y-3 max-h-48 sm:max-h-64 overflow-y-auto"></div>
-                    </div>
 
-                    <div class="space-y-3 sm:space-y-4">
-                        <p class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Amenities</p>
-                        <div id="modalAmenities" class="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 max-h-40 sm:max-h-48 overflow-y-auto"></div>
-                    </div>
+                    <!-- Enquiry Form Panel -->
+                    <div id="enquiryFormPanel" class="hidden mb-5" style="border-top: 1px solid var(--slate-100); padding-top: 16px;">
+                        <p class="eyebrow" style="margin-bottom: 12px;">Send an Enquiry</p>
 
-                    <div id="progressSection" class="space-y-3 sm:space-y-4 hidden">
-                        <p class="text-xs sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-500">Progress Updates</p>
-                        <div id="modalProgress" class="space-y-2 sm:space-y-3 max-h-40 sm:max-h-48 overflow-y-auto"></div>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 pt-2">
-                        <button id="contactBtn" class="flex flex-1 items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-rose-500 px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white shadow-lg shadow-rose-500/30 transition hover:bg-rose-400">
-                            <i class="fas fa-envelope"></i> Enquire Now
-                        </button>
-                        <button id="brochureBtn" class="flex flex-1 items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-slate-700 transition hover:bg-slate-50">
-                            <i class="fas fa-file-pdf"></i> Download Brochure
-                        </button>
-                    </div>
-
-                    <!-- Enquiry Form Panel (toggled by Enquire Now button) -->
-                    <div id="enquiryFormPanel" class="hidden mt-4 border-t border-slate-100 pt-4">
-                        <p class="text-xs uppercase tracking-widest text-slate-400 mb-3">Send an Enquiry</p>
-
-                        <!-- Success state -->
                         <div id="enquirySuccess" class="hidden text-center py-4">
-                            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                                <i class="fas fa-check text-green-600"></i>
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2" style="background: #E7F6EF;">
+                                <i class="fas fa-check" style="color: var(--green);"></i>
                             </div>
-                            <p class="font-semibold text-slate-700 text-sm">Enquiry sent!</p>
-                            <p class="text-xs text-slate-400 mt-1">An agent will contact you within 2 business hours.</p>
+                            <p class="font-semibold text-sm" style="color: var(--ink);">Enquiry sent!</p>
+                            <p class="text-xs mt-1" style="color: var(--slate-500);">An agent will contact you within 2 business hours.</p>
                         </div>
 
-                        <!-- Form -->
                         <form id="enquiryForm" class="space-y-2.5" novalidate>
                             {% csrf_token %}
                             <div style="display:none"><input type="text" name="website" value=""></div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <input type="text" name="first_name" placeholder="First name *"
-                                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
-                                    <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="first_name"></p>
+                                        class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                                    <p class="text-xs mt-0.5 hidden enq-error" data-field="first_name" style="color: var(--coral);"></p>
                                 </div>
                                 <div>
                                     <input type="text" name="last_name" placeholder="Last name *"
-                                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
-                                    <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="last_name"></p>
+                                        class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                                    <p class="text-xs mt-0.5 hidden enq-error" data-field="last_name" style="color: var(--coral);"></p>
                                 </div>
                             </div>
                             <div>
                                 <input type="email" name="email" placeholder="Email address *"
-                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
-                                <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="email"></p>
+                                    class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                                <p class="text-xs mt-0.5 hidden enq-error" data-field="email" style="color: var(--coral);"></p>
                             </div>
                             <div>
                                 <input type="text" name="phone" placeholder="Phone number (optional)"
-                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                                    class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
                             </div>
                             <div>
                                 <textarea name="message" rows="3" placeholder="I'm interested in this property and would like to know more... *"
-                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 resize-none"></textarea>
-                                <p class="text-red-400 text-xs mt-0.5 hidden enq-error" data-field="message"></p>
+                                    class="w-full px-3 py-2 text-sm focus:outline-none resize-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);"></textarea>
+                                <p class="text-xs mt-0.5 hidden enq-error" data-field="message" style="color: var(--coral);"></p>
                             </div>
                             <div class="flex items-start gap-2">
-                                <input type="checkbox" name="consent" id="enqConsent" class="mt-0.5 rounded">
-                                <label for="enqConsent" class="text-xs text-slate-500 leading-relaxed">
+                                <input type="checkbox" name="consent" id="enqConsent" class="mt-0.5 rounded" style="accent-color: var(--coral);">
+                                <label for="enqConsent" class="text-xs leading-relaxed" style="color: var(--slate-500);">
                                     I agree to be contacted by CW Real Estate about this property.
                                 </label>
                             </div>
-                            <p class="text-red-400 text-xs hidden enq-error" data-field="consent"></p>
-                            <p id="enqGeneralError" class="text-red-400 text-xs hidden"></p>
+                            <p class="text-xs hidden enq-error" data-field="consent" style="color: var(--coral);"></p>
+                            <p id="enqGeneralError" class="text-xs hidden" style="color: var(--coral);"></p>
                             <button type="submit" id="enqSubmitBtn"
-                                class="w-full bg-rose-500 hover:bg-rose-400 text-white font-semibold py-2.5 rounded-xl text-sm transition">
+                                class="w-full font-semibold py-2.5 text-sm text-white transition" style="background: var(--coral); border-radius: var(--r-md); border: none; cursor: pointer;">
                                 Send Enquiry
                             </button>
-                            <p class="text-xs text-slate-400 text-center"><i class="fas fa-lock mr-1"></i>Your details are kept private.</p>
+                            <p class="text-xs text-center" style="color: var(--slate-400);"><i class="fas fa-lock mr-1"></i>Your details are kept private.</p>
                         </form>
+                    </div>
+
+                    <!-- Configurations -->
+                    <div class="mb-5">
+                        <div class="eyebrow" style="margin-bottom: 10px;">Configurations</div>
+                        <div id="modalConfigurations" class="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Amenities -->
+                    <div class="mb-5">
+                        <div class="eyebrow" style="margin-bottom: 10px;">Amenities</div>
+                        <div id="modalAmenities" class="grid gap-2 grid-cols-1 sm:grid-cols-2 max-h-40 sm:max-h-48 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Progress -->
+                    <div id="progressSection" class="mb-5 hidden">
+                        <div class="eyebrow" style="margin-bottom: 10px;">Progress Updates</div>
+                        <div id="modalProgress" class="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto"></div>
                     </div>
                 </div>
             </div>
@@ -364,9 +417,9 @@
         const properties = {{ properties_json|safe }};
         const filterRanges = {{ filter_ranges_json|safe }};
         const isFavoritesPage = {{ is_favorites_page|default:False|yesno:"true,false" }};
+        // Chat posts to the same-origin /api/chat/ proxy; the webhook URL stays server-side.
         window.ChatWidgetConfig = window.ChatWidgetConfig || {};
-        window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || {};
-        window.ChatWidgetConfig.webhook.url = '{{ n8n_chat_url|default:"" }}';
+        window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || { route: 'general' };
     </script>
     <script src="{% static 'miniapp/js/temp.js' %}"></script>
 </body>

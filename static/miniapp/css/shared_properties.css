@@ -1,21 +1,30 @@
-/* miniapp/css/shared_properties.css */
+/* miniapp/css/shared_properties.css
+   Re-skinned to Design System v2 (coral editorial). Class names are unchanged
+   so shared_properties.js hooks and the template markup keep working.
+   Loaded AFTER design-system-v2.css, so the --coral/--ink/etc. tokens exist. */
 
 .property-card {
-    transition: all 0.3s ease;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: white;
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .property-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
 }
+
 .price-tag {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 25px;
+    background: var(--coral-50);
+    color: var(--coral-700);
+    padding: 8px 14px;
+    border-radius: var(--r-full);
     font-weight: 600;
-    display: inline-block;
-    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    font-variant-numeric: tabular-nums;
     position: relative;
 }
 .price-tag.loading::after {
@@ -25,53 +34,62 @@
     right: 10px;
     width: 12px;
     height: 12px;
-    border: 2px solid rgba(255,255,255,0.3);
+    border: 2px solid rgba(255, 77, 93, 0.25);
     border-radius: 50%;
-    border-top-color: white;
+    border-top-color: var(--coral);
     animation: spin 1s ease-in-out infinite;
     transform: translateY(-50%);
 }
 @keyframes spin {
     to { transform: translateY(-50%) rotate(360deg); }
 }
+
 .luxury-badge {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    padding: 6px 16px;
-    border-radius: 15px;
-    font-size: 12px;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--coral-700);
+    padding: 5px 12px;
+    border-radius: var(--r-full);
+    font-family: var(--font-mono);
+    font-size: 11px;
     font-weight: 600;
-    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.4);
+    letter-spacing: 0.04em;
+    box-shadow: var(--shadow-sm);
 }
+
 .shared-banner {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #4b5563 100%);
+    background: linear-gradient(135deg, var(--ink) 0%, var(--ink-700) 100%);
 }
+
 .filter-sidebar {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-    box-shadow: 4px 0 25px rgba(0,0,0,0.15);
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-700) 100%);
+    box-shadow: var(--shadow-lg);
     transition: transform 0.3s ease;
 }
+
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    background: var(--coral);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-coral);
+    transition: transform 0.15s ease, background 0.15s ease;
 }
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+    background: var(--coral-600);
 }
+
+/* WhatsApp keeps its own brand green by convention */
 .whatsapp-button {
     background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
     color: white;
     padding: 10px 18px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     text-decoration: none;
     font-size: 14px;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
     box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
 }
 .whatsapp-button:hover {
@@ -79,131 +97,145 @@
     box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
     color: white;
 }
+
 .property-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 30px;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
 }
+
 .image-gallery {
     position: relative;
     overflow: hidden;
-    border-radius: 15px;
-    height: 220px;
+    height: 230px;
 }
+
 .gallery-nav {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0,0,0,0.6);
-    color: white;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--ink);
     border: none;
-    padding: 12px 16px;
-    font-size: 16px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
     cursor: pointer;
     border-radius: 50%;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(6px);
+    transition: transform 0.15s ease, background 0.15s ease;
 }
 .gallery-nav:hover {
-    background: rgba(0,0,0,0.8);
-    transform: translateY(-50%) scale(1.1);
+    background: white;
+    transform: translateY(-50%) scale(1.08);
 }
 .gallery-nav.prev { left: 12px; }
 .gallery-nav.next { right: 12px; }
+
 .countdown-timer {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: var(--coral);
     color: white;
-    padding: 10px 20px;
-    border-radius: 25px;
+    padding: 8px 16px;
+    border-radius: var(--r-full);
     font-weight: 600;
     display: inline-block;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    box-shadow: var(--shadow-coral);
 }
+
 .filter-input {
     background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--r-md);
     color: white;
-    transition: all 0.3s ease;
+    transition: border-color 0.15s ease, background 0.15s ease;
 }
 .filter-input:focus {
     background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(59, 130, 246, 0.5);
+    border-color: rgba(255, 77, 93, 0.7);
+    box-shadow: 0 0 0 3px rgba(255, 77, 93, 0.15);
     outline: none;
 }
 .filter-input::placeholder {
     color: rgba(255, 255, 255, 0.6);
 }
+
 .mobile-filter-overlay {
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(11, 16, 36, 0.55);
     backdrop-filter: blur(5px);
 }
+
 .hamburger-btn {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    transition: all 0.3s ease;
+    background: var(--coral);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-coral);
+    transition: transform 0.15s ease;
 }
 .hamburger-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
 }
+
 .pdf-button {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    color: white;
-    padding: 10px 18px;
-    border-radius: 12px;
+    background: var(--slate-100);
+    color: var(--ink);
+    padding: 10px 16px;
+    border-radius: var(--r-md);
     text-decoration: none;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
-    border: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    border: 1px solid var(--slate-200);
     cursor: pointer;
 }
 .pdf-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
-    color: white;
+    background: var(--slate-200);
+    color: var(--ink);
 }
-/* thumbs (WebKit) */
+
+/* sqft range thumbs (WebKit) */
 #sqft-filter input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     height: 16px; width: 16px; border-radius: 999px;
-    background: #ffffff; border: 2px solid rgba(59,130,246,.9);
-    box-shadow: 0 0 0 2px rgba(0,0,0,.15);
+    background: #ffffff; border: 2px solid var(--coral);
+    box-shadow: 0 0 0 2px rgba(11, 16, 36, 0.12);
     pointer-events: auto;
 }
 #sqft-filter input[type="range"]::-webkit-slider-runnable-track {
     height: 0; background: transparent;
 }
-/* thumbs (Firefox) */
+/* sqft range thumbs (Firefox) */
 #sqft-filter input[type="range"]::-moz-range-thumb {
     height: 16px; width: 16px; border-radius: 999px;
-    background: #ffffff; border: 2px solid rgba(59,130,246,.9);
-    box-shadow: 0 0 0 2px rgba(0,0,0,.15);
+    background: #ffffff; border: 2px solid var(--coral);
+    box-shadow: 0 0 0 2px rgba(11, 16, 36, 0.12);
     pointer-events: auto;
 }
 #sqft-filter input[type="range"]::-moz-range-track {
     height: 0; background: transparent;
 }
+
 .currency-toggle {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
     padding: 8px 16px;
-    border-radius: 20px;
+    border-radius: var(--r-full);
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+    backdrop-filter: blur(8px);
+    transition: background 0.15s ease;
     position: relative;
     overflow: hidden;
 }
 .currency-toggle:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+    background: rgba(255, 255, 255, 0.25);
 }
 .currency-toggle.loading {
     cursor: not-allowed;
@@ -216,16 +248,17 @@
     right: 12px;
     width: 12px;
     height: 12px;
-    border: 2px solid rgba(255,255,255,0.3);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     border-top-color: white;
     animation: spin 1s ease-in-out infinite;
     transform: translateY(-50%);
 }
+
 .currency-info {
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    border-radius: 8px;
+    background: rgba(255, 77, 93, 0.12);
+    border: 1px solid rgba(255, 77, 93, 0.3);
+    border-radius: var(--r-md);
     padding: 8px 12px;
     margin-top: 8px;
 }
@@ -233,14 +266,16 @@
     color: rgba(255, 255, 255, 0.8);
     font-size: 11px;
 }
+
 .map-container {
     height: 500px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
 }
+
 .modal-overlay {
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(11, 16, 36, 0.55);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
@@ -250,8 +285,8 @@
 }
 .modal-content {
     background: white;
-    border-radius: 20px;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    border-radius: var(--r-xl);
+    box-shadow: 0 40px 100px -30px rgba(11, 16, 36, 0.40);
     max-width: 600px;
     width: 100%;
     max-height: 85vh;
@@ -259,10 +294,10 @@
     position: relative;
 }
 .modal-header {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    background: linear-gradient(135deg, var(--ink) 0%, var(--ink-700) 100%);
     color: white;
     padding: 20px 24px;
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -271,7 +306,7 @@
     z-index: 10;
 }
 .modal-close-btn {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
     border: none;
     color: white;
     width: 36px;
@@ -281,11 +316,11 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
 }
 .modal-close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.28);
+    transform: scale(1.08);
 }
 .modal-body {
     padding: 24px;
@@ -297,7 +332,7 @@
     width: 100%;
     max-height: 50vh;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: var(--r-md);
 }
 .modal-image {
     width: 100%;
@@ -310,11 +345,13 @@
     margin-bottom: 24px;
 }
 .modal-section-title {
-    font-size: 18px;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 400;
     margin-bottom: 12px;
-    color: #1f2937;
+    color: var(--ink);
 }
+
 @media (max-width: 1024px) {
     .filter-sidebar {
         position: fixed;

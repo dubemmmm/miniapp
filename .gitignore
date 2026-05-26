@@ -32,3 +32,6 @@ dump.rdb
 *.swo
 
 data.json
+
+new_design
+test_db_connection.py

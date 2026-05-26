@@ -1016,10 +1016,14 @@ def manage_shared_lists(request):
         messages.error(request, 'Permission denied.')
         return redirect('temp')
 
-    shared_lists = SharedPropertyList.objects.filter(created_by=request.user)
+    shared_lists = list(SharedPropertyList.objects.filter(created_by=request.user))
+    total_views = sum(sl.view_count or 0 for sl in shared_lists)
+    active_count = sum(1 for sl in shared_lists if sl.is_valid)
 
     return render(request, 'manage_shared_lists.html', {
-        'shared_lists': shared_lists
+        'shared_lists': shared_lists,
+        'total_views': total_views,
+        'active_count': active_count,
     })
 
 
@@ -1647,6 +1651,8 @@ def property_detail_view(request, property_pk):
 
     form = EnquiryForm()
 
+    is_completed = bool(prop.completion_date and prop.completion_date <= timezone.localdate())
+
     context = {
         'property': prop,
         'images': images,
@@ -1655,5 +1661,61 @@ def property_detail_view(request, property_pk):
         'progress': progress,
         'form': form,
         'enquiry_url': f'/crm/enquire/{prop.pk}/',
+        'min_price': prop.get_min_price(),
+        'is_completed': is_completed,
+        'is_favorite': PropertyFavorite.objects.filter(
+            user=request.user, property=prop
+        ).exists() if request.user.is_authenticated else False,
     }
     return render(request, 'property_detail.html', context)
+
+
+@require_POST
+def chat_proxy(request):
+    """Same-origin proxy to the n8n chat webhook.
+
+    The browser posts here instead of hitting n8n directly, which avoids the
+    cross-origin CORS preflight that n8n's webhook node rejects, and keeps the
+    webhook URL out of page source. CSRF-protected; the widgets send the token.
+    """
+    try:
+        payload = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        payload = {}
+
+    message = (payload.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'Message is required.'}, status=400)
+
+    webhook_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', '')
+    if not webhook_url:
+        return JsonResponse(
+            {'output': 'Chat service is unavailable right now. Please try again later.'},
+            status=503,
+        )
+
+    try:
+        resp = requests.post(
+            webhook_url,
+            json={
+                'chatId': payload.get('chatId') or '',
+                'message': message,
+                'route': payload.get('route') or 'general',
+            },
+            timeout=25,
+        )
+        resp.raise_for_status()
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {'output': resp.text}
+        # n8n's "Respond to Webhook" often wraps the reply in a single-item list.
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        return JsonResponse(data, safe=False)
+    except requests.RequestException as exc:
+        logger.error('Chat webhook proxy failed: %s', exc)
+        return JsonResponse(
+            {'output': 'Sorry, something went wrong. Please try again later.'},
+            status=502,
+        )

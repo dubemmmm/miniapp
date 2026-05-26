@@ -1,5 +1,11 @@
 (() => {
     const STORAGE_KEY = 'cw-chat-id';
+    const CHAT_ENDPOINT = '/api/chat/';
+
+    const getCookie = (name) => {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? decodeURIComponent(match.pop()) : '';
+    };
 
     const getChatId = () => {
         try {
@@ -57,24 +63,17 @@
         chatBody.appendChild(typingIndicator);
         scrollChatToBottom();
 
-        const webhookUrl = window.ChatWidgetConfig?.webhook?.url;
-        if (!webhookUrl) {
-            typingIndicator.remove();
-            const warning = document.createElement('div');
-            warning.className = 'chat-message bot';
-            warning.textContent = 'Chat service is unavailable right now. Please try again later.';
-            chatBody.appendChild(warning);
-            return;
-        }
-
         try {
-            const response = await fetch(webhookUrl, {
+            const response = await fetch(CHAT_ENDPOINT, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
                 body: JSON.stringify({
                     chatId: getChatId(),
                     message,
-                    route: window.ChatWidgetConfig.webhook.route
+                    route: window.ChatWidgetConfig?.webhook?.route || 'general'
                 })
             });
 

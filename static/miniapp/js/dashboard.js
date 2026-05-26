@@ -1315,13 +1315,16 @@ function sendChatMessage() {
     chatBody.appendChild(typingDiv);
     scrollChatToBottom();
 
-    fetch(window.ChatWidgetConfig.webhook.url, {
+    fetch('/api/chat/', {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": (typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '')
+        },
         body: JSON.stringify({
             chatId: chatId,
             message: message,
-            route: window.ChatWidgetConfig.webhook.route
+            route: (window.ChatWidgetConfig.webhook && window.ChatWidgetConfig.webhook.route) || 'general'
         })
     })
     .then(response => {
