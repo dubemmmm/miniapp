@@ -3,6 +3,8 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'miniapp/css/dashboard.css' %}">
+<!-- Editorial map chrome (v2). Loaded after dashboard.css so it wins. -->
+<link rel="stylesheet" href="{% static 'miniapp/css/dashboard-v2.css' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/geist-font/1.0.0/fonts/geist-sans/style.min.css">
 <style>
     /* Chat Widget Styles */
@@ -332,70 +334,94 @@
 {% endblock %}
 
 {% block content %}
-<div class="relative h-screen">
+<div class="relative h-screen cw-dash">
     <div id="map" class="leaflet-container"></div>
-    <!-- Logo and User Actions -->
-    <div class="absolute top-4 left-4 z-[1000] flex items-center gap-3 flex-wrap">
-        <a href="{% url 'temp' %}" class="logo-container">
-            <img src="{% static 'logo/CW-logo.jpeg' %}" alt="Real Estate Logo" class="h-10 md:h-12 w-auto">
+
+    <!-- Top header -->
+    <header class="cw-dash-header">
+        <a href="{% url 'temp' %}" class="cw-brand" title="CW Real Estate">
+            <span class="cw-logo-badge">cw</span>
+            <span class="eyebrow ink cw-brand-name">CW REAL ESTATE</span>
         </a>
-        
-    </div>
+        <div class="cw-header-actions">
+            <a href="{% url 'logout' %}" class="cw-icon-btn" title="Logout" aria-label="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+            <span class="cw-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
+        </div>
+    </header>
 
     <!-- Mobile Filter Overlay -->
     <div id="mobileFilterOverlay" class="mobile-filter-overlay"></div>
 
-    <!-- Search Box -->
-    <div id="searchBox" class="search-box">
-        <input
-            type="text"
-            id="searchInput"
-            placeholder="🔍 Search properties..."
-            class="search-input"
-        />
+    <!-- Floating left rail: search + districts + live count -->
+    <aside class="cw-rail">
+        <div class="cw-rail-top">
+            <div class="eyebrow coral cw-rail-eyebrow">● Map view · Lagos</div>
+            <!-- #searchBox kept (drag-neutralised via CSS); #searchInput drives existing search -->
+            <div id="searchBox" class="cw-rail-search">
+                <svg class="cw-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+                </svg>
+                <input type="text" id="searchInput" class="cw-rail-search-input" placeholder="Search address, district, name…" />
+                <span class="kbd">⌘K</span>
+            </div>
+        </div>
+
+        <div class="cw-rail-section cw-districts">
+            <div class="eyebrow cw-rail-label">Districts</div>
+            <div class="cw-chip-row">
+                <span class="chip" role="button" tabindex="0" onclick="cwQuickSearch('Ikoyi')">Ikoyi</span>
+                <span class="chip" role="button" tabindex="0" onclick="cwQuickSearch('Lekki')">Lekki</span>
+                <span class="chip" role="button" tabindex="0" onclick="cwQuickSearch('Victoria Island')">Victoria Island</span>
+                <span class="chip" role="button" tabindex="0" onclick="cwQuickSearch('Banana Island')">Banana Island</span>
+                <span class="chip" role="button" tabindex="0" onclick="cwQuickSearch('Ajah')">Ajah</span>
+            </div>
+        </div>
+
+        <div class="cw-rail-count">
+            <div class="eyebrow cw-rail-label">In view</div>
+            <!-- #propertyCount: live text injected by dashboard.js -->
+            <button id="propertyCount" class="cw-count" type="button">
+                <i class="fas fa-chart-bar"></i> Loading…
+            </button>
+        </div>
+    </aside>
+
+    <!-- Right control stack -->
+    <div class="cw-controls">
+        <div class="cw-toggle">
+            <span class="cw-toggle-btn active"><i class="fas fa-map-marker-alt"></i> Map</span>
+            <a href="{% url 'temp' %}" class="cw-toggle-btn"><i class="fas fa-th"></i> Grid</a>
+        </div>
+
+        <div class="cw-control-panel">
+            <button id="toggleFiltersBtn" type="button" onclick="toggleFilters()" class="cw-control-row">
+                <i class="fas fa-filter"></i> Filters
+            </button>
+            <button id="currencyToggle" type="button" class="cw-control-row">
+                <i class="fas fa-money-bill-wave"></i> NGN
+            </button>
+            {% if is_internal_user %}
+            <button id="dashboardCompareBtn" type="button" class="cw-control-row" disabled title="Select 2+ properties to compare">
+                <i class="fas fa-balance-scale"></i> Compare (<span id="dashboardSelectedCount">0</span>)
+            </button>
+            {% endif %}
+            <div class="cw-control-divider"></div>
+            <button type="button" onclick="resetMap()" class="cw-control-row">
+                <i class="fas fa-home"></i> Reset view
+            </button>
+            <button type="button" onclick="refreshData()" class="cw-control-row">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+
+        <div class="cw-zoom">
+            <button type="button" id="cwZoomIn" class="cw-zoom-btn" aria-label="Zoom in">+</button>
+            <button type="button" id="cwZoomOut" class="cw-zoom-btn" aria-label="Zoom out">−</button>
+        </div>
     </div>
 
-    <!-- Map Controls -->
-    <div class="map-controls">
-        <button id="toggleFiltersBtn" onclick="toggleFilters()" class="control-button">
-            <i class="fas fa-filter mr-2"></i>
-            <span class="button-text">Filters</span>
-        </button>
-        <button onclick="resetMap()" class="control-button">
-            <i class="fas fa-home mr-2"></i>
-            <span class="button-text">Reset</span>
-        </button>
-        <button onclick="refreshData()" class="control-button">
-            <i class="fas fa-refresh mr-2"></i>
-            <span class="button-text">Refresh</span>
-        </button>
-        <button id="propertyCount" class="control-button">
-            <i class="fas fa-chart-bar mr-2"></i>
-            <span class="button-text">Loading...</span>
-        </button>
-
-        {% if is_internal_user %}
-        <button id="dashboardCompareBtn" class="control-button" disabled title="Select 2+ properties to compare">
-            <i class="fas fa-balance-scale mr-2"></i>
-            <span class="button-text">Compare (<span id="dashboardSelectedCount">0</span>)</span>
-        </button>
-        {% endif %}
-
-        <a href="{% url 'temp' %}" class="control-button">
-            <i class="fas fa-th mr-2"></i>
-            <span class="button-text">Card View</span>
-        </a>
-
-        <button id="currencyToggle" class="currency-toggle">
-            <i class="fas fa-money-bill-wave mr-2"></i>
-            <span class="button-text">NGN</span>
-        </button>
-        <a href="{% url 'logout' %}" class="control-button">
-            <i class="fas fa-sign-out-alt"></i>
-            <span class="ml-2">Logout</span>
-        </a>
-    </div>
-    
     <!-- Filter Sidebar -->
     <div id="filterSidebar" class="filter-sidebar">
         <div class="filter-header flex justify-between items-center">
@@ -584,6 +610,15 @@
     // Chat posts to the same-origin /api/chat/ proxy; the webhook URL stays server-side.
     window.ChatWidgetConfig = window.ChatWidgetConfig || {};
     window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || { route: 'general' };
+
+    // District chips reuse the existing search: fill #searchInput and fire its 'input' listener.
+    window.cwQuickSearch = function (q) {
+        const input = document.getElementById('searchInput');
+        if (!input) return;
+        input.value = q;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+    };
 </script>
 
 <script src="{% static 'miniapp/js/dashboard.js' %}"></script>

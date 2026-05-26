@@ -25,6 +25,25 @@ from properties.models import Property, UserProfile
 logger = logging.getLogger(__name__)
 
 
+def _safe_enqueue(task, *args):
+    """Best-effort Celery enqueue for fire-and-forget side effects.
+
+    Email/notification tasks are dispatched from ``transaction.on_commit`` after
+    the DB write is already committed. If the broker (Redis) is unreachable we
+    must not let that turn a successful enquiry into a 500 — log a warning and
+    move on. Run a Celery worker against a live broker to actually deliver these.
+    """
+    try:
+        task.delay(*args)
+    except Exception:
+        logger.warning(
+            "Could not enqueue Celery task %s (broker unavailable?); the DB "
+            "change is committed but this async side effect was skipped.",
+            getattr(task, 'name', repr(task)),
+            exc_info=True,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Enquiry form submission (public endpoint)
 # ---------------------------------------------------------------------------
@@ -105,7 +124,7 @@ def enquiry_submit(request, property_pk):
         )
         # Re-send confirmation using existing lead's agent
         from crm.tasks import send_visitor_confirmation
-        transaction.on_commit(lambda: send_visitor_confirmation.delay(str(existing_lead.id)))
+        transaction.on_commit(lambda: _safe_enqueue(send_visitor_confirmation, str(existing_lead.id)))
         _increment_rate(request)
         return JsonResponse({'success': True})
 
@@ -179,8 +198,8 @@ def enquiry_submit(request, property_pk):
         # Enqueue emails after the transaction commits
         from crm.tasks import send_visitor_confirmation, send_agent_notification
         lead_id = str(lead.id)
-        transaction.on_commit(lambda: send_visitor_confirmation.delay(lead_id))
-        transaction.on_commit(lambda: send_agent_notification.delay(lead_id))
+        transaction.on_commit(lambda: _safe_enqueue(send_visitor_confirmation, lead_id))
+        transaction.on_commit(lambda: _safe_enqueue(send_agent_notification, lead_id))
 
     _increment_rate(request)
     return JsonResponse({'success': True})
@@ -414,7 +433,7 @@ class ReassignLeadView(AdminOnlyMixin, View):
 
         # Notify new agent
         from crm.tasks import send_agent_notification
-        transaction.on_commit(lambda: send_agent_notification.delay(str(lead.id)))
+        transaction.on_commit(lambda: _safe_enqueue(send_agent_notification, str(lead.id)))
 
         return JsonResponse({'success': True})
 

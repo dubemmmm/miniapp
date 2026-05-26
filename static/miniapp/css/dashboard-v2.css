@@ -1,0 +1,633 @@
+/* CW Real Estate — Dashboard (Map view) editorial chrome
+   Phase 1: presentation only. Reskins the floating chrome over the Leaflet map
+   to match the v2 "Map view" mockup. Loaded AFTER dashboard.css so it wins.
+   No map / marker / JS behaviour is changed here — only styling and layout of
+   the overlay panels. Relies on tokens from design-system-v2.css. */
+
+/* ——————————————— Helpers ported from the mockup ——————————————— */
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--slate-100);
+  color: var(--slate-600);
+}
+.no-scroll::-webkit-scrollbar { display: none; }
+.no-scroll { scrollbar-width: none; }
+
+/* ——————————————— Top header ——————————————— */
+.cw-dash-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  pointer-events: none; /* let the map receive drags in the gaps */
+}
+.cw-dash-header > * { pointer-events: auto; }
+
+.cw-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.cw-logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--coral) 0%, var(--coral-700) 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  font-family: var(--font-display);
+  font-style: italic;
+  box-shadow: var(--shadow-coral);
+}
+.cw-brand-name {
+  letter-spacing: 0.25em;
+  font-size: 11.5px;
+}
+.cw-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.cw-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--slate-200);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s, transform .15s;
+}
+.cw-icon-btn:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+.cw-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--coral);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: var(--shadow-coral);
+}
+
+/* ——————————————— Floating left rail ——————————————— */
+.cw-rail {
+  position: fixed;
+  top: 86px;
+  left: 24px;
+  z-index: 900;
+  width: 340px;
+  max-width: calc(100vw - 48px);
+  border-radius: var(--r-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(250, 248, 242, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(11, 16, 36, 0.06);
+  box-shadow: var(--shadow-lg);
+}
+.cw-rail-top { padding: 18px 20px 14px; }
+.cw-rail-eyebrow { margin-bottom: 10px; }
+
+/* Search pill — wraps the (drag-neutralised) #searchBox.
+   #searchBox is forced static so dashboard.js's inline left/top + drag are inert. */
+#searchBox.cw-rail-search {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  cursor: default !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--r-full);
+  padding: 10px 16px;
+  box-shadow: none;
+}
+.cw-search-icon {
+  flex-shrink: 0;
+  color: var(--slate-500);
+}
+#searchInput.cw-rail-search-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 13.5px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+#searchInput.cw-rail-search-input::placeholder { color: var(--slate-400); }
+
+.cw-rail-section {
+  padding: 14px 20px 16px;
+  border-top: 1px solid rgba(11, 16, 36, 0.06);
+}
+.cw-rail-label {
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+.cw-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* District chips (scoped so .chip can't clash globally) */
+.cw-dash .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--r-full);
+  background: #fff;
+  border: 1px solid var(--slate-200);
+  font-size: 12px;
+  color: var(--ink-700);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.cw-dash .chip:hover {
+  background: var(--coral-50);
+  border-color: var(--coral-100);
+  color: var(--coral-700);
+  transform: translateY(-1px);
+}
+
+/* Property count (live, set by dashboard.js) */
+.cw-rail-count {
+  padding: 14px 20px 18px;
+  border-top: 1px solid rgba(11, 16, 36, 0.06);
+}
+#propertyCount.cw-count {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: default;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+#propertyCount.cw-count i {
+  font-size: 14px;
+  color: var(--coral);
+  align-self: center;
+}
+
+/* ——————————————— Right control stack ——————————————— */
+.cw-controls {
+  position: fixed;
+  top: 86px;
+  right: 24px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+.cw-toggle {
+  display: flex;
+  padding: 4px;
+  border-radius: var(--r-full);
+  background: rgba(250, 248, 242, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(11, 16, 36, 0.06);
+  box-shadow: var(--shadow-md);
+}
+.cw-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r-full);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cw-toggle-btn.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.cw-control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 188px;
+  padding: 6px;
+  border-radius: var(--r-lg);
+  background: rgba(250, 248, 242, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(11, 16, 36, 0.06);
+  box-shadow: var(--shadow-md);
+}
+.cw-control-row {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .15s;
+}
+.cw-control-row i {
+  width: 16px;
+  text-align: center;
+  color: var(--slate-600);
+}
+.cw-control-row:hover { background: rgba(11, 16, 36, 0.05); }
+.cw-control-row:disabled,
+.cw-control-row[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cw-control-divider {
+  height: 1px;
+  background: rgba(11, 16, 36, 0.08);
+  margin: 2px 4px;
+}
+
+/* ——————————————— Filter sidebar → light editorial glass ——————————————— */
+.filter-sidebar {
+  background: var(--paper) !important;
+  border-right: 1px solid var(--slate-200);
+  box-shadow: var(--shadow-lg) !important;
+  max-width: 360px;
+}
+.filter-header {
+  background: #fff;
+  border-bottom: 1px solid var(--slate-200);
+  color: var(--ink) !important;
+}
+.filter-header h3,
+.filter-header p,
+.filter-header button,
+.filter-header .text-white { color: var(--ink) !important; }
+.filter-header .text-gray-300 { color: var(--slate-500) !important; }
+
+.filter-label {
+  color: var(--ink) !important;
+  font-family: var(--font-sans);
+}
+.filter-input {
+  background: #fff !important;
+  border: 1px solid var(--slate-200) !important;
+  border-radius: var(--r-md) !important;
+  color: var(--ink) !important;
+}
+.filter-input:focus {
+  background: #fff !important;
+  border-color: var(--coral) !important;
+  box-shadow: 0 0 0 3px rgba(255, 77, 93, 0.12) !important;
+}
+.filter-input::placeholder { color: var(--slate-400) !important; }
+.range-display {
+  background: var(--slate-100) !important;
+  color: var(--slate-600) !important;
+  border-radius: var(--r-sm) !important;
+}
+
+/* Apply / Clear → v2 buttons (keep .control-button markup intact) */
+.control-button.apply {
+  background: var(--coral) !important;
+  color: #fff !important;
+  box-shadow: var(--shadow-coral) !important;
+  border-radius: var(--r-full) !important;
+}
+.control-button.clear {
+  background: #fff !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--slate-200) !important;
+  box-shadow: none !important;
+  border-radius: var(--r-full) !important;
+}
+.control-button.apply::before,
+.control-button.clear::before { display: none !important; }
+
+/* ——————————————— Zoom group (right stack) ——————————————— */
+.cw-zoom {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: rgba(250, 248, 242, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(11, 16, 36, 0.06);
+  box-shadow: var(--shadow-md);
+}
+.cw-zoom-btn {
+  all: unset;
+  box-sizing: border-box;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--ink);
+  transition: background .15s;
+}
+.cw-zoom-btn:first-child { border-bottom: 1px solid rgba(11, 16, 36, 0.06); }
+.cw-zoom-btn:hover { background: rgba(11, 16, 36, 0.05); }
+
+/* ——————————————— Map markers (editorial thumb + tail) ——————————————— */
+.custom-marker {
+  box-sizing: border-box;
+  width: 52px;
+  height: 52px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--slate-200);
+  box-shadow: 0 10px 22px -6px rgba(11, 16, 36, 0.45);
+}
+.custom-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* pointer tail beneath each pin (container is not clipped) */
+.custom-marker-container { overflow: visible; }
+.custom-marker-container::after {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: 50px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid #fff;
+  filter: drop-shadow(0 4px 4px rgba(11, 16, 36, 0.25));
+}
+
+/* Cluster bubble — ink circle with serif count (sized inline by JS) */
+.cw-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 400;
+  border: 2px solid #fff;
+  box-shadow: 0 8px 18px -4px rgba(11, 16, 36, 0.35),
+              0 0 0 6px rgba(255, 255, 255, 0.45);
+}
+
+/* ——————————————— Property detail modal (editorial) ——————————————— */
+/* Let the editorial .detail-modal (max-width 76rem) be the card; the dashboard
+   modal-overlay/content wrappers just center it. Scoped to #propertyModal so the
+   comparison modal is untouched. */
+#propertyModal.modal-overlay {
+  align-items: center;
+  padding: 24px;
+}
+#propertyModal .modal-content {
+  width: 100%;
+  max-width: 76rem;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+}
+
+.cw-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--slate-200);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: var(--shadow-sm);
+  transition: background .15s, transform .15s;
+}
+.cw-modal-close:hover { background: #fff; transform: scale(1.05); }
+
+.cw-modal-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: var(--shadow-md);
+}
+.cw-modal-arrow.left { left: 18px; }
+.cw-modal-arrow.right { right: 18px; }
+
+.cw-modal-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+}
+.cw-modal-dots .gallery-indicator {
+  width: 26px;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background .15s;
+}
+.cw-modal-dots .gallery-indicator.active { background: #fff; }
+
+.cw-compare-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Enquiry form fields */
+#dashEnquiryPanel { scroll-margin-top: 16px; }
+.dash-label {
+  display: block;
+  font-size: 12px;
+  color: var(--slate-500);
+  margin-bottom: 4px;
+}
+.dash-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--r-md);
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.dash-input:focus {
+  outline: none;
+  border-color: var(--coral);
+  box-shadow: 0 0 0 3px rgba(255, 77, 93, 0.12);
+}
+.dash-field-err { font-size: 11px; color: var(--coral); margin-top: 2px; }
+.dash-submit {
+  width: 100%;
+  background: var(--coral);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-full);
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  box-shadow: var(--shadow-coral);
+}
+.dash-submit:disabled { opacity: 0.6; cursor: default; }
+
+/* Progress timeline cards */
+.cw-progress-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.cw-progress-card.latest {
+  border-color: var(--coral-100);
+  box-shadow: var(--shadow-sm);
+}
+.cw-progress-imgs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+.cw-progress-imgs .cell {
+  position: relative;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  background: var(--slate-100);
+}
+.cw-progress-imgs .cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cw-progress-imgs .more-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 16, 36, 0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ——————————————— Responsive ——————————————— */
+@media (max-width: 900px) {
+  .cw-dash-header { padding: 12px 16px; }
+  .cw-brand-name { display: none; }
+  .cw-rail {
+    top: 70px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+  .cw-rail .cw-districts { display: none; }
+  .cw-controls {
+    top: auto;
+    bottom: 132px;
+    right: 16px;
+  }
+  .cw-control-panel { min-width: 0; }
+}

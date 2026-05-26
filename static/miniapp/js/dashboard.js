@@ -56,11 +56,20 @@ class CurrencyConverter {
 
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([6.5244, 3.3792], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+
+    // CartoDB "Voyager" basemap — clean editorial style with subtle colour
+    // (green parks, blue water, soft roads); labels are baked in.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd',
+        maxZoom: 20,
+        attribution: '© OpenStreetMap contributors © CARTO'
     }).addTo(map);
-    L.control.zoom({ position: 'topright' }).addTo(map);
-    L.control.scale().addTo(map);
+
+    // Zoom is driven by the custom buttons in the chrome (#cwZoomIn / #cwZoomOut).
+    const zoomIn = document.getElementById('cwZoomIn');
+    const zoomOut = document.getElementById('cwZoomOut');
+    if (zoomIn) zoomIn.addEventListener('click', () => map.zoomIn());
+    if (zoomOut) zoomOut.addEventListener('click', () => map.zoomOut());
 }
 
 async function fetchProperties() {
@@ -120,7 +129,19 @@ function updateMap() {
         zoomToBoundsOnClick: true,
         spiderfyOnMaxZoom: true,
         removeOutsideVisibleBounds: true,
-        maxClusterRadius: 40
+        maxClusterRadius: 40,
+        // Editorial cluster bubble: ink circle, serif count, sized by child count.
+        iconCreateFunction: function (cl) {
+            const count = cl.getChildCount();
+            const size = Math.round(38 + Math.min(count, 30) * 0.9);
+            const fontSize = size > 56 ? 22 : 18;
+            return L.divIcon({
+                html: `<div class="cw-cluster" style="width:${size}px;height:${size}px;font-size:${fontSize}px;">${count}</div>`,
+                className: 'cw-cluster-wrap',
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size / 2]
+            });
+        }
     });
 
     const validMarkers = [];
@@ -140,8 +161,8 @@ function updateMap() {
                 ${!isExact ? '<span class="fuzzy-indicator" title="Approximate location"><i class="fas fa-question-circle"></i></span>' : ''}
             </div>`,
             className: 'custom-marker-container',
-            iconSize: [44, 44],
-            iconAnchor: [22, 22]
+            iconSize: [52, 62],
+            iconAnchor: [26, 62]
         });
 
         const marker = L.marker([property.latitude, property.longitude], { icon });
@@ -195,251 +216,248 @@ function formatWhatsAppNumber(phoneNumber) {
 }
 
 function createModalHTML(property) {
-    console.log('Creating modal for property:', property.id, 'Images:', property.images);
     currentImageIndex = 0;
 
-    const images = Array.isArray(property.images) && property.images.length > 0 
-        ? property.images 
+    const images = Array.isArray(property.images) && property.images.length > 0
+        ? property.images
         : [property.thumbnail || 'https://via.placeholder.com/200'];
-    
-    const configurationsHTML = property.configurations.length > 0
-        ? property.configurations.map(config => {
-            let priceDisplay = config.price || 'TBD';
-            if (config.price && config.price !== 'TBD') {
-                const cleanPrice = parseFloat(config.price.replace(/[₦,]/g, '')) || 0;
-                priceDisplay = currencyConverter.currentCurrency === 'USD'
-                    ? `$${currencyConverter.convert(cleanPrice, 'USD').toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-                    : `₦${cleanPrice.toLocaleString()}`;
-            }
-            return `
-                <div class="unit-item">
-                    <div class="unit-header">
-                        <h3 class="unit-name">${config.type}</h3>
-                        <div class="unit-price-tag">${priceDisplay}</div>
-                    </div>
-                    <div class="unit-details">
-                        <span class="unit-detail"><i class="fas fa-bed"></i> ${config.bedrooms || 0} Bed</span>
-                        <span class="unit-detail"><i class="fas fa-bath"></i> ${config.bathrooms || 0} Bath</span>
-                        <span class="unit-detail"><i class="fas fa-vector-square"></i> ${(config.square_footage || 0).toLocaleString()} sq ft</span>
-                    </div>
-                </div>
-            `;
-        }).join('')
-        : '<div class="no-configs-message">No configurations available</div>';
-    
+
+    const formatNaira = (raw) => currencyConverter.currentCurrency === 'USD'
+        ? `$${currencyConverter.convert(raw, 'USD').toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        : `₦${raw.toLocaleString()}`;
+
+    // "Starting from" — lowest configuration price, if any.
+    const configPrices = (property.configurations || [])
+        .map(c => (c.price && c.price !== 'TBD') ? (parseFloat(c.price.replace(/[₦,]/g, '')) || 0) : 0)
+        .filter(v => v > 0);
+    const minPriceRaw = configPrices.length ? Math.min(...configPrices) : null;
+    const priceCardDisplay = minPriceRaw ? formatNaira(minPriceRaw) : 'Price on Request';
+
+    // Status heuristic from completion text.
+    const completion = (property.completion_date || '').toString();
+    const isReady = /ready|complete/i.test(completion);
+    const statusClass = isReady ? 'available' : 'progress';
+    const statusLabel = isReady ? 'Available' : 'In Progress';
+
+    // Contact (name before " - ", phone after) + WhatsApp deep link.
+    const contactName = (property.contact && property.contact.includes(' - '))
+        ? property.contact.split(' - ')[0].trim() : '';
     const phoneNumber = extractPhoneNumber(property.contact);
-    console.log('Extracted phone number:', phoneNumber);
     const whatsappNumber = formatWhatsAppNumber(phoneNumber);
-    console.log('Formatted WhatsApp number:', whatsappNumber);
     const whatsappMessage = encodeURIComponent(`Hi! I'm interested in the property: ${property.name} at ${property.address}. Could you please provide more information?`);
     const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
-    console.log('WhatsApp link:', whatsappLink);
-    
-    return `
-        <div class="elegant-modal">
-            <!-- Close Button -->
-            <button onclick="closeModal()" class="modal-close-button">×</button>
 
-            <!-- Image Carousel -->
-            <div class="modal-carousel">
-                <img src="${images[currentImageIndex]}" alt="${property.name}" id="galleryImage" class="carousel-img"/>
-                ${images.length > 1 ? `
-                <button class="carousel-arrow left" onclick="changeImage(-1, ${property.id})">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <button class="carousel-arrow right" onclick="changeImage(1, ${property.id})">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                <div class="carousel-dots">
-                    ${images.map((_, idx) => `<span class="${idx === currentImageIndex ? 'active' : ''}" onclick="setImage(${idx}, ${property.id})"></span>`).join('')}
+    const configurationsHTML = (property.configurations || []).map(config => {
+        let priceDisplay = 'On Request';
+        if (config.price && config.price !== 'TBD') {
+            priceDisplay = formatNaira(parseFloat(config.price.replace(/[₦,]/g, '')) || 0);
+        }
+        return `
+            <div class="config-row">
+                <div>
+                    <div style="font-weight:600; font-size:14.5px;">${config.type}</div>
+                    <div style="font-size:12.5px; color:var(--slate-500); font-family:var(--font-mono); margin-top:2px;">
+                        ${config.bedrooms || 0} bd · ${config.bathrooms || 0} ba · ${(config.square_footage || 0).toLocaleString()} sqft
+                    </div>
                 </div>
-                ` : ''}
+                <div style="text-align:right;">
+                    <div style="font-weight:600; font-size:14px; color:var(--coral-700); font-variant-numeric:tabular-nums;">${priceDisplay}</div>
+                    <span class="status-v2 available" style="padding:3px 8px; margin-top:4px;"><span class="dot"></span>Available</span>
+                </div>
+            </div>`;
+    }).join('');
+
+    const amenitiesHTML = (property.amenities || []).map(a => `
+        <div class="amenity-chip">
+            <span class="amenity-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg></span>
+            ${a}
+        </div>`).join('');
+
+    const progressHTML = (property.progress_updates || []).map(update => `
+        <div class="cw-progress-card ${update.is_latest ? 'latest' : ''}">
+            ${update.is_latest ? '<span class="status-v2 new" style="margin-bottom:10px;"><span class="dot"></span>Latest update</span>' : ''}
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <div style="font-weight:600; font-size:14px;">${update.stage}</div>
+                <div style="font-family:var(--font-mono); font-size:13px; color:var(--coral);">${update.progress_percentage}%</div>
+            </div>
+            <div class="progress-bar-v2" style="margin-top:10px;"><div class="fill" style="width:${update.progress_percentage}%"></div></div>
+            <div style="display:flex; justify-content:space-between; gap:12px; margin-top:10px; font-size:12.5px;">
+                <span style="color:var(--slate-600);">${update.description || ''}</span>
+                <span style="color:var(--slate-400); font-family:var(--font-mono); white-space:nowrap;">${new Date(update.update_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+            </div>
+            ${update.uploaded_by ? `<div style="font-size:12px; color:var(--slate-400); margin-top:6px;"><i class="fas fa-user-circle"></i> Updated by ${update.uploaded_by}</div>` : ''}
+            ${update.images && update.images.length > 0 ? `
+                <div class="cw-progress-imgs">
+                    ${update.images.slice(0, 4).map((img, i) => `
+                        <div class="cell" onclick="window.open('${img}', '_blank')">
+                            <img src="${img}" alt="Progress ${i + 1}" loading="lazy">
+                            ${i === 3 && update.images.length > 4 ? `<div class="more-overlay">+${update.images.length - 4}</div>` : ''}
+                        </div>`).join('')}
+                </div>` : ''}
+        </div>`).join('');
+
+    const dotsHTML = images.length > 1 ? `
+        <div class="cw-modal-dots">
+            ${images.map((_, idx) => `<button type="button" class="gallery-indicator ${idx === currentImageIndex ? 'active' : ''}" onclick="setImage(${idx}, ${property.id})" aria-label="Image ${idx + 1}"></button>`).join('')}
+            <span style="margin-left:auto; font-size:12px; font-family:var(--font-mono); color:rgba(255,255,255,0.85);">${images.length} photos</span>
+        </div>` : '';
+
+    const arrowsHTML = images.length > 1 ? `
+        <button class="cw-modal-arrow left" onclick="changeImage(-1, ${property.id})" aria-label="Previous image"><i class="fas fa-chevron-left"></i></button>
+        <button class="cw-modal-arrow right" onclick="changeImage(1, ${property.id})" aria-label="Next image"><i class="fas fa-chevron-right"></i></button>` : '';
+
+    return `
+        <div class="detail-modal">
+            <button onclick="closeModal()" class="cw-modal-close" aria-label="Close">&times;</button>
+
+            <!-- LEFT · visuals -->
+            <div class="detail-left">
+                <img src="${images[currentImageIndex]}" alt="${property.name}" id="galleryImage"
+                     style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+                <div class="img-gradient"></div>
+
+                <div style="position:absolute; top:18px; left:18px; right:18px; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; z-index:2;">
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        <span class="status-v2 ${statusClass}" style="background:rgba(255,255,255,0.92);"><span class="dot"></span>${statusLabel}</span>
+                        ${property.luxury_status ? `<span class="status-v2 new" style="background:rgba(255,255,255,0.92);"><span class="dot"></span>${property.luxury_status}</span>` : ''}
+                        ${!property.is_exact_location ? '<span class="status-v2 sold" style="background:rgba(255,255,255,0.92);"><span class="dot"></span>Approx</span>' : ''}
+                    </div>
+                    ${window.isInternalUser ? `
+                        <label class="cw-compare-chip">
+                            <input type="checkbox" class="dashboard-property-checkbox" value="${property.id}"
+                                   ${selectedPropertyIds.has(property.id.toString()) ? 'checked' : ''}
+                                   onchange="togglePropertySelection(this)" style="accent-color:var(--coral);">
+                            Compare
+                        </label>` : ''}
+                </div>
+
+                ${arrowsHTML}
+
+                <div class="identity">
+                    <div style="display:flex; align-items:center; gap:8px; opacity:0.92;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 22s7-6.13 7-12a7 7 0 1 0-14 0c0 5.87 7 12 7 12z"/><circle cx="12" cy="10" r="2.5" fill="var(--coral)"/></svg>
+                        <span class="eyebrow" style="color:white; font-size:10px;">${property.address}</span>
+                    </div>
+                    <h1 class="serif-display" style="font-size:clamp(28px, 4.5vw, 46px); margin:6px 0 12px; letter-spacing:-0.02em;">${property.name}</h1>
+                    ${(contactName || phoneNumber) ? `
+                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                            ${contactName ? `
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#FFE2C8,#FF8E92); display:flex; align-items:center; justify-content:center; font-weight:600; color:white; font-size:13px;">${contactName.charAt(0).toUpperCase()}</div>
+                                    <div>
+                                        <div style="font-size:12px; opacity:0.7;">Lead by</div>
+                                        <div style="font-size:14px; font-weight:500;">${contactName}</div>
+                                    </div>
+                                </div>` : ''}
+                            ${phoneNumber ? `<a href="${whatsappLink}" target="_blank" rel="noopener" class="btn-v2" style="margin-left:auto; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); padding:8px 14px; backdrop-filter:blur(8px); font-size:13px;"><i class="fab fa-whatsapp"></i> ${phoneNumber}</a>` : ''}
+                        </div>` : ''}
+                    ${dotsHTML}
+                </div>
             </div>
 
-            <!-- Content Area -->
-            <div class="modal-body">
-                <!-- Title & Meta -->
-                <div class="property-title-section">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <h1 class="property-title">${property.name}</h1>
-                        ${window.isInternalUser ? `
-                            <label class="inline-flex items-center bg-white/95 backdrop-blur-sm px-3 py-2 rounded-lg cursor-pointer shadow-sm hover:shadow-md transition-shadow">
-                                <input
-                                    type="checkbox"
-                                    class="dashboard-property-checkbox form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
-                                    value="${property.id}"
-                                    ${selectedPropertyIds.has(property.id.toString()) ? 'checked' : ''}
-                                    onchange="togglePropertySelection(this)"
-                                >
-                                <span class="ml-2 text-sm font-semibold text-gray-700">Select for Compare</span>
-                            </label>
-                        ` : ''}
-                    </div>
-                    <div class="property-meta-row">
-                        <span class="meta-location"><i class="fas fa-map-marker-alt"></i> ${property.address}</span>
-                        ${!property.is_exact_location ? '<span class="meta-approximate">Approx</span>' : ''}
-                    </div>
-                    <div class="meta-badges">
-                        <span class="badge badge-luxury">${property.luxury_status}</span>
-                        <span class="badge">${property.completion_date}</span>
-                    </div>
-                </div>
+            <!-- RIGHT · info -->
+            <div class="detail-right">
+                <div style="display:flex; flex-direction:column; gap:20px;">
 
-                ${!property.is_exact_location ? `
-                <div class="location-privacy-notice">
-                    <div class="notice-content">
-                        <i class="fas fa-shield-alt notice-icon"></i>
-                        <div>
-                            <strong>Location Privacy Active</strong>
-                            <p>Exact address provided upon inquiry</p>
-                        </div>
-                    </div>
-                    <button onclick="requestLocationUnlock(${property.id})" id="unlockBtn${property.id}" class="btn-unlock-location">
-                        <i class="fas fa-unlock-alt"></i> Unlock
-                    </button>
-                </div>
-                ` : ''}
-
-                <!-- Description -->
-                <div class="property-description">
-                    <p>${property.description}</p>
-                </div>
-
-                <!-- Units -->
-                ${property.configurations.length > 0 ? `
-                <div class="property-section">
-                    <h2 class="section-heading">Available Units</h2>
-                    <div class="units-grid">${configurationsHTML}</div>
-                </div>
-                ` : ''}
-
-                <!-- Amenities -->
-                ${property.amenities.length > 0 ? `
-                <div class="property-section">
-                    <h2 class="section-heading">Amenities & Features</h2>
-                    <div class="amenities-wrap">
-                        ${property.amenities.map(a => `<div class="amenity-pill"><i class="fas fa-check-circle"></i> ${a}</div>`).join('')}
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Construction Progress (Only shown to users with exact location access) -->
-                ${property.progress_updates && property.progress_updates.length > 0 ? `
-                <div class="property-section">
-                    <h2 class="section-heading"><i class="fas fa-hard-hat" style="margin-right: 8px;"></i>Construction Progress</h2>
-                    <div class="progress-timeline">
-                        ${property.progress_updates.map((update) => `
-                            <div class="progress-card ${update.is_latest ? 'latest-update' : ''}">
-                                ${update.is_latest ? `
-                                    <div class="latest-badge">
-                                        <i class="fas fa-check-circle"></i> Latest Update
-                                    </div>
-                                ` : ''}
-                                <div class="progress-header">
-                                    <div class="progress-info">
-                                        <h3 class="progress-stage">${update.stage}</h3>
-                                        <p class="progress-date">
-                                            <i class="far fa-calendar"></i>
-                                            ${new Date(update.update_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                        </p>
-                                    </div>
-                                    <div class="progress-percent">
-                                        <div class="percent-number">${update.progress_percentage}%</div>
-                                        <div class="percent-label">Complete</div>
-                                    </div>
-                                </div>
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar-fill" style="width: ${update.progress_percentage}%"></div>
-                                </div>
-                                ${update.description ? `
-                                    <p class="progress-description">${update.description}</p>
-                                ` : ''}
-                                ${update.uploaded_by ? `
-                                    <p class="progress-uploader">
-                                        <i class="fas fa-user-circle"></i> Updated by ${update.uploaded_by}
-                                    </p>
-                                ` : ''}
-                                ${update.images && update.images.length > 0 ? `
-                                    <div class="progress-images-section">
-                                        <p class="progress-images-title">
-                                            <i class="fas fa-images"></i> Progress Photos (${update.images.length})
-                                        </p>
-                                        <div class="progress-images-grid">
-                                            ${update.images.slice(0, 4).map((img, imgIndex) => `
-                                                <div class="progress-image-item" onclick="window.open('${img}', '_blank')">
-                                                    <img src="${img}" alt="Progress ${imgIndex + 1}" loading="lazy">
-                                                    ${imgIndex === 3 && update.images.length > 4 ? `
-                                                        <div class="progress-image-overlay">
-                                                            +${update.images.length - 4} more
-                                                        </div>
-                                                    ` : ''}
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <button onclick="toggleDashboardEnquiry()" class="btn btn-contact" id="dashEnquireBtn">
-                        <i class="fas fa-envelope"></i> Enquire Now
-                    </button>
-                    <button onclick="downloadBrochure('${property.brochure}')" class="btn btn-download">
-                        <i class="fas fa-file-download"></i> Brochure
-                    </button>
-                </div>
-
-                <!-- Enquiry Form Panel -->
-                <div id="dashEnquiryPanel" style="display:none; margin-top:16px;">
-                    <div id="dashEnquirySuccess" style="display:none; padding:16px; background:#f0fdf4; border-radius:8px; text-align:center; color:#166534;">
-                        <i class="fas fa-check-circle" style="font-size:1.5rem; margin-bottom:8px; display:block;"></i>
-                        <strong>Thank you!</strong> We've received your enquiry and will be in touch shortly.
-                    </div>
-                    <div id="dashEnquiryForm">
-                        <input type="text" name="website" id="dashHoneypot" style="display:none;" autocomplete="off" tabindex="-1">
-                        <div id="dashEnquiryError" style="display:none; padding:10px; background:#fef2f2; border-radius:6px; color:#991b1b; font-size:13px; margin-bottom:10px;"></div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                    <!-- Price card -->
+                    <div class="price-card-v2">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
                             <div>
-                                <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">First name *</label>
-                                <input type="text" id="dashFirstName" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="Jane">
-                                <div id="dashFirstNameErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                                <div class="eyebrow">Starting from</div>
+                                <p class="serif-display" style="font-size:clamp(28px, 5vw, 40px); line-height:1.05; margin:6px 0 2px;">${priceCardDisplay}</p>
+                                ${completion ? `<p style="font-size:13px; color:var(--slate-500);">Completion <span style="font-family:var(--font-mono); color:var(--ink);">${completion}</span></p>` : ''}
                             </div>
-                            <div>
-                                <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Last name *</label>
-                                <input type="text" id="dashLastName" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="Doe">
-                                <div id="dashLastNameErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
-                            </div>
+                            <span class="status-v2 ${statusClass}" style="padding:4px 10px;"><span class="dot"></span>${statusLabel}</span>
                         </div>
-                        <div style="margin-bottom:10px;">
-                            <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Email *</label>
-                            <input type="email" id="dashEmail" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="jane@example.com">
-                            <div id="dashEmailErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
+                        <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+                            <button onclick="toggleDashboardEnquiry()" id="dashEnquireBtn" class="btn-v2 btn-coral" style="flex:1; justify-content:center; min-width:150px;"><i class="fas fa-envelope"></i> Enquire Now</button>
+                            ${property.brochure ? `<button onclick="downloadBrochure('${property.brochure}')" class="btn-v2 btn-ghost" style="justify-content:center;"><i class="fas fa-file-pdf"></i> Brochure</button>` : ''}
                         </div>
-                        <div style="margin-bottom:10px;">
-                            <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Phone</label>
-                            <input type="tel" id="dashPhone" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box;" placeholder="+234 800 000 0000">
-                            <div id="dashPhoneErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
-                        </div>
-                        <div style="margin-bottom:10px;">
-                            <label style="display:block; font-size:12px; color:#6b7280; margin-bottom:4px;">Message *</label>
-                            <textarea id="dashMessage" rows="3" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; box-sizing:border-box; resize:vertical;" placeholder="I'm interested in this property..."></textarea>
-                            <div id="dashMessageErr" style="display:none; font-size:11px; color:#dc2626; margin-top:2px;"></div>
-                        </div>
-                        <div style="margin-bottom:12px; display:flex; align-items:flex-start; gap:8px;">
-                            <input type="checkbox" id="dashConsent" style="margin-top:2px; flex-shrink:0;">
-                            <label for="dashConsent" style="font-size:12px; color:#6b7280; cursor:pointer;">I agree to be contacted about this property and consent to my data being processed. *</label>
-                        </div>
-                        <div id="dashConsentErr" style="display:none; font-size:11px; color:#dc2626; margin-bottom:8px;"></div>
-                        <button onclick="submitDashboardEnquiry(${property.id})" id="dashSubmitBtn"
-                            style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:10px; font-size:14px; font-weight:600; cursor:pointer;">
-                            Send Enquiry
-                        </button>
                     </div>
+
+                    ${!property.is_exact_location ? `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--coral-50); border:1px solid var(--coral-100); border-radius:var(--r-md); padding:12px 14px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <i class="fas fa-shield-alt" style="color:var(--coral); font-size:16px;"></i>
+                            <div>
+                                <div style="font-weight:600; font-size:13px; color:var(--ink);">Location privacy active</div>
+                                <div style="font-size:12px; color:var(--slate-500);">Exact address provided on enquiry</div>
+                            </div>
+                        </div>
+                        <button onclick="requestLocationUnlock(${property.id})" id="unlockBtn${property.id}" class="btn-v2 btn-coral" style="font-size:12.5px; padding:8px 14px; white-space:nowrap;"><i class="fas fa-unlock-alt"></i> Unlock</button>
+                    </div>` : ''}
+
+                    ${property.description ? `
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:10px;">About this property</div>
+                        <p style="font-size:14px; line-height:1.65; color:var(--slate-600); margin:0;">${property.description}</p>
+                    </div>` : ''}
+
+                    ${(property.configurations || []).length > 0 ? `
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:12px;">Available Units</div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">${configurationsHTML}</div>
+                    </div>` : ''}
+
+                    ${(property.amenities || []).length > 0 ? `
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:12px;">Amenities</div>
+                        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px;">${amenitiesHTML}</div>
+                    </div>` : ''}
+
+                    ${(property.progress_updates || []).length > 0 ? `
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:12px;">Construction Progress</div>
+                        ${progressHTML}
+                    </div>` : ''}
+
+                    <!-- Enquiry Form Panel -->
+                    <div id="dashEnquiryPanel" style="display:none;">
+                        <div id="dashEnquirySuccess" style="display:none; padding:18px; background:#E7F6EF; border-radius:var(--r-md); text-align:center; color:#16774E;">
+                            <i class="fas fa-check-circle" style="font-size:1.5rem; margin-bottom:8px; display:block;"></i>
+                            <strong>Thank you!</strong> We've received your enquiry and will be in touch shortly.
+                        </div>
+                        <div id="dashEnquiryForm" class="price-card-v2" style="background:#fff; border:1px solid var(--slate-200);">
+                            <div class="eyebrow" style="margin-bottom:4px;">Register your interest</div>
+                            <p style="font-size:12px; color:var(--slate-400); margin-bottom:14px;">An agent will contact you within 2 business hours.</p>
+                            <input type="text" name="website" id="dashHoneypot" style="display:none;" autocomplete="off" tabindex="-1">
+                            <div id="dashEnquiryError" style="display:none; padding:10px; background:#fef2f2; border-radius:var(--r-sm); color:#991b1b; font-size:13px; margin-bottom:10px;"></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                                <div>
+                                    <label class="dash-label">First name *</label>
+                                    <input type="text" id="dashFirstName" class="dash-input" placeholder="Jane">
+                                    <div id="dashFirstNameErr" class="dash-field-err" style="display:none;"></div>
+                                </div>
+                                <div>
+                                    <label class="dash-label">Last name *</label>
+                                    <input type="text" id="dashLastName" class="dash-input" placeholder="Doe">
+                                    <div id="dashLastNameErr" class="dash-field-err" style="display:none;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label class="dash-label">Email *</label>
+                                <input type="email" id="dashEmail" class="dash-input" placeholder="jane@example.com">
+                                <div id="dashEmailErr" class="dash-field-err" style="display:none;"></div>
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label class="dash-label">Phone</label>
+                                <input type="tel" id="dashPhone" class="dash-input" placeholder="+234 800 000 0000">
+                                <div id="dashPhoneErr" class="dash-field-err" style="display:none;"></div>
+                            </div>
+                            <div style="margin-bottom:10px;">
+                                <label class="dash-label">Message *</label>
+                                <textarea id="dashMessage" rows="3" class="dash-input" style="resize:vertical;" placeholder="I'm interested in this property..."></textarea>
+                                <div id="dashMessageErr" class="dash-field-err" style="display:none;"></div>
+                            </div>
+                            <div style="margin-bottom:10px; display:flex; align-items:flex-start; gap:8px;">
+                                <input type="checkbox" id="dashConsent" style="margin-top:3px; flex-shrink:0; accent-color:var(--coral);">
+                                <label for="dashConsent" style="font-size:12px; color:var(--slate-500); cursor:pointer;">I agree to be contacted about this property and consent to my data being processed. *</label>
+                            </div>
+                            <div id="dashConsentErr" class="dash-field-err" style="display:none; margin-bottom:8px;"></div>
+                            <button onclick="submitDashboardEnquiry(${property.id})" id="dashSubmitBtn" class="dash-submit">Send Enquiry</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -481,6 +499,13 @@ function toggleDashboardEnquiry() {
     if (btn) btn.innerHTML = visible
         ? '<i class="fas fa-envelope"></i> Enquire Now'
         : '<i class="fas fa-times"></i> Close Form';
+    if (!visible) {
+        // Just opened: the form sits at the bottom of the scrollable info column,
+        // so bring it into view and focus the first field.
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const firstField = document.getElementById('dashFirstName');
+        if (firstField) setTimeout(() => firstField.focus(), 350);
+    }
 }
 
 function submitDashboardEnquiry(propertyId) {
