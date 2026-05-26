@@ -124,7 +124,7 @@
                             <span id="toggleFiltersText">Filters</span>
                             <span id="activeFilterCount" class="hidden" style="background: rgba(255,255,255,0.3); padding: 1px 7px; border-radius: 999px; font-size: 11px;"></span>
                         </button>
-                        <span class="chip-v2" style="font-size: 12.5px;">
+                        <span id="toggleFiltersArrow" class="chip-v2" role="button" tabindex="0" aria-label="Toggle filters" style="font-size: 12.5px; cursor: pointer;">
                             <svg id="toggleFiltersIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s;"><path d="M6 9l6 6 6-6"/></svg>
                         </span>
                     </div>
@@ -217,7 +217,6 @@
                 <!-- Sort & View Options -->
                 <div class="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
                     <div>
-                        <div class="eyebrow" style="margin-bottom: 4px;">portfolio</div>
                         <div class="serif-display portfolio-title" style="font-size: 28px;">
                             <span id="portfolioCount">0 properties</span>
                         </div>

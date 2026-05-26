@@ -222,8 +222,8 @@ SECURE_REFERRER_POLICY = "same-origin"
 # Content Security Policy (if using django-csp)
 CSP_DEFAULT_SRC = ["'self'"]
 CSP_SCRIPT_SRC = ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"]
-CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"]
-CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com"]
+CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"]
+CSP_FONT_SRC = ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"]
 CSP_CONNECT_SRC = ["'self'"]
 CSP_FORM_ACTION = ["'self'"]
 

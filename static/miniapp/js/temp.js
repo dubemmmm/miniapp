@@ -754,8 +754,18 @@ const initFilters = () => {
         yearSelect.appendChild(optionEl);
     });
 
-    // Toggle filter bar
+    // Toggle filter bar (button + the chevron chip beside it)
     document.getElementById('toggleFilters').addEventListener('click', toggleFilterBar);
+    const filtersArrow = document.getElementById('toggleFiltersArrow');
+    if (filtersArrow) {
+        filtersArrow.addEventListener('click', toggleFilterBar);
+        filtersArrow.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleFilterBar();
+            }
+        });
+    }
 
     // Search
     document.getElementById("searchInput").addEventListener("input", (e) => {

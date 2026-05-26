@@ -413,6 +413,9 @@ body {
   border: 1px solid rgba(255,255,255,0.6);
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
+  /* Clip contents when JS collapses the panel (max-height: 0) so the hidden
+     filter controls can't overlap or intercept clicks on the sort bar below. */
+  overflow: hidden;
 }
 .filter-panel-v2.hidden {
   display: none;
