@@ -3,39 +3,20 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-<script>
-  /* Remap Tailwind's "rose" scale to the v2 coral tokens so every existing
-     rose-* utility across the CRM renders in brand coral with no class churn. */
-  window.tailwind = window.tailwind || {};
-  window.tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          rose: {
-            50: '#FFF1F3', 100: '#FFE2E6', 200: '#FFC9D0', 300: '#FFA7B2',
-            400: '#FF8A95', 500: '#FF4D5D', 600: '#E83E4E', 700: '#C8293A',
-            800: '#A21F2F', 900: '#86202C',
-          },
-        },
-        fontFamily: {
-          sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Inter', 'system-ui', 'sans-serif'],
-        },
-      },
-    },
-  };
-</script>
+{# Tailwind is prebuilt (tailwind.config.js): rose-* is aliased to the navy spectrum there. #}
 <style>
   /* Sidebar transitions */
   #sidebar { transition: transform 0.25s cubic-bezier(.4,0,.2,1); }
   #sidebarOverlay { transition: opacity 0.2s ease; }
 
-  /* Sidebar active link */
+  /* Sidebar active link — gold accent on the dark navy sidebar (navy text would
+     be invisible here, so we use the v3 gold accent) */
   .nav-link.active {
-    background: rgba(255,77,93,0.12);
-    color: #FF4D5D;
+    background: rgba(201,138,30,0.16);
+    color: #E0A636;
     font-weight: 600;
   }
-  .nav-link.active .nav-icon { color: #FF4D5D; }
+  .nav-link.active .nav-icon { color: #E0A636; }
 
   /* Toast slide-in */
   @keyframes slideInRight {
@@ -50,10 +31,10 @@
   .crm-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
 
   /* Table row hover */
-  .leads-table tbody tr:hover { background: #fff1f3; cursor: pointer; }
+  .leads-table tbody tr:hover { background: #ECEDF4; cursor: pointer; }
 
   /* Focus ring */
-  .crm-input:focus { outline: 2px solid #FF4D5D; outline-offset: 1px; border-color: #FF4D5D; }
+  .crm-input:focus { outline: 2px solid #1C2350; outline-offset: 1px; border-color: #1C2350; }
 
   /* Badge base */
   .badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:11px; font-weight:600; letter-spacing:.02em; }

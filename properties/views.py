@@ -4,7 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.views.generic import CreateView, UpdateView
 from django.utils.decorators import method_decorator
-from django.db.models import Q, Min, Max
+from django.db.models import Q, Min, Max, Prefetch
 from django.contrib import messages
 from .models import (
     SharedPropertyList,
@@ -14,6 +14,7 @@ from .models import (
     PropertyImage,
     PropertyAmenity,
     PropertyFavorite,
+    PropertyProgress,
 )
 from django.utils import timezone
 from django.db.models.functions import ExtractMonth, ExtractYear
@@ -59,7 +60,9 @@ PROPERTY_PREFETCHES = (
     'images',
     'configurations',
     'amenities',
-    'progress_updates',
+    # Order in the prefetch queryset so the per-property loop can iterate the
+    # cached set without an extra .order_by() query (avoids an N+1).
+    Prefetch('progress_updates', queryset=PropertyProgress.objects.order_by('-update_date')),
     'progress_updates__images',
 )
 
@@ -223,7 +226,7 @@ def build_property_payload(
                     for img in update.images.all() if img.image
                 ]
             }
-            for update in prop.progress_updates.all().order_by('-update_date')
+            for update in prop.progress_updates.all()
         ]
 
         properties_data.append({
@@ -309,8 +312,10 @@ def custom_logout_view(request):
     return redirect('login')
 
 
+@login_required
 def properties_api(request):
-    """API endpoint to get all properties as JSON for the map"""
+    """API endpoint to get all properties as JSON for the map.
+    Login-required: only used by the (authenticated) map dashboard."""
     from .location_utils import get_property_location_data
 
     properties = Property.objects.filter(is_active=True).prefetch_related(
@@ -379,8 +384,14 @@ def properties_api(request):
         })
 
     return JsonResponse(properties_data, safe=False)
+@login_required
 def property_detail_api(request, property_id):
-    """API endpoint to get a single property's details as JSON"""
+    """API endpoint to get a single property's details as JSON.
+    Login-required (security review). NOTE: this disables the property-detail
+    modal on the public /shared/<token>/ page for anonymous viewers — the
+    shared list still renders server-side, but shared_properties.js:~394's
+    fetch will redirect to login. Re-enable anonymous access by rendering the
+    detail server-side in shared_properties.html if shared links must work."""
     from .location_utils import get_property_location_data
 
     property = get_object_or_404(Property.objects.prefetch_related(
@@ -1652,6 +1663,24 @@ def property_detail_view(request, property_pk):
     form = EnquiryForm()
 
     is_completed = bool(prop.completion_date and prop.completion_date <= timezone.localdate())
+    min_price = prop.get_min_price()
+
+    # Prefilled WhatsApp enquiry deep link (same message format as the listing cards).
+    whatsapp_url = ''
+    if prop.contact_phone:
+        import urllib.parse
+        loc = prop.address.split(',')[0].strip() if prop.address else ''
+        price_str = f"₦{min_price:,.0f}" if min_price else "Price on Request"
+        greeting = prop.contact_name or 'there'
+        wa_msg = (
+            f"Hi {greeting}, I'm interested in {prop.name}"
+            f"{f' in {loc}' if loc else ''} listed at {price_str}. "
+            f"Please send me more details. {request.build_absolute_uri()}"
+        )
+        wa_digits = ''.join(c for c in prop.contact_phone if c.isdigit())
+        if wa_digits.startswith('0'):
+            wa_digits = '234' + wa_digits[1:]
+        whatsapp_url = f"https://wa.me/{wa_digits}?text={urllib.parse.quote(wa_msg)}"
 
     context = {
         'property': prop,
@@ -1661,8 +1690,9 @@ def property_detail_view(request, property_pk):
         'progress': progress,
         'form': form,
         'enquiry_url': f'/crm/enquire/{prop.pk}/',
-        'min_price': prop.get_min_price(),
+        'min_price': min_price,
         'is_completed': is_completed,
+        'whatsapp_url': whatsapp_url,
         'is_favorite': PropertyFavorite.objects.filter(
             user=request.user, property=prop
         ).exists() if request.user.is_authenticated else False,

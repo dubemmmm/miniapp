@@ -31,6 +31,14 @@ dump.rdb
 *.swp
 *.swo
 
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Tailwind: standalone binary + built artifact (rebuilt via build_tailwind.sh)
+/bin/tailwindcss
+static/miniapp/css/tailwind.css
+
 data.json
 
 new_design

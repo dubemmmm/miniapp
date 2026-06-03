@@ -614,20 +614,29 @@
 
 /* ——————————————— Responsive ——————————————— */
 @media (max-width: 900px) {
-  .cw-dash-header { padding: 12px 16px; }
-  .cw-brand-name { display: none; }
+  /* Rail sits below the floating nav pill (which is ~88px tall on mobile) */
   .cw-rail {
-    top: 70px;
-    left: 16px;
-    right: 16px;
+    top: 88px;
+    left: 12px;
+    right: 12px;
     width: auto;
     max-width: none;
   }
   .cw-rail .cw-districts { display: none; }
+  /* Controls stack at the bottom-right, clear of the chat button */
   .cw-controls {
     top: auto;
-    bottom: 132px;
-    right: 16px;
+    bottom: 96px;
+    right: 12px;
   }
   .cw-control-panel { min-width: 0; }
+}
+
+/* Property modal — mobile: near-fullscreen, whole card scrolls, shorter image */
+@media (max-width: 768px) {
+  #propertyModal.modal-overlay { padding: 8px; }
+  .detail-modal { max-height: 94vh; overflow-y: auto; }
+  .detail-modal .detail-left { min-height: 0; height: 260px; }
+  .detail-modal .detail-left .identity { left: 18px; right: 18px; bottom: 18px; }
+  .detail-modal .detail-right { padding: 20px; overflow: visible; }
 }

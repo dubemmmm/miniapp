@@ -8,65 +8,36 @@
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- v3: editorial serif display (Instrument Serif) + Geist body -->
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v2.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
     <link rel="stylesheet" href="{% static 'miniapp/css/chat-widget.css' %}">
     <link rel="stylesheet" href="{% static 'miniapp/css/temp.css' %}">
-    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <!-- temp.css (still used by some other pages) ships coral scrollbars + selection;
+         override to navy here since this loads last. -->
+    <style>
+        ::-webkit-scrollbar-thumb {
+            background: var(--navy-200) !important;
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--navy) !important; }
+        ::-webkit-scrollbar-track { background: rgba(224, 224, 227, 0.7) !important; }
+        .overflow-x-auto::-webkit-scrollbar-thumb,
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+            background: var(--navy-200) !important;
+        }
+        ::selection { background: rgba(28, 35, 80, 0.18) !important; }
+        #chat-widget-body::-webkit-scrollbar-thumb { background: var(--navy-200) !important; }
+    </style>
+    <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
     <script src="{% static 'miniapp/js/chat-widget.js' %}"></script>
-    <script>
-        window.tailwind = window.tailwind || {};
-        window.tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ["Geist", "-apple-system", "BlinkMacSystemFont", "Inter", "system-ui", "sans-serif"],
-                        display: ["Instrument Serif", "Cormorant Garamond", "Times New Roman", "serif"],
-                        mono: ["Geist Mono", "JetBrains Mono", "ui-monospace", "monospace"],
-                    },
-                    boxShadow: {
-                        glass: "0 25px 65px -25px rgba(15, 23, 42, 0.8)",
-                    },
-                },
-            },
-        };
-    </script>
 </head>
 <body class="antialiased" style="background: var(--bg-gradient); min-height: 100vh; font-family: var(--font-sans); color: var(--ink);">
 
     <div class="relative min-h-screen pb-24">
 
-        <!-- Chrome Header -->
-        <header class="chrome-header">
-            <div class="flex items-center gap-2.5">
-                <div class="logo-mark">cw</div>
-                <span class="eyebrow ink" style="letter-spacing: 0.25em; font-size: 11.5px;">CW REAL ESTATE</span>
-            </div>
-
-            <nav class="hidden md:flex items-center gap-1">
-                <a href="{% url 'temp' %}" class="active" style="color: var(--ink); font-weight: 500; padding: 8px 14px; font-size: 13.5px; text-decoration: none;">Portfolio</a>
-                <a href="{% url 'dashboard' %}" style="padding: 8px 14px; font-size: 13.5px; color: var(--slate-600); text-decoration: none;">Map view</a>
-                <a href="{% url 'favorites' %}" style="padding: 8px 14px; font-size: 13.5px; color: var(--slate-600); text-decoration: none;">Saved</a>
-            </nav>
-
-            <!-- Mobile nav links (visible below header on small screens) -->
-            <div class="flex md:hidden items-center gap-1" style="margin-left: auto; margin-right: 8px;">
-                <a href="{% url 'dashboard' %}" style="padding: 6px 10px; font-size: 11px; color: var(--slate-600); text-decoration: none; border: 1px solid var(--slate-200); border-radius: var(--r-full); background: rgba(255,255,255,0.7);">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:3px;"><path d="M9 3l-6 3v15l6-3 6 3 6-3V3l-6 3-6-3zM9 3v15M15 6v15"/></svg>Map
-                </a>
-            </div>
-
-            <div class="flex items-center gap-2.5">
-                {% block header_extras %}
-                <a href="{% url 'favorites' %}" style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--slate-200); background: rgba(255,255,255,0.7); display: inline-flex; align-items: center; justify-content: center; color: var(--ink); text-decoration: none;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                </a>
-                {% endblock %}
-                {% include "partials/profile_menu.html" %}
-            </div>
-        </header>
+        {% include "partials/nav_pill.html" %}
 
         <div class="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-10">
 
@@ -77,7 +48,7 @@
                     <!-- Left — text + stats -->
                     <div>
                         <div class="eyebrow coral hero-eyebrow" style="margin-bottom: 18px;">● Curated for {{ user_full_name|default:"you" }} · May 2026</div>
-                        <h1 class="serif-display" style="font-size: clamp(48px, 6vw, 78px); margin: 0 0 16px; letter-spacing: -0.02em;">
+                        <h1 class="serif-display" style="font-size: clamp(34px, 8vw, 78px); margin: 0 0 16px; letter-spacing: -0.02em;">
                             Lagos, <span class="italic-accent">refined</span>.
                         </h1>
                         <p class="hidden sm:block" style="font-size: 15px; color: var(--slate-600); max-width: 520px; line-height: 1.55; margin: 0 0 22px;">
@@ -118,31 +89,33 @@
 
                 <!-- Compact Filter Bar (glassmorphic chip row) -->
                 <section id="filtersSection">
-                    <div class="filter-bar-v2">
-                        <button id="toggleFilters" class="filter-trigger">
+                    <!-- v3 segmented search bar -->
+                    <div class="search-bar-v3">
+                        <div class="search-input-wrap">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--slate-400)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                            <input id="searchInput" type="text" placeholder="Search address, project or name…" />
+                        </div>
+                        <span class="seg-divider"></span>
+                        <span class="seg-pill"><span class="seg-label">Where</span> <span class="seg-value">Any</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        </span>
+                        <span class="seg-pill"><span class="seg-label">Listing</span> <span class="seg-value">For Sale</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        </span>
+                        <span class="seg-pill"><span class="seg-label">Type</span> <span class="seg-value">Any</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        </span>
+                        <span class="seg-pill"><span class="seg-label">Beds</span> <span class="seg-value">Any</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        </span>
+                        <button id="toggleFilters" class="filters-btn">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
                             <span id="toggleFiltersText">Filters</span>
-                            <span id="activeFilterCount" class="hidden" style="background: rgba(255,255,255,0.3); padding: 1px 7px; border-radius: 999px; font-size: 11px;"></span>
+                            <span id="activeFilterCount" class="filters-count hidden"></span>
                         </button>
-                        <span id="toggleFiltersArrow" class="chip-v2" role="button" tabindex="0" aria-label="Toggle filters" style="font-size: 12.5px; cursor: pointer;">
-                            <svg id="toggleFiltersIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s;"><path d="M6 9l6 6 6-6"/></svg>
-                        </span>
                     </div>
 
-                    <div id="filterContent" class="filter-panel-v2">
-                        <!-- Quick Search -->
-                        <div class="relative mb-4">
-                            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style="color: var(--slate-400);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                            </svg>
-                            <input
-                                id="searchInput"
-                                type="text"
-                                placeholder="Search by name or location..."
-                                class="w-full pl-10 pr-4 py-2.5 text-sm focus:outline-none transition"
-                                style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white;"
-                            />
-                        </div>
+                    <div id="filterContent" class="filter-panel-v2" style="margin-top:12px;">
 
                         <!-- Filter Pills -->
                         <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
@@ -215,15 +188,16 @@
                 </section>
 
                 <!-- Sort & View Options -->
-                <div class="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+                <div class="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
                     <div>
-                        <div class="serif-display portfolio-title" style="font-size: 28px;">
+                        <div class="eyebrow" style="margin-bottom: 6px;">Portfolio</div>
+                        <div class="serif-display portfolio-title" style="font-size: 34px;">
                             <span id="portfolioCount">0 properties</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <select id="sortSelect" class="appearance-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer focus:outline-none transition" style="border-radius: var(--r-full); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
-                            <option value="featured">Featured</option>
+                            <option value="featured">Sort: Featured</option>
                             <option value="price-asc">Price: Low → High</option>
                             <option value="price-desc">Price: High → Low</option>
                             <option value="newest">Newest First</option>
@@ -237,12 +211,29 @@
 
                 <!-- Hidden: Full property grid for "View All" in a location -->
                 <section id="locationViewAll" class="hidden">
-                    <button id="backToLocations" class="mb-4 flex items-center gap-2 font-medium transition" style="color: var(--coral);">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
-                        Back to all locations
+                    <button id="backToLocations" class="chip-v2" style="cursor: pointer; margin-bottom: 20px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+                        All locations
                     </button>
-                    <h2 id="locationViewAllTitle" class="serif-display mb-4" style="font-size: clamp(22px, 4vw, 32px);"></h2>
-                    <div id="locationViewAllGrid" class="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+
+                    <!-- District hero banner (image + name + stats, populated by JS) -->
+                    <div id="locationViewAllBanner" style="position: relative; border-radius: var(--r-xl); overflow: hidden; min-height: 230px; box-shadow: var(--shadow-lg); background: var(--slate-200); margin-bottom: 22px;"></div>
+
+                    <!-- Count + group control -->
+                    <div class="flex flex-wrap items-center justify-between gap-3" style="margin-bottom: 18px;">
+                        <div class="eyebrow ink" id="locationViewAllCount" style="font-size: 11.5px;"></div>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <span class="eyebrow" style="font-size: 10px;">Group by</span>
+                            <select id="viewAllGroupBy" class="appearance-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer focus:outline-none transition" style="border-radius: var(--r-full); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
+                                <option value="none">Featured</option>
+                                <option value="bedrooms">Bedrooms</option>
+                                <option value="status">Status</option>
+                                <option value="price">Price</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div id="locationViewAllGrid"></div>
                 </section>
 
             </main>
@@ -420,6 +411,7 @@
         window.ChatWidgetConfig = window.ChatWidgetConfig || {};
         window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || { route: 'general' };
     </script>
-    <script src="{% static 'miniapp/js/temp.js' %}"></script>
+    <script src="{% static 'miniapp/js/cards.js' %}"></script>
+    <script src="{% static 'miniapp/js/temp-v3.js' %}"></script>
 </body>
 </html>

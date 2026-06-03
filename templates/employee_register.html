@@ -3,93 +3,95 @@
 
 {% block title %}Employee Sign Up — CW Real Estate{% endblock %}
 
-{% block portal_chip %}
-<div class="eyebrow coral" style="margin-bottom: 10px;">● Employee portal</div>
+{% block extra_head %}
+<style>
+    /* Wider, two-column card so the form reads landscape instead of a long strip. */
+    .auth-shell { max-width: 640px; }
+    .auth-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+    .auth-grid2 label { display: block; font-size: 13px; margin-bottom: 6px; }
+    .auth-grid2 .full { grid-column: 1 / -1; }
+    @media (max-width: 600px) {
+        .auth-shell { max-width: 440px; }
+        .auth-grid2 { grid-template-columns: 1fr; }
+    }
+</style>
 {% endblock %}
 
-{% block heading %}Staff <span class="italic-accent">access</span>{% endblock %}
-{% block subtitle %}Administrator &amp; Agent registration{% endblock %}
+{% block heading %}Staff Registration{% endblock %}
+{% block subtitle %}Administrator &amp; Agent sign up.{% endblock %}
 
 {% block card %}
 {% if form.non_field_errors %}
 <div class="auth-alert error">{{ form.non_field_errors }}</div>
 {% endif %}
 
-<div class="auth-alert info">
-    <div style="display: flex; align-items: flex-start; gap: 10px;">
-        <i class="fas fa-info-circle" style="margin-top: 2px;"></i>
-        <div>
-            <p style="font-weight: 600; margin-bottom: 2px;">Employee registration</p>
-            <p>You need a valid invitation code from your administrator to create an employee account.</p>
-        </div>
-    </div>
+<div class="auth-alert info" style="margin-bottom: 16px;">
+    <i class="fas fa-info-circle" style="margin-right: 6px;"></i>
+    A valid invitation code from your administrator is required to create an employee account.
 </div>
 
-<form method="post" class="space-y-4">
+<form method="post">
     {% csrf_token %}
-    <div class="grid grid-cols-2 gap-3">
+    <div class="auth-grid2">
         <div>
-            <label for="id_first_name" class="block text-sm font-semibold" style="margin-bottom: 6px;">First Name</label>
+            <label for="id_first_name">First Name</label>
             {{ form.first_name }}
             {% if form.first_name.errors %}<p class="auth-field-error">{{ form.first_name.errors.0 }}</p>{% endif %}
         </div>
         <div>
-            <label for="id_last_name" class="block text-sm font-semibold" style="margin-bottom: 6px;">Last Name</label>
+            <label for="id_last_name">Last Name</label>
             {{ form.last_name }}
             {% if form.last_name.errors %}<p class="auth-field-error">{{ form.last_name.errors.0 }}</p>{% endif %}
         </div>
+        <div>
+            <label for="id_email">Work Email</label>
+            {{ form.email }}
+            {% if form.email.errors %}<p class="auth-field-error">{{ form.email.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label for="id_username">Username</label>
+            {{ form.username }}
+            {% if form.username.errors %}<p class="auth-field-error">{{ form.username.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label for="id_phone">Phone <span style="color: var(--slate-400); font-weight: 400;">(Optional)</span></label>
+            {{ form.phone }}
+            {% if form.phone.errors %}<p class="auth-field-error">{{ form.phone.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label for="id_role">Role</label>
+            {{ form.role }}
+            {% if form.role.errors %}<p class="auth-field-error">{{ form.role.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label for="id_password1">Password</label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}<p class="auth-field-error">{{ form.password1.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label for="id_password2">Confirm Password</label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}<p class="auth-field-error">{{ form.password2.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="full">
+            <label for="id_invitation_code">Invitation Code <span style="color:#E5484D;">*</span></label>
+            {{ form.invitation_code }}
+            {% if form.invitation_code.errors %}
+            <p class="auth-field-error">{{ form.invitation_code.errors.0 }}</p>
+            {% else %}
+            <p style="margin-top: 4px; font-size: 12px; color: var(--slate-500);">
+                <i class="fas fa-info-circle"></i> Enter the invitation code provided by your administrator.
+            </p>
+            {% endif %}
+        </div>
     </div>
-    <div>
-        <label for="id_email" class="block text-sm font-semibold" style="margin-bottom: 6px;">Work Email</label>
-        {{ form.email }}
-        {% if form.email.errors %}<p class="auth-field-error">{{ form.email.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="id_username" class="block text-sm font-semibold" style="margin-bottom: 6px;">Username</label>
-        {{ form.username }}
-        {% if form.username.errors %}<p class="auth-field-error">{{ form.username.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="id_phone" class="block text-sm font-semibold" style="margin-bottom: 6px;">Phone <span style="color: var(--slate-400); font-weight: 400;">(Optional)</span></label>
-        {{ form.phone }}
-        {% if form.phone.errors %}<p class="auth-field-error">{{ form.phone.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="id_role" class="block text-sm font-semibold" style="margin-bottom: 6px;">Role</label>
-        {{ form.role }}
-        {% if form.role.errors %}<p class="auth-field-error">{{ form.role.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="id_invitation_code" class="block text-sm font-semibold" style="margin-bottom: 6px;">
-            Invitation Code <span style="color: var(--coral);">*</span>
-        </label>
-        {{ form.invitation_code }}
-        {% if form.invitation_code.errors %}
-        <p class="auth-field-error">{{ form.invitation_code.errors.0 }}</p>
-        {% else %}
-        <p style="margin-top: 4px; font-size: 12px; color: var(--slate-500);">
-            <i class="fas fa-info-circle"></i> Enter the invitation code provided by your administrator
-        </p>
-        {% endif %}
-    </div>
-    <div>
-        <label for="id_password1" class="block text-sm font-semibold" style="margin-bottom: 6px;">Password</label>
-        {{ form.password1 }}
-        {% if form.password1.errors %}<p class="auth-field-error">{{ form.password1.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="id_password2" class="block text-sm font-semibold" style="margin-bottom: 6px;">Confirm Password</label>
-        {{ form.password2 }}
-        {% if form.password2.errors %}<p class="auth-field-error">{{ form.password2.errors.0 }}</p>{% endif %}
-    </div>
-    <button type="submit" class="auth-btn">Create Account</button>
+    <button type="submit" class="auth-btn" style="margin-top: 16px;">Create Account</button>
 </form>
 
-<div style="margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--slate-200); text-align: center;">
+<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--slate-200); text-align: center;">
     <p style="font-size: 13.5px; color: var(--slate-600);">
         Already registered? <a href="{% url 'login' %}" class="auth-link">Sign in</a>
-    </p>
-    <p style="font-size: 13.5px; color: var(--slate-600); margin-top: 8px;">
+        &nbsp;·&nbsp;
         Looking for the <a href="{% url 'register' %}" class="auth-link">client portal</a>?
     </p>
 </div>

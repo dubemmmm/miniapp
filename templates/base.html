@@ -9,21 +9,21 @@
     <!-- Favicon -->
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
 
-    <!-- Fonts (Design System v2) -->
+    <!-- Fonts (Design System v3) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <!-- Design System v2 CSS -->
-    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v2.css' %}">
+    <!-- Design System v3 CSS -->
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS (prebuilt — see tailwind.config.js) -->
+    <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
 
     {% block extra_css %}{% endblock %}
 </head>

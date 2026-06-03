@@ -1,12 +1,15 @@
-<div class="relative z-30" id="profileMenuWrapper">
+<div class="relative z-30" id="profileMenuWrapper" style="margin-left: 10px;">
     <button
         id="profileMenuButton"
         type="button"
-        class="avatar"
+        class="avatar-trigger"
         aria-haspopup="true"
         aria-expanded="false"
+        aria-label="Account menu"
+        title="Account menu"
     >
-        {{ user_initials }}
+        <span class="avatar">{{ user_initials }}</span>
+        <svg class="avatar-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     <div
         id="profileMenu"
@@ -52,3 +55,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Account dropdown toggle — lives with the partial so every page that includes
+    // it (home, map, detail) gets the behaviour. Guarded against double-init.
+    (function () {
+        var btn = document.getElementById('profileMenuButton');
+        var menu = document.getElementById('profileMenu');
+        if (!btn || !menu || btn.dataset.menuInit) return;
+        btn.dataset.menuInit = '1';
+        function closeMenu() { menu.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); }
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var hidden = menu.classList.toggle('hidden');
+            btn.setAttribute('aria-expanded', (!hidden).toString());
+        });
+        document.addEventListener('click', function (e) {
+            if (!menu.contains(e.target) && !btn.contains(e.target)) closeMenu();
+        });
+        window.addEventListener('blur', closeMenu);
+    })();
+</script>

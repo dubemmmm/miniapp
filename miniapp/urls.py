@@ -26,7 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('properties.urls')),
     path('crm/', include('crm.urls')),
-    path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
+    path('login/', auth_views.LoginView.as_view(template_name='login.html', redirect_authenticated_user=True), name='login'),
     path('logout/', custom_logout_view, name='logout'),
     path('accounts/', include('allauth.urls')),  # Allauth URLs (includes Google OAuth)
 ]

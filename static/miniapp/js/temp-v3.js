@@ -189,19 +189,17 @@ const updateActiveFilterCount = () => {
 const toggleFilterBar = () => {
     filtersVisible = !filtersVisible;
     const content = document.getElementById('filterContent');
-    const icon = document.getElementById('toggleFiltersIcon');
-    const text = document.getElementById('toggleFiltersText');
+    const icon = document.getElementById('toggleFiltersIcon'); // optional in v3
+    if (!content) return;
 
     if (filtersVisible) {
         content.style.maxHeight = content.scrollHeight + 'px';
         content.style.opacity = '1';
-        icon.style.transform = 'rotate(0deg)';
-        text.textContent = 'Hide';
+        if (icon) icon.style.transform = 'rotate(0deg)';
     } else {
         content.style.maxHeight = '0';
         content.style.opacity = '0';
-        icon.style.transform = 'rotate(180deg)';
-        text.textContent = 'Show';
+        if (icon) icon.style.transform = 'rotate(180deg)';
     }
 };
 
@@ -336,77 +334,113 @@ const getFilteredProperties = () => {
     return filtered;
 };
 
-const createPropertyCard = (property, isCompact = true) => {
+// ——— v3 helpers: agent-led card pieces ———
+const getInitials = (name) => {
+    if (!name) return 'CW';
+    const parts = name.trim().split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+};
+
+// Prefilled WhatsApp enquiry message for a property.
+const waMessage = (property) => {
+    const loc = (property.address || '').split(',')[0] || property.location || '';
+    const configs = property.configurations || [];
+    const minConfig = configs.length ? configs.reduce((min, c) => c.price < min.price ? c : min) : null;
+    const price = (minConfig && minConfig.price) ? formatCurrency(minConfig.price) : 'Price on Request';
+    return CWCards.enquiryMessage({
+        contactName: property.contact_name,
+        propertyName: property.name,
+        location: loc,
+        priceStr: price,
+        url: `${window.location.origin}/property/${property.id}/`,
+    });
+};
+
+// wa.me link with the prefilled enquiry text.
+const waLink = (property) => {
+    const num = formatWhatsAppNumber(extractPhoneNumber(property.contact_phone || ''));
+    return `https://wa.me/${num}?text=${encodeURIComponent(waMessage(property))}`;
+};
+
+const propertyType = (property) => {
+    const t = property.configurations && property.configurations[0] && property.configurations[0].type;
+    return t || 'Residence';
+};
+
+// Listing badge: the model has no listing_type field yet, so this defaults to
+// "For Sale" (placeholder). Wire to real data once a listing_type field exists.
+const LISTING_DEFAULT = 'For Sale';
+
+const badgePills = (property) => `
+    <span class="badge gold"><span class="dot"></span>${LISTING_DEFAULT}</span>
+    <span class="badge type"><span class="dot"></span>${propertyType(property)}</span>`;
+
+const WA_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.8c2.17 0 4.21.85 5.75 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.48-3.65 8.12-8.13 8.12a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.07.8.82-3-.19-.31a8.06 8.06 0 0 1-1.24-4.3c0-4.48 3.65-8.12 8.12-8.12zm4.7 10.18c-.26-.13-1.52-.75-1.75-.83-.24-.09-.41-.13-.58.13-.17.26-.67.83-.82 1-.15.17-.3.19-.56.06-.26-.13-1.08-.4-2.06-1.27-.76-.68-1.28-1.52-1.43-1.78-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.46.13-.15.17-.26.26-.43.09-.17.04-.32-.02-.45-.06-.13-.58-1.4-.8-1.92-.21-.5-.42-.43-.58-.44l-.5-.01c-.17 0-.45.06-.68.32-.24.26-.9.88-.9 2.15s.92 2.5 1.05 2.66c.13.17 1.8 2.76 4.38 3.87.61.26 1.09.42 1.46.54.61.2 1.17.17 1.61.1.49-.07 1.52-.62 1.73-1.22.21-.6.21-1.11.15-1.22-.06-.11-.24-.17-.5-.3z"/></svg>';
+const CALL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57a1 1 0 0 0-1.02.24l-2.2 2.2a15.05 15.05 0 0 1-6.59-6.59l2.2-2.2a1 1 0 0 0 .24-1.02A11.5 11.5 0 0 1 8.5 4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1c0 9.39 7.61 17 17 17a1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z"/></svg>';
+
+const agentRowTemplate = (property) => {
+    if (!property.contact_name && !property.contact_phone) return '';
+    const name = property.contact_name || 'CW Real Estate';
+    const phone = property.contact_phone || '';
+    const actions = phone ? `
+        <a href="${waLink(property)}" target="_blank" rel="noopener" class="act wa agent-action" title="WhatsApp ${name}" onclick="event.stopPropagation();">${WA_ICON}</a>
+        <a href="tel:${phone}" class="act call agent-action" title="Call ${name}" onclick="event.stopPropagation();">${CALL_ICON}</a>` : '';
+    return `
+        <div class="card-divider"></div>
+        <div class="agent-row">
+            <div class="agent-avatar">${getInitials(property.contact_name)}</div>
+            <span class="agent-name">${name}</span>
+            <div style="flex:1;"></div>
+            ${actions}
+        </div>`;
+};
+
+// v3 card. variant 'overlay' = CardA (image fills, text over navy gradient, specs row);
+// 'split' = CardB (image top, white panel: area title, price, name — area, agent row).
+// rail = horizontal-scroll sizing (fixed 280×360); grid view-all passes rail:false.
+const createPropertyCard = (property, opts = {}) => {
+    const { variant = 'split', rail = true, width = 236 } = opts;
+
     const minConfig = property.configurations.reduce((min, c) => c.price < min.price ? c : min);
     const maxBedrooms = Math.max(...property.configurations.map(c => c.bedrooms));
     const minBedrooms = Math.min(...property.configurations.map(c => c.bedrooms));
     const maxBathrooms = Math.max(...property.configurations.map(c => c.bathrooms));
     const avgSqft = Math.round(property.configurations.reduce((sum, c) => sum + c.square_footage, 0) / property.configurations.length);
-
-    const isCompleted = new Date(property.completion_date) <= new Date();
-    const badgeClass = badgePalette[property.luxury_status] || badgePalette.non_luxurious;
     const bedsLabel = minBedrooms === 0 ? 'Studio' : minBedrooms === maxBedrooms ? `${minBedrooms}` : `${minBedrooms}-${maxBedrooms}`;
+    const neighborhood = (property.address || '').split(',')[0];
 
     const card = document.createElement("article");
     const isSelected = selectedForComparison.has(property.id);
 
-    if (isCompact) {
-        // Card A style — Editorial Overlay (image fills, text over gradient)
-        card.className = "card-editorial group flex-shrink-0";
-        card.style.width = "220px";
-        card.innerHTML = `
-            <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
-            <div class="card-gradient"></div>
-            <div class="card-top">
-                ${favoriteButtonTemplate(property)}
-                <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison — click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--coral)' : 'rgba(255,255,255,0.9)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(255,77,93,0.35), 0 2px 8px rgba(11,16,36,0.10)' : '0 2px 8px rgba(11,16,36,0.10)'};backdrop-filter:blur(6px);" data-property-id="${property.id}">
-                    ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B1024" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
-                </div>
-            </div>
-            ${property.luxury_status === 'luxurious' ? `<div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:2;"><span class="status-v2 new"><span class="dot"></span>Luxury</span></div>` : ''}
-            <div class="card-bottom">
-                <div class="card-location">${property.address.split(',')[0]}</div>
-                <div class="card-name">${property.name}</div>
-                <div class="card-price">${formatCurrency(minConfig.price)}</div>
-                <div class="card-specs">
-                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v11M22 12v8M2 16h20M6 12a2 2 0 0 1 2-2h4v6H2v-3a3 3 0 0 1 3-3"/><path d="M12 10h6a3 3 0 0 1 3 3v3H12z"/></svg> ${bedsLabel}</span>
-                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M6 12V6a2 2 0 0 1 4 0M6 19l-1 2M18 19l1 2"/></svg> ${maxBathrooms}</span>
-                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 21M8 6l2 2M11 9l2 2M14 12l2 2M17 15l2 2"/></svg> ${formatNumber(avgSqft)} sqft</span>
-                </div>
-            </div>`;
-    } else {
-        // Card B style — Split (image top, white info below)
-        card.className = "card-split group";
-        card.innerHTML = `
-            <div class="card-img-wrap">
-                <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
-                <div class="card-top">
-                    ${favoriteButtonTemplate(property)}
-                    <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison — click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--coral)' : 'rgba(255,255,255,0.9)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(255,77,93,0.35), 0 2px 8px rgba(11,16,36,0.10)' : '0 2px 8px rgba(11,16,36,0.10)'};backdrop-filter:blur(6px);" data-property-id="${property.id}">
-                        ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B1024" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
-                    </div>
-                </div>
-                ${property.luxury_status === 'luxurious' ? `<div style="position:absolute;bottom:12px;left:12px;"><span class="status-v2 new"><span class="dot"></span>Luxury</span></div>` : ''}
-            </div>
-            <div class="card-info">
-                <div class="card-location">${property.address.split(',')[0]}</div>
-                <div class="card-name">${property.name}</div>
-                <div class="card-price-row">
-                    <div class="card-price">${formatCurrency(minConfig.price)}</div>
-                    <span class="status-v2 ${isCompleted ? 'available' : 'progress'}"><span class="dot"></span>${isCompleted ? 'Available' : 'In Progress'}</span>
-                </div>
-                <div class="card-specs">
-                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9v11M22 12v8M2 16h20M6 12a2 2 0 0 1 2-2h4v6H2v-3a3 3 0 0 1 3-3"/><path d="M12 10h6a3 3 0 0 1 3 3v3H12z"/></svg> ${bedsLabel}</span>
-                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M6 12V6a2 2 0 0 1 4 0M6 19l-1 2M18 19l1 2"/></svg> ${maxBathrooms}</span>
-                    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 21M8 6l2 2M11 9l2 2M14 12l2 2M17 15l2 2"/></svg> ${formatNumber(avgSqft)} sqft</span>
-                </div>
-            </div>`;
-    }
+    const compareCheckbox = `
+        <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison — click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--navy)' : 'rgba(255,255,255,0.92)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(28,35,80,0.30), 0 2px 8px rgba(20,24,46,0.12)' : '0 2px 8px rgba(20,24,46,0.12)'};" data-property-id="${property.id}">
+            ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1C2350" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
+        </div>`;
+    const topControls = `<div style="display:flex;gap:8px;align-items:center;">${favoriteButtonTemplate(property)}${compareCheckbox}</div>`;
 
-    // Add event listeners
+    if (rail) { card.style.width = width + "px"; card.style.flex = "0 0 " + width + "px"; }
+
+    // All cards use the split (CardB) layout: image with stacked badges, then a
+    // white panel with area title, price, name — area, and the agent contact row.
+    card.className = "card-split group" + (rail ? " flex-shrink-0" : "");
+    card.innerHTML = `
+        <div class="card-img-wrap">
+            <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
+            <div class="card-top">
+                <div class="card-badges">${badgePills(property)}</div>
+                ${topControls}
+            </div>
+        </div>
+        <div class="card-info">
+            <div class="card-title">${neighborhood || property.name}</div>
+            <div class="card-price">${formatCurrency(minConfig.price)}</div>
+            <div class="card-subtitle">${property.name}</div>
+            ${agentRowTemplate(property)}
+        </div>`;
+
+    // Add event listeners — ignore clicks on the compare checkbox and agent contact links.
     card.addEventListener("click", (e) => {
-        // Don't open modal if clicking on checkbox
-        if (!e.target.closest('.compare-checkbox')) {
+        if (!e.target.closest('.compare-checkbox') && !e.target.closest('.agent-action')) {
             openModal(property);
         }
     });
@@ -465,6 +499,10 @@ const renderCards = () => {
         const section = document.createElement("div");
         section.className = "space-y-4";
 
+        // "from" price for the location subtitle (cheapest non-zero config).
+        const locMinPrice = Math.min(...locationProps.flatMap(p => p.configurations.map(c => c.price).filter(v => v > 0)));
+        const fromLabel = Number.isFinite(locMinPrice) ? ` · from ${formatCurrency(locMinPrice)}` : '';
+
         const header = document.createElement("div");
         header.className = "flex items-center justify-between";
         header.style.padding = "0";
@@ -472,9 +510,9 @@ const renderCards = () => {
         header.innerHTML = `
             <div>
                 <div class="eyebrow ink" style="font-size: 11.5px;">Properties in ${location}</div>
-                <div style="font-size: 13px; color: var(--slate-500); margin-top: 2px;">${locationProps.length} ${locationProps.length === 1 ? 'listing' : 'listings'}</div>
+                <div style="font-size: 13px; color: var(--slate-500); margin-top: 2px;">${locationProps.length} ${locationProps.length === 1 ? 'listing' : 'listings'}${fromLabel}</div>
             </div>
-            <button class="view-all-btn" style="color: var(--coral); font-size: 13.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background: none; border: none;" data-location="${location}">
+            <button class="view-all-btn" style="color: var(--navy); font-size: 13.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background: none; border: none;" data-location="${location}">
                 View all <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
         `;
@@ -484,9 +522,10 @@ const renderCards = () => {
         scrollContainer.style.padding = "4px 0 4px";
         scrollContainer.style.maxWidth = "100%";
 
-        // Show first 10 properties in horizontal scroll
-        locationProps.slice(0, 10).forEach(prop => {
-            const card = createPropertyCard(prop, true);
+        // Show first 10 properties in horizontal scroll.
+        // First card in each row is the editorial overlay (CardA); rest are split (CardB).
+        locationProps.slice(0, 10).forEach((prop, i) => {
+            const card = createPropertyCard(prop, { variant: 'split', rail: true });
             card.classList.add("snap-start");
             scrollContainer.appendChild(card);
         });
@@ -509,6 +548,117 @@ const renderCards = () => {
     renderActiveLocationView();
 };
 
+// Compact naira for stat displays (₦200M, ₦2.2B).
+const compactNaira = (v) => {
+    if (!v) return '—';
+    if (v >= 1e9) return '₦' + (v / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (v >= 1e6) return '₦' + Math.round(v / 1e6) + 'M';
+    return formatCurrency(v);
+};
+
+// Plausible bedroom values only — filters out data-entry outliers (e.g. 56).
+const bedroomValues = (configs) => (configs || [])
+    .map(c => c.bedrooms)
+    .filter(b => Number.isFinite(b) && b > 0 && b <= 12);
+const propMaxBed = (p) => { const v = bedroomValues(p.configurations); return v.length ? Math.max(...v) : 0; };
+const propMinPrice = (p) => { const pr = (p.configurations || []).map(c => c.price).filter(v => v > 0); return pr.length ? Math.min(...pr) : 0; };
+
+let viewAllGroupBy = 'none';
+let viewAllCurrent = [];
+
+const bannerStat = (value, label) =>
+    `<div><div class="serif-display" style="font-size: 24px; line-height: 1; color:#fff;">${value}</div>
+     <div style="font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.8); margin-top: 4px;">${label}</div></div>`;
+
+const renderViewAllBanner = (location, properties) => {
+    const hero = properties.find(p => p.luxury_status === 'luxurious') || properties[0] || {};
+    const allConfigs = properties.flatMap(p => p.configurations || []);
+    const prices = allConfigs.map(c => c.price).filter(v => v > 0);
+    const minP = prices.length ? Math.min(...prices) : 0;
+    const maxP = prices.length ? Math.max(...prices) : 0;
+    const beds = bedroomValues(allConfigs);
+    const bedsLabel = !beds.length ? '—'
+        : Math.min(...beds) === Math.max(...beds) ? `${Math.min(...beds)}`
+        : `${Math.min(...beds)}–${Math.max(...beds)}`;
+    const sep = '<div class="banner-sep" style="width:1px; height:30px; background:rgba(255,255,255,0.25);"></div>';
+    document.getElementById('locationViewAllBanner').innerHTML = `
+        <div style="position:absolute; inset:0; background:url('${hero.thumbnail || ''}') center/cover, var(--slate-200);"></div>
+        <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(20,24,46,0.25) 0%, rgba(20,24,46,0.55) 55%, rgba(20,24,46,0.9) 100%);"></div>
+        <div style="position:absolute; left:28px; right:28px; bottom:24px; color:#fff; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:18px;">
+            <div>
+                <div class="eyebrow" style="color:rgba(255,255,255,0.85); margin-bottom:6px;">● Now viewing</div>
+                <div class="serif-display" style="font-size:clamp(34px,6vw,56px); line-height:1;">${location}</div>
+            </div>
+            <div style="display:flex; gap:22px; align-items:center; flex-wrap:wrap;">
+                ${bannerStat(properties.length, properties.length === 1 ? 'listing' : 'listings')}
+                ${sep}${bannerStat(compactNaira(minP), 'from')}
+                ${sep}${bannerStat(compactNaira(maxP), 'up to')}
+                ${sep}${bannerStat(bedsLabel, 'beds')}
+            </div>
+        </div>`;
+};
+
+// Split a location's listings into labelled groups for the chosen criterion.
+const groupViewAll = (properties, mode) => {
+    if (mode === 'bedrooms') {
+        const buckets = [
+            { label: 'Studio & 1 Bedroom', test: b => b <= 1 },
+            { label: '2–3 Bedrooms', test: b => b >= 2 && b <= 3 },
+            { label: '4+ Bedrooms', test: b => b >= 4 },
+        ];
+        return buckets
+            .map(bk => ({ label: bk.label, items: properties.filter(p => bk.test(propMaxBed(p))) }))
+            .filter(g => g.items.length);
+    }
+    if (mode === 'status') {
+        const isReady = p => p.completion_date && new Date(p.completion_date) <= new Date();
+        return [
+            { label: 'Ready / Available', items: properties.filter(isReady) },
+            { label: 'Under Construction', items: properties.filter(p => !isReady(p)) },
+        ].filter(g => g.items.length);
+    }
+    if (mode === 'price') {
+        const bands = [
+            { label: 'Under ₦200M', test: v => v > 0 && v < 2e8 },
+            { label: '₦200M – ₦500M', test: v => v >= 2e8 && v < 5e8 },
+            { label: '₦500M – ₦1B', test: v => v >= 5e8 && v < 1e9 },
+            { label: '₦1B and above', test: v => v >= 1e9 },
+            { label: 'Price on request', test: v => !v },
+        ];
+        return bands
+            .map(bd => ({ label: bd.label, items: properties.filter(p => bd.test(propMinPrice(p))) }))
+            .filter(g => g.items.length);
+    }
+    return [{ label: null, items: properties }];
+};
+
+const renderViewAllGrid = (properties) => {
+    const grid = document.getElementById('locationViewAllGrid');
+    grid.innerHTML = '';
+    groupViewAll(properties, viewAllGroupBy).forEach(group => {
+        const section = document.createElement('div');
+        section.style.marginBottom = '34px';
+        if (group.label) {
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex; align-items:baseline; gap:10px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--slate-200);';
+            header.innerHTML = `<span class="eyebrow ink" style="font-size:12px;">${group.label}</span>
+                <span style="font-size:13px; color:var(--slate-500);">${group.items.length} ${group.items.length === 1 ? 'listing' : 'listings'}</span>`;
+            section.appendChild(header);
+        }
+        const row = document.createElement('div');
+        row.className = 'view-all-row flex flex-wrap gap-5 sm:gap-7';
+        row.style.justifyContent = viewAllGroupBy === 'none' ? 'center' : 'flex-start';
+        group.items.forEach(property => {
+            const card = createPropertyCard(property, { variant: 'split', rail: true, width: 210 });
+            card.classList.add('fade-enter');
+            row.appendChild(card);
+            requestAnimationFrame(() => card.classList.add('fade-enter-active'));
+        });
+        section.appendChild(row);
+        grid.appendChild(section);
+    });
+};
+
 const showLocationViewAll = (location, properties) => {
     locationViewState = {
         active: true,
@@ -517,23 +667,23 @@ const showLocationViewAll = (location, properties) => {
     };
     document.getElementById("locationSections").classList.add("hidden");
     document.getElementById("locationViewAll").classList.remove("hidden");
-    document.getElementById("locationViewAllTitle").textContent = `${location} (${properties.length} properties)`;
-
-    const grid = document.getElementById("locationViewAllGrid");
-    grid.innerHTML = "";
-
-    properties.forEach((property) => {
-        const card = createPropertyCard(property, false);
-        card.classList.add("fade-enter");
-        grid.appendChild(card);
-        requestAnimationFrame(() => card.classList.add("fade-enter-active"));
-    });
+    renderViewAllBanner(location, properties);
+    const countEl = document.getElementById('locationViewAllCount');
+    if (countEl) countEl.textContent = `${properties.length} ${properties.length === 1 ? 'property' : 'properties'} in ${location}`;
+    viewAllCurrent = properties;
+    renderViewAllGrid(properties);
 };
 
 document.getElementById("backToLocations").addEventListener("click", () => {
     document.getElementById("locationViewAll").classList.add("hidden");
     document.getElementById("locationSections").classList.remove("hidden");
     locationViewState = { active: false, location: null, propertyIds: [] };
+});
+
+// Re-render the view-all grid when the "Group by" criterion changes.
+document.getElementById("viewAllGroupBy")?.addEventListener("change", (e) => {
+    viewAllGroupBy = e.target.value;
+    renderViewAllGrid(viewAllCurrent);
 });
 
 const renderActiveLocationView = () => {
@@ -754,18 +904,13 @@ const initFilters = () => {
         yearSelect.appendChild(optionEl);
     });
 
-    // Toggle filter bar (button + the chevron chip beside it)
+    // Toggle filter bar via the navy "Filters" button.
     document.getElementById('toggleFilters').addEventListener('click', toggleFilterBar);
-    const filtersArrow = document.getElementById('toggleFiltersArrow');
-    if (filtersArrow) {
-        filtersArrow.addEventListener('click', toggleFilterBar);
-        filtersArrow.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleFilterBar();
-            }
-        });
-    }
+    // v3 segmented pills (Where/Listing/Type/Beds) are visual stand-ins that open the
+    // full filter panel; real filtering still happens through the panel controls.
+    document.querySelectorAll('.seg-pill').forEach(pill => {
+        pill.addEventListener('click', () => { if (!filtersVisible) toggleFilterBar(); });
+    });
 
     // Search
     document.getElementById("searchInput").addEventListener("input", (e) => {
@@ -1183,25 +1328,7 @@ document.getElementById('comparisonModal').addEventListener('click', (e) => {
     if (e.target.id === 'comparisonModal') closeComparisonModal();
 });
 
-const profileMenuButton = document.getElementById('profileMenuButton');
-const profileMenu = document.getElementById('profileMenu');
-if (profileMenuButton && profileMenu) {
-    const closeMenu = () => {
-        profileMenu.classList.add('hidden');
-        profileMenuButton.setAttribute('aria-expanded', 'false');
-    };
-    profileMenuButton.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const isOpen = profileMenu.classList.toggle('hidden');
-        profileMenuButton.setAttribute('aria-expanded', (!isOpen).toString());
-    });
-    document.addEventListener('click', (event) => {
-        if (!profileMenu.contains(event.target) && !profileMenuButton.contains(event.target)) {
-            closeMenu();
-        }
-    });
-    window.addEventListener('blur', closeMenu);
-}
+// Account dropdown toggle now lives in partials/profile_menu.html (shared by all pages).
 
 // ——— Populate hero featured card & stats ———
 const populateHero = () => {
@@ -1240,18 +1367,14 @@ const populateHero = () => {
 
     card.style.background = `url(${featured.thumbnail}) center/cover, var(--slate-200)`;
     card.innerHTML = `
-        <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(11,16,36,0.10) 0%, rgba(11,16,36,0) 30%, rgba(11,16,36,0.85) 100%);"></div>
-        <div style="position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:center;z-index:2;">
-            <span class="status-v2 new" style="background:rgba(255,255,255,0.95);color:var(--coral-700);">
-                <span class="dot"></span>Editor's pick${featured.luxury_status === 'luxurious' ? ' · Luxury' : ''}
-            </span>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(20,24,46,0.10) 0%, rgba(20,24,46,0) 30%, rgba(20,24,46,0.86) 100%);"></div>
+        <div style="position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:flex-start;z-index:2;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">${badgePills(featured)}</div>
             ${favoriteButtonTemplate(featured)}
         </div>
         <div style="position:absolute;left:24px;right:24px;bottom:22px;color:white;z-index:2;">
             <div class="eyebrow" style="color:rgba(255,255,255,0.9);font-size:10.5px;">${featured.address.split(',')[0]}</div>
-            <div class="serif-display" style="font-size:44px;margin:4px 0 6px;">
-                ${featured.name.split(' ')[0]} <span class="italic-accent">${featured.name.split(' ').slice(1).join(' ')}</span>
-            </div>
+            <div class="serif-display" style="font-size:44px;margin:4px 0 8px;line-height:1.02;">${featured.name}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div style="font-weight:600;font-size:18px;font-variant-numeric:tabular-nums;">${formatCurrency(minConfig.price)}</div>
                 <button class="btn-v2" style="background:white;color:var(--ink);padding:9px 16px;border:none;cursor:pointer;" onclick="event.stopPropagation();">

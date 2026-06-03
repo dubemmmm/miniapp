@@ -2,8 +2,9 @@
 {% load static %}
 
 {% block extra_css %}
+{# Design-system v3 tokens come from base.html; dashboard.css/v2 use them. #}
 <link rel="stylesheet" href="{% static 'miniapp/css/dashboard.css' %}">
-<!-- Editorial map chrome (v2). Loaded after dashboard.css so it wins. -->
+<!-- Editorial map chrome. Loaded after dashboard.css so it wins. -->
 <link rel="stylesheet" href="{% static 'miniapp/css/dashboard-v2.css' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/geist-font/1.0.0/fonts/geist-sans/style.min.css">
 <style>
@@ -331,25 +332,35 @@
         }
     }
 </style>
+
+<!-- v3 overrides: recolor the (coral) chat widget to navy + tint the map tiles. -->
+<style>
+    #chat-widget-container { box-shadow: 0 8px 32px rgba(20,24,46,0.15); border: 1px solid rgba(20,24,46,0.08); }
+    #chat-widget-header,
+    #chat-widget-button,
+    #chat-widget-send,
+    .user-message p { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-700) 100%) !important; }
+    #chat-widget-header { box-shadow: 0 4px 12px rgba(20,24,46,0.2); }
+    #chat-widget-button { box-shadow: 0 6px 20px rgba(20,24,46,0.35); }
+    #chat-widget-send { box-shadow: 0 2px 8px rgba(20,24,46,0.2); }
+    .user-message p { box-shadow: 0 2px 8px rgba(20,24,46,0.2); }
+    .welcome-message { border-left-color: var(--navy) !important; }
+    .typing-dot { background: var(--navy) !important; }
+    #chat-widget-input:focus { border-color: var(--navy) !important; box-shadow: 0 0 0 3px rgba(28,35,80,0.12) !important; }
+    #chat-widget-body::-webkit-scrollbar-thumb { background: var(--navy-200) !important; }
+
+    /* Lightly desaturate the basemap so navy markers + gold read clean (mirrors .cw-map). */
+    #map.leaflet-container { background: #E9E8E4; }
+    #map .leaflet-tile-pane { filter: grayscale(0.32) saturate(0.8) brightness(1.03) contrast(0.96); }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="relative h-screen cw-dash">
     <div id="map" class="leaflet-container"></div>
 
-    <!-- Top header -->
-    <header class="cw-dash-header">
-        <a href="{% url 'temp' %}" class="cw-brand" title="CW Real Estate">
-            <span class="cw-logo-badge">cw</span>
-            <span class="eyebrow ink cw-brand-name">CW REAL ESTATE</span>
-        </a>
-        <div class="cw-header-actions">
-            <a href="{% url 'logout' %}" class="cw-icon-btn" title="Logout" aria-label="Logout">
-                <i class="fas fa-sign-out-alt"></i>
-            </a>
-            <span class="cw-avatar" aria-hidden="true"><i class="fas fa-user"></i></span>
-        </div>
-    </header>
+    <!-- Top header — shared floating pill nav (map=True floats it over the canvas) -->
+    {% include "partials/nav_pill.html" with map=True %}
 
     <!-- Mobile Filter Overlay -->
     <div id="mobileFilterOverlay" class="mobile-filter-overlay"></div>
@@ -390,11 +401,6 @@
 
     <!-- Right control stack -->
     <div class="cw-controls">
-        <div class="cw-toggle">
-            <span class="cw-toggle-btn active"><i class="fas fa-map-marker-alt"></i> Map</span>
-            <a href="{% url 'temp' %}" class="cw-toggle-btn"><i class="fas fa-th"></i> Grid</a>
-        </div>
-
         <div class="cw-control-panel">
             <button id="toggleFiltersBtn" type="button" onclick="toggleFilters()" class="cw-control-row">
                 <i class="fas fa-filter"></i> Filters
@@ -621,5 +627,6 @@
     };
 </script>
 
-<script src="{% static 'miniapp/js/dashboard.js' %}"></script>
+<script src="{% static 'miniapp/js/cards.js' %}"></script>
+<script src="{% static 'miniapp/js/dashboard-v3.js' %}"></script>
 {% endblock %}

@@ -329,48 +329,13 @@ CRM_SLA_HOURS = 2
 CRM_DEDUP_WINDOW_HOURS = 6
 CRM_ESCALATION_HOURS = 24
 
-# Toggle between http and https for dev / prod testing
-# ENVIRONMENT = config("ENVIRONMENT", default="local")  # local or production
-# IS_PROD = ENVIRONMENT == "production"
-# DEBUG = not IS_PROD
-
-# if IS_PROD:
-#     SECURE_SSL_REDIRECT = True
-#     SECURE_HSTS_SECONDS = 3600
-#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-#     SECURE_HSTS_PRELOAD = True
-
-#     CSRF_COOKIE_SECURE = True
-#     SESSION_COOKIE_SECURE = True
-
-#     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-#     USE_X_FORWARDED_HOST = True
-
-#     CSRF_TRUSTED_ORIGINS = [
-#         "https://offplan.cwlagos.com",
-#         "https://cwproperty.org",
-#         "https://www.cwproperty.org",
-#     ]
-# else:
-#     # Local dev (HTTP)
-#     SECURE_SSL_REDIRECT = False
-#     SECURE_HSTS_SECONDS = 0
-#     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-#     SECURE_HSTS_PRELOAD = False
-
-#     CSRF_COOKIE_SECURE = False
-#     SESSION_COOKIE_SECURE = False
-
-#     CSRF_TRUSTED_ORIGINS = [
-#         "http://localhost:8000",
-#         "http://127.0.0.1:8000",
-#     ]
-
+# HTTPS / transport security — enabled in deployed (HTTPS) environments only.
 deployment = config('DEPLOYMENT', default=False, cast=bool)
 SECURE_SSL_REDIRECT = deployment
 CSRF_COOKIE_SECURE = deployment
 SESSION_COOKIE_SECURE = deployment
-SECURE_HSTS_SECONDS = 5000 if deployment == True else 0 # change to 5000 when pushing to github
+# 1 year HSTS in production; only enable PRELOAD once HTTPS is confirmed site-wide.
+SECURE_HSTS_SECONDS = 31536000 if deployment else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = deployment
 SECURE_HSTS_PRELOAD = deployment
 

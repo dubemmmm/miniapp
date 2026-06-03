@@ -10,139 +10,155 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v2.css' %}">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
     <style>
-        /* Auth shell — shared by every sign-in / registration screen */
-        .auth-wrap {
+        /* Auth shell (v3) — shared by every sign-in / registration screen.
+           Blurred property backdrop, one centred white card holding the
+           wordmark, heading, subtitle and form. */
+        body.auth-wrap {
+            position: relative;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px 16px;
-            background: var(--bg-gradient);
+            padding: 32px 16px;
             font-family: var(--font-sans);
             color: var(--ink);
         }
-        .auth-card {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            border-radius: var(--r-lg);
-            box-shadow: var(--shadow-lg);
-            padding: 28px;
+        body.auth-wrap::before {
+            content: ""; position: fixed; inset: -40px; z-index: -2;
+            background: url('https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1920&q=75&auto=format&fit=crop') center/cover no-repeat;
+            filter: blur(14px) saturate(1.05); transform: scale(1.08);
+        }
+        body.auth-wrap::after {
+            content: ""; position: fixed; inset: 0; z-index: -1;
+            background: rgba(20, 24, 46, 0.20);
         }
 
-        /* Normalize every Django-rendered / inline form control to the v2 look,
-           regardless of the utility classes the widgets ship with. */
+        .auth-shell { width: 100%; max-width: 400px; }
+
+        .auth-card {
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 36px 80px -30px rgba(20,24,46,0.45), 0 8px 22px -12px rgba(20,24,46,0.2);
+            padding: 32px clamp(22px, 5vw, 34px) 28px;
+        }
+
+        /* CW REAL ESTATE wordmark */
+        .cw-wordmark { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; }
+        .cw-wordmark .mark { font-family: var(--font-display); font-size: 38px; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+        .cw-wordmark .bar { width: 1.5px; height: 32px; background: var(--navy-200); }
+        .cw-wordmark .sub { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; color: var(--navy); line-height: 1.25; }
+
+        .auth-heading {
+            font-family: var(--font-sans); font-weight: 700;
+            font-size: clamp(24px, 4.5vw, 30px); color: var(--navy);
+            text-align: center; margin: 0 0 6px; letter-spacing: -0.01em;
+        }
+        .auth-subtitle { text-align: center; font-size: 14px; font-weight: 500; color: var(--ink-700); margin: 0 0 24px; }
+
+        /* Normalise every Django-rendered / inline control to the v3 pill look */
         .auth-card input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
-        .auth-card select,
+        .auth-card select {
+            width: 100%; box-sizing: border-box;
+            padding: 13px 18px; font-size: 14.5px; font-family: var(--font-sans);
+            color: var(--ink); background: #fff;
+            border: 1.5px solid var(--slate-200); border-radius: 999px;
+            outline: none; transition: border-color .15s, box-shadow .15s;
+        }
         .auth-card textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--slate-200);
-            border-radius: var(--r-md);
-            font-size: 14px;
-            font-family: var(--font-sans);
-            background: white;
-            color: var(--ink);
-            box-shadow: none;
-            transition: border-color .15s, box-shadow .15s;
+            width: 100%; box-sizing: border-box; padding: 12px 16px; font-size: 14.5px;
+            font-family: var(--font-sans); color: var(--ink); background: #fff;
+            border: 1.5px solid var(--slate-200); border-radius: var(--r-lg); outline: none;
         }
-        .auth-card input:focus,
-        .auth-card select:focus,
-        .auth-card textarea:focus {
-            outline: none;
-            border-color: var(--coral);
-            box-shadow: 0 0 0 3px rgba(255, 77, 93, 0.15);
+        .auth-card input:focus, .auth-card select:focus, .auth-card textarea:focus {
+            border-color: var(--navy); box-shadow: 0 0 0 4px rgba(28,35,80,0.10);
         }
-        .auth-card label { color: var(--ink-700); }
+        .auth-card label { color: var(--ink-700); font-weight: 600; }
+
+        /* Password show/hide toggle (added by JS) */
+        .auth-pw-wrap { position: relative; }
+        .auth-pw-wrap input { padding-right: 50px; }
+        .auth-pw-toggle {
+            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer; color: var(--navy);
+            display: inline-flex; align-items: center; justify-content: center; padding: 4px;
+        }
 
         .auth-btn {
-            width: 100%;
-            background: var(--coral);
-            color: white;
-            font-weight: 600;
-            padding: 11px;
-            border: none;
-            border-radius: var(--r-md);
-            font-size: 14px;
-            cursor: pointer;
-            box-shadow: var(--shadow-coral);
+            width: 100%; background: var(--navy); color: #fff;
+            font-family: var(--font-sans); font-weight: 600; font-size: 15px;
+            padding: 15px; border: none; border-radius: 999px; cursor: pointer;
+            box-shadow: 0 14px 30px -12px rgba(28,35,80,0.55);
             transition: transform .15s, background .15s;
         }
-        .auth-btn:hover { transform: translateY(-1px); background: var(--coral-600); }
+        .auth-btn:hover { transform: translateY(-1px); background: var(--navy-600); }
 
         .auth-google {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: white;
-            border: 1px solid var(--slate-200);
-            color: var(--ink-700);
-            font-weight: 500;
-            font-size: 14px;
-            padding: 11px;
-            border-radius: var(--r-md);
-            cursor: pointer;
-            text-decoration: none;
-            transition: border-color .15s, background .15s;
+            width: 100%; box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            background: #fff; border: 1.5px solid var(--slate-200); color: var(--ink-700);
+            font-weight: 500; font-size: 14px; padding: 13px; border-radius: 999px;
+            cursor: pointer; text-decoration: none; transition: border-color .15s, background .15s;
         }
-        .auth-google:hover { border-color: var(--slate-400); background: var(--slate-100); }
+        .auth-google:hover { border-color: var(--navy-200); background: var(--slate-100); }
 
-        .auth-divider {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 22px 0;
-            color: var(--slate-400);
-            font-size: 12.5px;
-        }
-        .auth-divider::before,
-        .auth-divider::after {
-            content: "";
-            flex: 1;
-            height: 1px;
-            background: var(--slate-200);
-        }
+        .auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--slate-400); font-size: 12.5px; }
+        .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--slate-200); }
 
-        .auth-link { color: var(--coral); font-weight: 600; text-decoration: none; }
-        .auth-link:hover { color: var(--coral-700); }
+        .auth-link { color: var(--navy); font-weight: 600; text-decoration: underline; }
+        .auth-link:hover { color: var(--navy-700); }
 
-        .auth-alert {
-            margin-bottom: 20px;
-            padding: 14px 16px;
-            border-radius: var(--r-md);
-            font-size: 13.5px;
-            line-height: 1.5;
-        }
-        .auth-alert.error { background: var(--coral-50); color: var(--coral-700); border: 1px solid var(--coral-100); }
-        .auth-alert.info  { background: #EEF1FA; color: var(--ink-700); border: 1px solid var(--slate-200); }
+        .auth-alert { margin-bottom: 18px; padding: 13px 16px; border-radius: var(--r-md); font-size: 13.5px; line-height: 1.5; }
+        .auth-alert.error { background: #FDECEC; color: #B4232A; border: 1px solid #F6D2D2; }
+        .auth-alert.info  { background: var(--navy-50); color: var(--ink-700); border: 1px solid var(--navy-100); }
         .auth-alert.success { background: #E7F6EF; color: #16774E; border: 1px solid #C7EAD9; }
 
-        .auth-field-error { margin-top: 4px; font-size: 12px; color: var(--coral); }
+        .auth-field-error { margin-top: 4px; font-size: 12px; color: #B4232A; }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="auth-wrap">
-    <div class="w-full" style="max-width: 460px;">
-        <div class="text-center" style="margin-bottom: 28px;">
-            <div class="logo-mark" style="margin: 0 auto 16px;">cw</div>
-            {% block portal_chip %}{% endblock %}
-            <h1 class="serif-display" style="font-size: clamp(30px, 5vw, 40px); margin: 0 0 6px; letter-spacing: -0.02em;">
-                {% block heading %}Welcome{% endblock %}
-            </h1>
-            <p style="font-size: 14px; color: var(--slate-600);">{% block subtitle %}{% endblock %}</p>
-        </div>
-
+    <div class="auth-shell">
         <div class="auth-card">
+            <div class="cw-wordmark">
+                <span class="mark">CW</span>
+                <span class="bar"></span>
+                <span class="sub">REAL<br>ESTATE</span>
+            </div>
+
+            <h1 class="auth-heading">{% block heading %}Welcome{% endblock %}</h1>
+            <p class="auth-subtitle">{% block subtitle %}{% endblock %}</p>
+
             {% block card %}{% endblock %}
         </div>
 
         {% block below_card %}{% endblock %}
     </div>
+
+    <!-- Generic password show/hide toggle for any password field in the card -->
+    <script>
+        (function () {
+            document.querySelectorAll('.auth-card input[type="password"]').forEach(function (inp) {
+                var wrap = document.createElement('div');
+                wrap.className = 'auth-pw-wrap';
+                inp.parentNode.insertBefore(wrap, inp);
+                wrap.appendChild(inp);
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'auth-pw-toggle';
+                btn.setAttribute('aria-label', 'Show password');
+                btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+                btn.addEventListener('click', function () {
+                    var show = inp.type === 'password';
+                    inp.type = show ? 'text' : 'password';
+                    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                });
+                wrap.appendChild(btn);
+            });
+        })();
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

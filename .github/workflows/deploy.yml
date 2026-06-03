@@ -21,6 +21,7 @@ jobs:
           source /home/ubuntu/venv/bin/activate
           pip install -r requirements.txt
           python manage.py migrate
+          bash build_tailwind.sh
           python manage.py collectstatic --noinput
           sudo systemctl restart gunicorn
           sudo systemctl reload nginx

@@ -244,7 +244,16 @@ function createModalHTML(property) {
         ? property.contact.split(' - ')[0].trim() : '';
     const phoneNumber = extractPhoneNumber(property.contact);
     const whatsappNumber = formatWhatsAppNumber(phoneNumber);
-    const whatsappMessage = encodeURIComponent(`Hi! I'm interested in the property: ${property.name} at ${property.address}. Could you please provide more information?`);
+    // Prefilled enquiry message (config prices arrive as formatted strings, so parse them).
+    const waLoc = (property.address || '').split(',')[0] || '';
+    const waPrices = (property.configurations || [])
+        .map(c => parseFloat(String(c.price).replace(/[^0-9.]/g, '')))
+        .filter(n => n > 0);
+    const waPrice = waPrices.length ? '₦' + Math.min(...waPrices).toLocaleString('en-NG', { maximumFractionDigits: 0 }) : 'Price on Request';
+    const waUrl = `${window.location.origin}/property/${property.id}/`;
+    const whatsappMessage = encodeURIComponent(CWCards.enquiryMessage({
+        contactName: contactName, propertyName: property.name, location: waLoc, priceStr: waPrice, url: waUrl,
+    }));
     const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
     const configurationsHTML = (property.configurations || []).map(config => {
@@ -343,7 +352,7 @@ function createModalHTML(property) {
                         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                             ${contactName ? `
                                 <div style="display:flex; align-items:center; gap:10px;">
-                                    <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#FFE2C8,#FF8E92); display:flex; align-items:center; justify-content:center; font-weight:600; color:white; font-size:13px;">${contactName.charAt(0).toUpperCase()}</div>
+                                    <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg, var(--navy), var(--navy-700)); display:flex; align-items:center; justify-content:center; font-weight:600; color:white; font-size:13px;">${contactName.charAt(0).toUpperCase()}</div>
                                     <div>
                                         <div style="font-size:12px; opacity:0.7;">Lead by</div>
                                         <div style="font-size:14px; font-weight:500;">${contactName}</div>
