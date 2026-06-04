@@ -67,6 +67,17 @@ PROPERTY_PREFETCHES = (
 )
 
 
+def property_favorite_prefetch(prefetch):
+    """Prefix property prefetches for use from PropertyFavorite.property."""
+    if isinstance(prefetch, Prefetch):
+        return Prefetch(
+            f'property__{prefetch.prefetch_through}',
+            queryset=prefetch.queryset,
+            to_attr=prefetch.to_attr,
+        )
+    return f'property__{prefetch}'
+
+
 def get_user_initials(user):
     if not user.is_authenticated:
         return "NA"
@@ -1385,7 +1396,7 @@ def favorites_view(request):
     favorite_entries = PropertyFavorite.objects.filter(user=request.user).select_related(
         'property'
     ).prefetch_related(
-        *(f'property__{pref}' for pref in PROPERTY_PREFETCHES)
+        *(property_favorite_prefetch(pref) for pref in PROPERTY_PREFETCHES)
     ).order_by('-created_at')
 
     favorite_ids = [entry.property_id for entry in favorite_entries]
