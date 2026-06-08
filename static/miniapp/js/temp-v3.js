@@ -376,15 +376,13 @@ const badgePills = (property) => `
     <span class="badge type"><span class="dot"></span>${propertyType(property)}</span>`;
 
 const WA_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.8c2.17 0 4.21.85 5.75 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.48-3.65 8.12-8.13 8.12a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.07.8.82-3-.19-.31a8.06 8.06 0 0 1-1.24-4.3c0-4.48 3.65-8.12 8.12-8.12zm4.7 10.18c-.26-.13-1.52-.75-1.75-.83-.24-.09-.41-.13-.58.13-.17.26-.67.83-.82 1-.15.17-.3.19-.56.06-.26-.13-1.08-.4-2.06-1.27-.76-.68-1.28-1.52-1.43-1.78-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.46.13-.15.17-.26.26-.43.09-.17.04-.32-.02-.45-.06-.13-.58-1.4-.8-1.92-.21-.5-.42-.43-.58-.44l-.5-.01c-.17 0-.45.06-.68.32-.24.26-.9.88-.9 2.15s.92 2.5 1.05 2.66c.13.17 1.8 2.76 4.38 3.87.61.26 1.09.42 1.46.54.61.2 1.17.17 1.61.1.49-.07 1.52-.62 1.73-1.22.21-.6.21-1.11.15-1.22-.06-.11-.24-.17-.5-.3z"/></svg>';
-const CALL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57a1 1 0 0 0-1.02.24l-2.2 2.2a15.05 15.05 0 0 1-6.59-6.59l2.2-2.2a1 1 0 0 0 .24-1.02A11.5 11.5 0 0 1 8.5 4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1c0 9.39 7.61 17 17 17a1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z"/></svg>';
 
 const agentRowTemplate = (property) => {
     if (!property.contact_name && !property.contact_phone) return '';
     const name = property.contact_name || 'CW Real Estate';
     const phone = property.contact_phone || '';
     const actions = phone ? `
-        <a href="${waLink(property)}" target="_blank" rel="noopener" class="act wa agent-action" title="WhatsApp ${name}" onclick="event.stopPropagation();">${WA_ICON}</a>
-        <a href="tel:${phone}" class="act call agent-action" title="Call ${name}" onclick="event.stopPropagation();">${CALL_ICON}</a>` : '';
+        <a href="${waLink(property)}" target="_blank" rel="noopener" class="act wa agent-action" title="WhatsApp ${name}" onclick="event.stopPropagation();">${WA_ICON}</a>` : '';
     return `
         <div class="card-divider"></div>
         <div class="agent-row">
@@ -396,7 +394,7 @@ const agentRowTemplate = (property) => {
 };
 
 // v3 card. variant 'overlay' = CardA (image fills, text over navy gradient, specs row);
-// 'split' = CardB (image top, white panel: area title, price, name — area, agent row).
+// 'split' = CardB (image top, white panel: area title, price, name, agent row).
 // rail = horizontal-scroll sizing (fixed 280×360); grid view-all passes rail:false.
 const createPropertyCard = (property, opts = {}) => {
     const { variant = 'split', rail = true, width = 236 } = opts;
@@ -420,14 +418,13 @@ const createPropertyCard = (property, opts = {}) => {
 
     if (rail) { card.style.width = width + "px"; card.style.flex = "0 0 " + width + "px"; }
 
-    // All cards use the split (CardB) layout: image with stacked badges, then a
-    // white panel with area title, price, name — area, and the agent contact row.
+    // All cards use the split (CardB) layout: image with save/compare controls,
+    // then a white panel with area title, price, name, and the agent contact row.
     card.className = "card-split group" + (rail ? " flex-shrink-0" : "");
     card.innerHTML = `
         <div class="card-img-wrap">
             <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
-            <div class="card-top">
-                <div class="card-badges">${badgePills(property)}</div>
+            <div class="card-top" style="justify-content: flex-end;">
                 ${topControls}
             </div>
         </div>
