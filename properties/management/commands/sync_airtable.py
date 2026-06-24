@@ -447,7 +447,11 @@ class Command(BaseCommand):
             if not out:
                 self.stdout.write(f"DEBUG: Available fields in progress record: {list(f.keys())}")
 
-            progress_pct = int(f.get("Progress Status"))
+            raw_pct = f.get("Progress Status")
+            try:
+                progress_pct = int(float(raw_pct)) if raw_pct not in (None, "") else 0
+            except (TypeError, ValueError):
+                progress_pct = 0
             progress_pct = max(0, min(100, progress_pct))  # Clamp to 0-100
 
             # Get update date
