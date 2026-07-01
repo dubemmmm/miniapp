@@ -1,0 +1,384 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CW Real Estate · Portfolio Preview</title>
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- v3: editorial serif display (Instrument Serif) + Geist body -->
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/chat-widget.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/temp.css' %}">
+    <!-- temp.css (still used by some other pages) ships coral scrollbars + selection;
+         override to navy here since this loads last. -->
+    <style>
+        ::-webkit-scrollbar-thumb {
+            background: var(--navy-200) !important;
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--navy) !important; }
+        ::-webkit-scrollbar-track { background: rgba(224, 224, 227, 0.7) !important; }
+        .overflow-x-auto::-webkit-scrollbar-thumb,
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+            background: var(--navy-200) !important;
+        }
+        ::selection { background: rgba(28, 35, 80, 0.18) !important; }
+        #chat-widget-body::-webkit-scrollbar-thumb { background: var(--navy-200) !important; }
+    </style>
+    <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/temp2.css' %}">
+    <script src="{% static 'miniapp/js/chat-widget.js' %}"></script>
+</head>
+<body class="temp2-page antialiased" style="background: var(--bg-gradient); min-height: 100vh; font-family: var(--font-sans); color: var(--ink);">
+
+    <div class="relative min-h-screen pb-24">
+
+        {% include "partials/nav_pill.html" %}
+
+        <div class="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-10">
+
+            <!-- Compact portfolio hero -->
+            {% block hero_section %}
+            <section class="temp2-hero">
+                <div class="temp2-hero-copy">
+                    <div class="eyebrow coral hero-eyebrow">Curated portfolio</div>
+                    <h1 class="serif-display">Find your place in <span class="italic-accent">Lagos</span>.</h1>
+                    <p>Explore a focused collection of active developments across the city's most considered addresses.</p>
+                    <div class="hero-stats" aria-label="Portfolio summary">
+                        <div>
+                            <div id="heroStatCount" class="serif-display stat-value">0</div>
+                            <div class="eyebrow stat-label">properties</div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div>
+                            <div id="heroStatDistricts" class="serif-display stat-value">0</div>
+                            <div class="eyebrow stat-label">districts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="heroFeaturedCard" class="temp2-featured hidden lg:block" aria-label="Featured property">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+            {% endblock %}
+
+            <main class="mt-4 space-y-6">
+
+                <!-- Search-first filter bar -->
+                <section id="filtersSection">
+                    <div class="search-bar-v3 temp2-search-bar">
+                        <div class="search-input-wrap">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--slate-400)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                            <input id="searchInput" type="text" placeholder="Search address, project or name…" />
+                        </div>
+                        <select id="locationSelect" class="temp2-quick-select" aria-label="Location">
+                            <option value="all">Any location</option>
+                        </select>
+                        <select id="bedroomsSelect" class="temp2-quick-select" aria-label="Bedrooms">
+                            <option value="all">Any bedrooms</option>
+                            <option value="0">Studio</option>
+                            <option value="1">1 bedroom</option>
+                            <option value="2">2 bedrooms</option>
+                            <option value="3">3 bedrooms</option>
+                            <option value="4">4 bedrooms</option>
+                            <option value="5+">5+ bedrooms</option>
+                        </select>
+                        <button id="temp2PriceButton" class="temp2-price-btn" type="button">
+                            <span id="temp2PriceLabel">Any price</span>
+                        </button>
+                        <button id="currencyToggle" onclick="toggleCurrency()" class="temp2-currency-btn" type="button">
+                            <span id="currencyLabel">USD</span>
+                        </button>
+                        <button id="toggleFilters" class="filters-btn">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                            <span id="toggleFiltersText">More filters</span>
+                            <span id="activeFilterCount" class="filters-count hidden"></span>
+                        </button>
+                    </div>
+
+                    <div id="filterContent" class="filter-panel-v2 temp2-filter-panel">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                            <select id="completionQuarterSelect" class="temp2-panel-select">
+                                <option value="all">Any Quarter</option>
+                                <option value="1">Q1</option>
+                                <option value="2">Q2</option>
+                                <option value="3">Q3</option>
+                                <option value="4">Q4</option>
+                            </select>
+
+                            <select id="completionYearSelect" class="temp2-panel-select">
+                                <option value="all">Any Year</option>
+                            </select>
+
+                            <select id="luxurySelect" class="temp2-panel-select">
+                                <option value="all">All Types</option>
+                                <option value="luxurious">Luxurious</option>
+                                <option value="non_luxurious">Non-Luxurious</option>
+                            </select>
+
+                            <button id="resetFilters" class="temp2-reset-btn">
+                                Clear All
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="temp2-range-card">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="eyebrow">Price Range</span>
+                                    <span id="priceRangeLabel" class="text-sm font-semibold"></span>
+                                </div>
+                                <div class="space-y-2">
+                                    <input id="minPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
+                                    <input id="maxPriceRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
+                                </div>
+                            </div>
+
+                            <div class="temp2-range-card">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="eyebrow">Square Footage</span>
+                                    <span id="sqftRangeLabel" class="text-sm font-semibold"></span>
+                                </div>
+                                <div class="space-y-2">
+                                    <input id="minSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
+                                    <input id="maxSqftRange" type="range" class="h-2 w-full cursor-pointer rounded-full" style="accent-color: var(--coral);" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sort & View Options -->
+                <div class="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
+                    <div>
+                        <div class="eyebrow" style="margin-bottom: 6px;">Portfolio</div>
+                        <div class="serif-display portfolio-title" style="font-size: 34px;">
+                            <span id="portfolioCount">0 properties</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="sortSelect" class="appearance-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer focus:outline-none transition" style="border-radius: var(--r-full); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
+                            <option value="featured">Sort: Featured</option>
+                            <option value="price-asc">Price: Low → High</option>
+                            <option value="price-desc">Price: High → Low</option>
+                            <option value="newest">Newest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <section id="locationSections" class="space-y-8">
+                    <!-- Location sections will be dynamically generated -->
+                </section>
+
+                <!-- Hidden: Full property grid for "View All" in a location -->
+                <section id="locationViewAll" class="hidden">
+                    <button id="backToLocations" class="chip-v2" style="cursor: pointer; margin-bottom: 20px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+                        All locations
+                    </button>
+
+                    <!-- District hero banner (image + name + stats, populated by JS) -->
+                    <div id="locationViewAllBanner" style="position: relative; border-radius: var(--r-xl); overflow: hidden; min-height: 230px; box-shadow: var(--shadow-lg); background: var(--slate-200); margin-bottom: 22px;"></div>
+
+                    <!-- Count + group control -->
+                    <div class="flex flex-wrap items-center justify-between gap-3" style="margin-bottom: 18px;">
+                        <div class="eyebrow ink" id="locationViewAllCount" style="font-size: 11.5px;"></div>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <span class="eyebrow" style="font-size: 10px;">Group by</span>
+                            <select id="viewAllGroupBy" class="appearance-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium cursor-pointer focus:outline-none transition" style="border-radius: var(--r-full); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
+                                <option value="none">Featured</option>
+                                <option value="bedrooms">Bedrooms</option>
+                                <option value="status">Status</option>
+                                <option value="price">Price</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div id="locationViewAllGrid"></div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Compare Button -->
+    <div id="compareButton" class="fixed bottom-6 right-6 z-40 hidden">
+        <button id="compareTrigger" class="flex items-center gap-2 px-6 py-3 transition-all hover:scale-105" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+            </svg>
+            <span id="compareBtnLabel">Compare</span>
+        </button>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="fixed inset-0 z-50 hidden items-center justify-center px-2 sm:px-4 py-4 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
+        <div class="relative flex w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl max-h-[95vh]" style="border-radius: var(--r-xl); border: 1px solid var(--slate-200);">
+            <div class="flex items-center justify-between p-4 sm:p-6" style="border-bottom: 1px solid var(--slate-200);">
+                <h2 class="serif-display" style="font-size: 24px;">Property Comparison</h2>
+                <button id="closeComparisonModal" class="flex h-9 w-9 items-center justify-center transition" style="border-radius: 50%; background: var(--slate-100); color: var(--ink);">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="comparisonContent" class="overflow-auto p-4 sm:p-6">
+            </div>
+        </div>
+    </div>
+
+    <!-- Property Modal (new editorial split layout) -->
+    <div id="propertyModal" class="fixed inset-0 z-50 hidden items-center justify-center px-1 sm:px-4 py-2 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
+        <div class="relative flex w-full max-w-6xl flex-col overflow-hidden bg-white max-h-[98vh] sm:max-h-[95vh]" style="border-radius: var(--r-lg); box-shadow: 0 40px 100px -30px rgba(11,16,36,0.40);">
+            <!-- Close button -->
+            <button id="closeModal" aria-label="Close" class="absolute right-3 sm:right-4 top-3 sm:top-4 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center transition z-10" style="border-radius: 50%; border: 1px solid var(--slate-200); background: white; color: var(--ink);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+
+            <div class="grid gap-0 lg:grid-cols-[1.05fr,0.95fr] lg:items-stretch overflow-y-auto">
+                <!-- Left — visuals -->
+                <div id="modalVisual" class="relative">
+                    <img id="carouselImage" class="absolute inset-0 w-full h-full object-cover" alt="Property gallery" />
+                    <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(11,16,36,0) 0%, rgba(11,16,36,0) 50%, rgba(11,16,36,0.80) 100%);"></div>
+
+                    <!-- Carousel arrows -->
+                    <button id="prevImage" aria-label="Previous image" class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center transition" style="border-radius: 50%; background: rgba(255,255,255,0.92); border: none; cursor: pointer;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button id="nextImage" aria-label="Next image" class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center transition" style="border-radius: 50%; background: rgba(255,255,255,0.92); border: none; cursor: pointer;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+
+                    <!-- Identity panel at bottom of image -->
+                    <div class="absolute left-4 right-4 sm:left-6 sm:right-6 bottom-3 sm:bottom-5" style="color: white; z-index: 2;">
+                        <p id="modalCity" class="eyebrow" style="color: rgba(255,255,255,0.9); font-size: 9px;"></p>
+                        <h2 id="modalTitle" class="serif-display" style="font-size: clamp(22px, 4vw, 44px); margin-top: 4px; margin-bottom: 6px;"></h2>
+                        <div id="modalMeta" class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm" style="color: rgba(255,255,255,0.85);"></div>
+                        <div id="carouselDots" class="flex gap-1 sm:gap-1.5 mt-3 sm:mt-4"></div>
+                    </div>
+                </div>
+
+                <!-- Right — info panel -->
+                <div class="p-4 sm:p-5 lg:p-7 overflow-auto no-scroll" style="max-height: 80vh;">
+
+                    <!-- Price card -->
+                    <div class="price-card-v2 mb-4 sm:mb-5" style="margin-top: 8px; padding: 16px;">
+                        <div class="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-3">
+                            <div>
+                                <div class="eyebrow" style="font-size: 10px;">Starting from</div>
+                                <p id="modalPrice" class="serif-display" style="font-size: clamp(24px, 4vw, 32px); line-height: 1.05; margin: 4px 0 2px;"></p>
+                                <p id="modalCompletionDate" class="text-xs sm:text-sm" style="color: var(--slate-500);"></p>
+                            </div>
+                            <span id="modalStatusBadge" class="status-v2" style="padding: 3px 8px;"></span>
+                        </div>
+                        <p id="modalDescription" class="text-xs sm:text-sm mt-2 sm:mt-3" style="color: var(--slate-600); line-height: 1.55;"></p>
+                        <div class="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4">
+                            <button id="contactBtn" class="flex-1 flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm text-white transition" style="border-radius: var(--r-full); background: var(--coral); box-shadow: var(--shadow-coral); padding: 9px 14px; border: none; cursor: pointer;">
+                                <i class="fas fa-envelope"></i> Enquire Now
+                            </button>
+                            <button id="brochureBtn" class="flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm transition" style="border-radius: var(--r-full); background: rgba(255,255,255,0.6); border: 1px solid var(--slate-200); color: var(--ink); padding: 9px 14px; cursor: pointer;">
+                                <i class="fas fa-file-pdf"></i> Brochure
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Enquiry Form Panel -->
+                    <div id="enquiryFormPanel" class="hidden mb-5" style="border-top: 1px solid var(--slate-100); padding-top: 16px;">
+                        <p class="eyebrow" style="margin-bottom: 12px;">Send an Enquiry</p>
+
+                        <div id="enquirySuccess" class="hidden text-center py-4">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2" style="background: #E7F6EF;">
+                                <i class="fas fa-check" style="color: var(--green);"></i>
+                            </div>
+                            <p class="font-semibold text-sm" style="color: var(--ink);">Enquiry sent!</p>
+                            <p class="text-xs mt-1" style="color: var(--slate-500);">An agent will contact you within 2 business hours.</p>
+                        </div>
+
+                        <form id="enquiryForm" class="space-y-2.5" novalidate>
+                            {% csrf_token %}
+                            <div style="display:none"><input type="text" name="website" value=""></div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <input type="text" name="first_name" placeholder="First name *"
+                                        class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                                    <p class="text-xs mt-0.5 hidden enq-error" data-field="first_name" style="color: var(--coral);"></p>
+                                </div>
+                                <div>
+                                    <input type="text" name="last_name" placeholder="Last name *"
+                                        class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                                    <p class="text-xs mt-0.5 hidden enq-error" data-field="last_name" style="color: var(--coral);"></p>
+                                </div>
+                            </div>
+                            <div>
+                                <input type="email" name="email" placeholder="Email address *"
+                                    class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                                <p class="text-xs mt-0.5 hidden enq-error" data-field="email" style="color: var(--coral);"></p>
+                            </div>
+                            <div>
+                                <input type="text" name="phone" placeholder="Phone number (optional)"
+                                    class="w-full px-3 py-2 text-sm focus:outline-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);">
+                            </div>
+                            <div>
+                                <textarea name="message" rows="3" placeholder="I'm interested in this property and would like to know more... *"
+                                    class="w-full px-3 py-2 text-sm focus:outline-none resize-none" style="border: 1px solid var(--slate-200); border-radius: var(--r-sm);"></textarea>
+                                <p class="text-xs mt-0.5 hidden enq-error" data-field="message" style="color: var(--coral);"></p>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <input type="checkbox" name="consent" id="enqConsent" class="mt-0.5 rounded" style="accent-color: var(--coral);">
+                                <label for="enqConsent" class="text-xs leading-relaxed" style="color: var(--slate-500);">
+                                    I agree to be contacted by CW Real Estate about this property.
+                                </label>
+                            </div>
+                            <p class="text-xs hidden enq-error" data-field="consent" style="color: var(--coral);"></p>
+                            <p id="enqGeneralError" class="text-xs hidden" style="color: var(--coral);"></p>
+                            <button type="submit" id="enqSubmitBtn"
+                                class="w-full font-semibold py-2.5 text-sm text-white transition" style="background: var(--coral); border-radius: var(--r-md); border: none; cursor: pointer;">
+                                Send Enquiry
+                            </button>
+                            <p class="text-xs text-center" style="color: var(--slate-400);"><i class="fas fa-lock mr-1"></i>Your details are kept private.</p>
+                        </form>
+                    </div>
+
+                    <!-- Configurations -->
+                    <div class="mb-5">
+                        <div class="eyebrow" style="margin-bottom: 10px;">Configurations</div>
+                        <div id="modalConfigurations" class="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Amenities -->
+                    <div class="mb-5">
+                        <div class="eyebrow" style="margin-bottom: 10px;">Amenities</div>
+                        <div id="modalAmenities" class="grid gap-2 grid-cols-1 sm:grid-cols-2 max-h-40 sm:max-h-48 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Progress -->
+                    <div id="progressSection" class="mb-5 hidden">
+                        <div class="eyebrow" style="margin-bottom: 10px;">Progress Updates</div>
+                        <div id="modalProgress" class="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "partials/chat_widget.html" %}
+
+    <script>
+        // Property Data from Django - injected into global scope for temp.js
+        const properties = {{ properties_json|safe }};
+        const filterRanges = {{ filter_ranges_json|safe }};
+        const isFavoritesPage = {{ is_favorites_page|default:False|yesno:"true,false" }};
+        // Chat posts to the same-origin /api/chat/ proxy; the webhook URL stays server-side.
+        window.ChatWidgetConfig = window.ChatWidgetConfig || {};
+        window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || { route: 'general' };
+    </script>
+    <script src="{% static 'miniapp/js/cards.js' %}"></script>
+    <script src="{% static 'miniapp/js/temp-v3.js' %}"></script>
+    <script src="{% static 'miniapp/js/temp2.js' %}"></script>
+</body>
+</html>

@@ -18,6 +18,8 @@ from django.utils.text import slugify
 
 from pyairtable import Table
 
+from properties.location_utils import extract_location
+
 from properties.models import (
     Property,
     PropertyConfiguration,
@@ -314,6 +316,7 @@ class Command(BaseCommand):
                 "name": name,
                 "slug": slug_final,
                 "address": f.get("Address") or "",
+                "location": (f.get("Location") or "").strip(),
                 "description": f.get("Description") or "",
                 "latitude": to_decimal(f.get("Latitude")),
                 "longitude": to_decimal(f.get("Longitude")),
@@ -501,6 +504,10 @@ class Command(BaseCommand):
                 "name": p["name"],
                 "slug": p["slug"],
                 "address": p["address"],
+                # Airtable's Location single-select is authoritative. Any value it
+                # sends is trusted (so new locations work without a code change);
+                # only fall back to guessing from the address when it's left blank.
+                "location": p["location"] or extract_location(p["address"]),
                 "description": p["description"],
                 "latitude": p["latitude"],
                 "longitude": p["longitude"],

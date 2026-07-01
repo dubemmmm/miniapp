@@ -36,16 +36,17 @@ class PropertyAmenityInline(admin.TabularInline):
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 
-        'luxury_status', 
-        'is_active', 
+        'name',
+        'location',
+        'luxury_status',
+        'is_active',
         'get_configuration_count',
         'get_image_count',
-        'airtable_id', 
+        'airtable_id',
         'last_synced_at',
         'completion_date'
     ]
-    list_filter = ['luxury_status', 'is_active', 'last_synced_at', 'created_at']
+    list_filter = ['location', 'luxury_status', 'is_active', 'last_synced_at', 'created_at']
     search_fields = ['name', 'address', 'airtable_id', 'slug']
     readonly_fields = [
         'airtable_id', 
@@ -64,7 +65,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('name', 'slug', 'address', 'description')
         }),
         ('Location', {
-            'fields': ('latitude', 'longitude'),
+            'fields': ('location', 'latitude', 'longitude'),
             'classes': ('wide',)
         }),
         ('Contact Information', {

@@ -22,5 +22,6 @@ urlpatterns = [
     path('google-oauth-signup/', views.google_oauth_with_invitation, name='google_oauth_signup'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
     path('property/<int:property_pk>/', views.property_detail_view, name='property_detail'),
+    path('temp2/', views.temp_view, name='temp2'),
     path('', views.temp_view, name='temp')
 ]

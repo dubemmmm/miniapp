@@ -4,6 +4,7 @@ import uuid
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.utils.crypto import get_random_string
+from .location_utils import LOCATION_CHOICES, extract_location
 
 def property_image_path(instance, filename):
     """Generate upload path for property images"""
@@ -35,6 +36,13 @@ class Property(models.Model):
     name = models.CharField(max_length=200, default=0)
     slug = models.SlugField(unique=True, blank=True)
     address = models.TextField(default='lekki')
+    location = models.CharField(
+        max_length=50,
+        choices=LOCATION_CHOICES,
+        blank=True,
+        db_index=True,
+        help_text="Location group used for filtering. Leave blank to auto-derive from the address."
+    )
     description = models.TextField(default='house')
     latitude = models.DecimalField(
         max_digits=20,
@@ -85,6 +93,10 @@ class Property(models.Model):
         if not self.slug:
             from django.utils.text import slugify
             self.slug = slugify(self.name)
+        # Auto-derive location from the address only when it hasn't been set
+        # manually, so an explicit choice is never overwritten.
+        if not self.location:
+            self.location = extract_location(self.address)
         super().save(*args, **kwargs)
 
     def get_min_price(self):

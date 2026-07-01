@@ -7,6 +7,44 @@ import random
 from decimal import Decimal
 
 
+# Canonical location groups shown in the admin dropdown.
+# Airtable's "Location" single-select is the source of truth at sync time, so
+# the site can display a new location the moment it appears in Airtable data —
+# even before it's added here. Keep this list in sync with the Airtable options
+# so the admin dropdown and the address-based fallback stay accurate.
+LOCATION_CHOICES = (
+    ('Ikoyi', 'Ikoyi'),
+    ('Lekki Phase 1', 'Lekki Phase 1'),
+    ('Victoria Island', 'Victoria Island'),
+    ('Lekki', 'Lekki'),
+    ('Others', 'Others'),
+)
+
+# Keyword variations mapped to their canonical location group. Only used as a
+# fallback to guess the location from the address when Airtable leaves it blank.
+# Order matters: the first group whose keyword appears in the address wins, so
+# more specific groups (e.g. "Lekki Phase 1") must come before broader ones.
+LOCATION_KEYWORDS = {
+    'Ikoyi': ['ikoyi'],
+    'Lekki Phase 1': ['lekki phase 1', 'lekki phase i'],
+    'Lekki': ['lekki', 'ajah', 'osapa', 'chevron', 'ikate', 'agungi'],
+    'Victoria Island': ['victoria island', 'oniru', 'vi ', ' vi,', 'v.i'],
+}
+
+
+def extract_location(address):
+    """Infer the canonical location group from a free-text address string."""
+    if not address:
+        return 'Others'
+
+    address_lower = address.lower()
+    for main_location, variations in LOCATION_KEYWORDS.items():
+        for variation in variations:
+            if variation in address_lower:
+                return main_location
+    return 'Others'
+
+
 def fuzz_coordinates(latitude, longitude, user_id=None, property_id=None, radius_meters=400):
     """
     Generate fuzzy coordinates offset from actual location within a radius.

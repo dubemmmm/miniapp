@@ -16,6 +16,7 @@ from .models import (
     PropertyFavorite,
     PropertyProgress,
 )
+from .location_utils import extract_location
 from django.utils import timezone
 from django.db.models.functions import ExtractMonth, ExtractYear
 from datetime import timedelta
@@ -105,26 +106,6 @@ def format_date_as_quarter(date_obj):
         quarter = 4
 
     return f"Q{quarter} {year}"
-
-
-def extract_location(address):
-    """Extract key location from address string"""
-    if not address:
-        return 'Others'
-
-    location_keywords = {
-        'Ikoyi': ['ikoyi'],
-        'Lekki': ['lekki', 'ajah', 'osapa', 'chevron', 'oniru', 'ikate', 'agungi'],
-        'Banana Island': ['banana island'],
-        'Victoria Island': ['victoria island', 'vi ', ' vi,', 'v.i'],
-    }
-
-    address_lower = address.lower()
-    for main_location, variations in location_keywords.items():
-        for variation in variations:
-            if variation in address_lower:
-                return main_location
-    return 'Others'
 
 
 def build_property_payload(
@@ -244,7 +225,7 @@ def build_property_payload(
             'id': prop.id,
             'name': prop.name,
             'address': prop.address,
-            'location': extract_location(prop.address),
+            'location': prop.location or extract_location(prop.address),
             'description': prop.description or '',
             'thumbnail': request.build_absolute_uri(prop.thumbnail.url) if prop.thumbnail else '',
             'latitude': float(prop.latitude) if prop.latitude else 0,
@@ -1578,7 +1559,8 @@ def temp_view(request):
         'user_full_name': request.user.get_full_name() or request.user.username,
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
     }
-    return render(request, 'temp.html', context)
+    template_name = 'temp2.html' if request.resolver_match.url_name == 'temp2' else 'temp.html'
+    return render(request, template_name, context)
 
 
 @require_POST

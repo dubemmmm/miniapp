@@ -92,6 +92,7 @@ fetchExchangeRate();
 // Filter state
 const filters = {
     search: '',
+    location: 'all',
     bedrooms: 'all',
     completionQuarter: 'all',
     completionYear: 'all',
@@ -166,6 +167,7 @@ const badgePalette = {
 const updateActiveFilterCount = () => {
     let count = 0;
     if (filters.search) count++;
+    if (filters.location !== 'all') count++;
     if (filters.bedrooms !== 'all') count++;
     if (filters.completionQuarter !== 'all') count++;
     if (filters.completionYear !== 'all') count++;
@@ -237,6 +239,8 @@ const getFilteredProperties = () => {
         const matchesSearch = normalizedSearch ?
             `${property.name} ${property.address}`.toLowerCase().includes(normalizedSearch) : true;
 
+        const matchesLocation = filters.location === 'all' || property.location === filters.location;
+
         const matchesBedrooms = filters.bedrooms === 'all' ||
             property.configurations.some(c => {
                 if (filters.bedrooms === '5+') return c.bedrooms >= 5;
@@ -272,12 +276,13 @@ const getFilteredProperties = () => {
             c.square_footage >= filters.sqftRange[0] && c.square_footage <= filters.sqftRange[1]
         );
 
-        const passes = matchesSearch && matchesBedrooms && matchesCompletion() && matchesLuxury && matchesPrice && matchesSqft;
+        const passes = matchesSearch && matchesLocation && matchesBedrooms && matchesCompletion() && matchesLuxury && matchesPrice && matchesSqft;
 
         // Debug: Log properties that don't pass
         if (!passes) {
             const reasons = [];
             if (!matchesSearch) reasons.push('search');
+            if (!matchesLocation) reasons.push('location');
             if (!matchesBedrooms) reasons.push('bedrooms');
             if (!matchesCompletion()) reasons.push('completion');
             if (!matchesLuxury) reasons.push('luxury');
@@ -535,7 +540,7 @@ const renderCards = () => {
     // Add click listeners for "View All" buttons
     document.querySelectorAll('.view-all-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const location = e.target.getAttribute('data-location');
+            const location = e.currentTarget.getAttribute('data-location');
             showLocationViewAll(location, byLocation[location]);
         });
     });
@@ -923,6 +928,23 @@ const initFilters = () => {
         renderCards();
     });
 
+    // Location (available in the temp2 preview).
+    const locationSelect = document.getElementById('locationSelect');
+    if (locationSelect) {
+        const locations = [...new Set(properties.map(property => property.location).filter(Boolean))].sort();
+        locations.forEach(location => {
+            const option = document.createElement('option');
+            option.value = location;
+            option.textContent = location;
+            locationSelect.appendChild(option);
+        });
+        locationSelect.addEventListener('change', event => {
+            filters.location = event.target.value;
+            updateActiveFilterCount();
+            renderCards();
+        });
+    }
+
     // Completion Quarter
     document.getElementById("completionQuarterSelect").addEventListener("change", (e) => {
         filters.completionQuarter = e.target.value;
@@ -1010,6 +1032,7 @@ const initFilters = () => {
 
     document.getElementById("resetFilters").addEventListener("click", () => {
         filters.search = '';
+        filters.location = 'all';
         filters.bedrooms = 'all';
         filters.completionQuarter = 'all';
         filters.completionYear = 'all';
@@ -1018,6 +1041,7 @@ const initFilters = () => {
         filters.sqftRange = [filterRanges.min_sqft || 0, filterRanges.max_sqft || 10000];
 
         document.getElementById("searchInput").value = '';
+        if (locationSelect) locationSelect.value = 'all';
         document.getElementById("bedroomsSelect").value = 'all';
         document.getElementById("completionQuarterSelect").value = 'all';
         document.getElementById("completionYearSelect").value = 'all';
@@ -1374,7 +1398,7 @@ const populateHero = () => {
             <div class="serif-display" style="font-size:44px;margin:4px 0 8px;line-height:1.02;">${featured.name}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div style="font-weight:600;font-size:18px;font-variant-numeric:tabular-nums;">${formatCurrency(minConfig.price)}</div>
-                <button class="btn-v2" style="background:white;color:var(--ink);padding:9px 16px;border:none;cursor:pointer;" onclick="event.stopPropagation();">
+                <button class="btn-v2" style="background:white;color:var(--ink);padding:9px 16px;border:none;cursor:pointer;">
                     Open · <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </button>
             </div>
