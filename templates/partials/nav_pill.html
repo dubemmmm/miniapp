@@ -6,19 +6,15 @@ Include with `map=True` on the map so it floats over the Leaflet canvas.
 <header class="cw-topbar" style="{% if map %}position:absolute; top:0; left:0; right:0; z-index:700; {% endif %}display:flex; align-items:center; justify-content:space-between; padding:22px 24px 0;{% if map %} pointer-events:none;{% endif %}">
     <a href="{% url 'temp' %}" class="brand-logo" aria-label="CW Real Estate — home">CW</a>
     <div class="nav-pill"{% if map %} style="pointer-events:auto;"{% endif %}>
-        <a href="{% url 'temp' %}" class="{% if request.resolver_match.url_name == 'temp' or request.resolver_match.url_name == 'temp2' %}active{% endif %}">Portfolio
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </a>
-        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Map view
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </a>
-        <a href="{% url 'favorites' %}" class="{% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">Saved
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </a>
+        <a href="{% url 'temp' %}" class="{% if request.resolver_match.url_name == 'temp' or request.resolver_match.url_name == 'temp2' %}active{% endif %}">Portfolio</a>
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Map view</a>
+        <a href="{% url 'favorites' %}" class="{% if request.resolver_match.url_name == 'favorites' %}active{% endif %}">Saved</a>
+        <a href="{% url 'reports' %}" class="{% if request.resolver_match.url_name == 'reports' %}active{% endif %}">Reports</a>
         <span class="nav-divider"></span>
-        <span class="nav-currency">₦ NGN
+        <button type="button" class="nav-currency" onclick="if (typeof toggleCurrency === 'function') toggleCurrency();" aria-label="Switch currency">
+            <span id="navCurrencyLabel">₦ NGN</span>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </span>
+        </button>
         {% include "partials/profile_menu.html" %}
     </div>
     <span class="nav-spacer" aria-hidden="true"{% if map %} style="pointer-events:none;"{% endif %}></span>

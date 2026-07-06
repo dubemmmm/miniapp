@@ -126,7 +126,10 @@ const toggleCurrency = async () => {
         await fetchExchangeRate();
     }
     currentCurrency = currentCurrency === 'NGN' ? 'USD' : 'NGN';
-    document.getElementById('currencyLabel').textContent = currentCurrency === 'NGN' ? 'Switch to USD' : 'Switch to NGN';
+    const currencyLabel = document.getElementById('currencyLabel');
+    if (currencyLabel) currencyLabel.textContent = currentCurrency === 'NGN' ? 'Switch to USD' : 'Switch to NGN';
+    const navCurrencyLabel = document.getElementById('navCurrencyLabel');
+    if (navCurrencyLabel) navCurrencyLabel.textContent = currentCurrency === 'NGN' ? '₦ NGN' : '$ USD';
     renderCards();
     // Update price range label
     updatePriceLabel();
@@ -495,8 +498,17 @@ const renderCards = () => {
         byLocation[loc].push(prop);
     });
 
-    // Render each location section
-    Object.keys(byLocation).sort().forEach(location => {
+    // Render each location section in a fixed location priority
+    // (Ikoyi → Victoria Island → Lekki Phase 1 → Lekki), then any others.
+    const LOCATION_ORDER = ['Ikoyi', 'Victoria Island', 'Lekki Phase 1', 'Lekki'];
+    const locationRank = loc => {
+        const i = LOCATION_ORDER.indexOf(loc);
+        return i === -1 ? LOCATION_ORDER.length : i;
+    };
+    Object.keys(byLocation).sort((a, b) => {
+        const ra = locationRank(a), rb = locationRank(b);
+        return ra !== rb ? ra - rb : a.localeCompare(b);
+    }).forEach(location => {
         const locationProps = byLocation[location];
         const section = document.createElement("div");
         section.className = "space-y-4";

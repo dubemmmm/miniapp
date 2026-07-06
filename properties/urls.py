@@ -23,5 +23,6 @@ urlpatterns = [
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
     path('property/<int:property_pk>/', views.property_detail_view, name='property_detail'),
     path('temp2/', views.temp_view, name='temp2'),
+    path('reports/', views.reports_view, name='reports'),
     path('', views.temp_view, name='temp')
 ]

@@ -284,6 +284,10 @@ AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default=None)
 AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
 AWS_S3_REGION_NAME = "us-east-2"
 
+# Serve media (property/progress images, thumbnails, brochures) through CloudFront.
+# django-storages builds every media .url from this domain automatically.
+AWS_S3_CUSTOM_DOMAIN = "d31o57945dyfao.cloudfront.net"
+
 CSP_IMG_SRC = [
     "'self'",
     "data:",
@@ -292,17 +296,14 @@ CSP_IMG_SRC = [
     f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com",
     # optional, broader:
     "https://*.amazonaws.com",
-    # if/when you switch to CloudFront:
-    # f"https://{AWS_S3_CUSTOM_DOMAIN}",
-    # or a wildcard if you prefer:
-    # "https://*.cloudfront.net",
+    # CloudFront CDN domain that media URLs are now served from:
+    f"https://{AWS_S3_CUSTOM_DOMAIN}",
 ]
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_S3_FILE_OVERWRITE = True            # keep original filenames unique
 AWS_DEFAULT_ACL = None                    # ACLs disabled (recommended)
 AWS_QUERYSTRING_AUTH = False
 
-#MEDIA_URL = f"https://d2l0rj12cmje55.cloudfront.net/"
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -313,8 +314,8 @@ STORAGES = {
 }
 DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400     # 25MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400
-#AWS_S3_CUSTOM_DOMAIN = "d2l0rj12cmje55.cloudfront.net"  # << add this # Ill uncomment this when i create cloud front
-#AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}  # good caching
+# Stamp newly uploaded objects with a long edge/browser cache (1 year).
+AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}  # good caching
 
 # N8N Chat Widget Settings
 N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')

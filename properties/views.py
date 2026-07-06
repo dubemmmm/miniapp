@@ -1563,6 +1563,12 @@ def temp_view(request):
     return render(request, template_name, context)
 
 
+@login_required
+def reports_view(request):
+    """Reports / Blog section — placeholder 'coming soon' page for now."""
+    return render(request, 'coming_soon.html', {'page_title': 'Reports'})
+
+
 @require_POST
 def validate_invitation_code(request):
     """API endpoint to validate client invitation codes"""

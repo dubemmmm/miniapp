@@ -256,8 +256,8 @@ body {
 }
 .nav-pill .nav-currency {
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px;
-  border-radius: var(--r-full); background: var(--slate-100);
-  font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer;
+  border: none; border-radius: var(--r-full); background: var(--slate-100);
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer;
 }
 .nav-pill .nav-divider { width: 1px; height: 26px; background: var(--slate-200); margin: 0 6px; }
 

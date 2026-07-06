@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CW Real Estate · {{ page_title|default:"Coming Soon" }}</title>
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/temp.css' %}">
+    <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
+</head>
+<body class="antialiased" style="background: var(--bg-gradient); min-height: 100vh; font-family: var(--font-sans); color: var(--ink);">
+
+    <div class="relative min-h-screen pb-24">
+
+        {% include "partials/nav_pill.html" %}
+
+        <div class="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-10" style="margin-top: 40px;">
+
+            <!-- Coming soon wrapper: blurred placeholder content behind a message overlay -->
+            <div style="position: relative; border-radius: var(--r-xl); overflow: hidden;">
+
+                <!-- Blurred, non-interactive placeholder content -->
+                <div aria-hidden="true" style="filter: blur(9px); opacity: 0.55; pointer-events: none; user-select: none; padding: 8px;">
+                    <div style="max-width: 620px;">
+                        <div class="eyebrow coral" style="margin-bottom: 14px;">● {{ page_title|default:"Reports" }} & insights</div>
+                        <h1 style="font-family: var(--font-display); font-size: clamp(38px, 6vw, 64px); line-height: 1.02; color: var(--ink); margin-bottom: 18px;">Market reports, research &amp; stories from the CW desk.</h1>
+                        <p style="font-size: 17px; color: var(--slate-600); max-width: 520px;">In-depth neighbourhood analyses, price trends, and long-form pieces on the Lagos luxury market — curated by our research team.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" style="margin-top: 40px;">
+                        {% for i in "123456" %}
+                        <div style="border-radius: var(--r-lg); border: 1px solid var(--slate-200); background: rgba(255,255,255,0.7); overflow: hidden;">
+                            <div style="height: 170px; background: linear-gradient(135deg, var(--slate-200), var(--slate-100));"></div>
+                            <div style="padding: 18px;">
+                                <div style="height: 10px; width: 40%; border-radius: 999px; background: var(--slate-200); margin-bottom: 14px;"></div>
+                                <div style="height: 16px; width: 85%; border-radius: 999px; background: var(--slate-200); margin-bottom: 10px;"></div>
+                                <div style="height: 16px; width: 65%; border-radius: 999px; background: var(--slate-200); margin-bottom: 18px;"></div>
+                                <div style="height: 10px; width: 30%; border-radius: 999px; background: var(--slate-100);"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Centered "coming soon" overlay -->
+                <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px;">
+                    <div style="background: rgba(255,255,255,0.78); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border: 1px solid var(--slate-200); border-radius: var(--r-xl); box-shadow: var(--shadow-lg); padding: 44px 40px; max-width: 480px;">
+                        <div style="width: 58px; height: 58px; margin: 0 auto 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--navy-50); color: var(--navy);">
+                            <i class="fa-solid fa-newspaper" style="font-size: 24px;"></i>
+                        </div>
+                        <div class="eyebrow coral" style="margin-bottom: 12px;">{{ page_title|default:"Reports" }}</div>
+                        <h2 style="font-family: var(--font-display); font-size: clamp(30px, 5vw, 42px); line-height: 1.05; color: var(--ink); margin-bottom: 12px;">This page is coming soon</h2>
+                        <p style="font-size: 15.5px; color: var(--slate-600); margin-bottom: 26px;">We're putting together market reports and stories for you. Check back shortly.</p>
+                        <a href="{% url 'temp' %}" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: var(--r-full); background: var(--navy); color: #fff; font-size: 14px; font-weight: 600; text-decoration: none;">
+                            <i class="fa-solid fa-arrow-left" style="font-size: 13px;"></i> Back to portfolio
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>
