@@ -250,6 +250,49 @@
         </button>
     </div>
 
+    {% if can_share_properties %}
+    <!-- Floating Share Button (agents/employees only) -->
+    <div id="shareButton" class="fixed right-6 z-40 hidden" style="bottom: 96px;">
+        <button id="shareTrigger" class="flex items-center gap-2 px-6 py-3 transition-all hover:scale-105" style="border-radius: var(--r-full); background: white; color: var(--ink); border: 1px solid var(--slate-200); cursor: pointer; box-shadow: var(--shadow-lg);">
+            <i class="fas fa-share-alt"></i>
+            <span id="shareBtnLabel">Share</span>
+        </button>
+    </div>
+
+    <!-- Share Link Modal -->
+    <div id="shareModal" class="fixed inset-0 z-50 hidden items-center justify-center px-2 sm:px-4 py-4 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
+        <div class="relative flex w-full flex-col overflow-hidden bg-white shadow-2xl" style="max-width: 28rem; border-radius: var(--r-xl); border: 1px solid var(--slate-200);">
+            <div class="flex items-center justify-between p-4 sm:p-6" style="border-bottom: 1px solid var(--slate-200);">
+                <h2 class="serif-display" style="font-size: 22px;">Share Properties</h2>
+                <button id="closeShareModal" class="flex h-9 w-9 items-center justify-center transition" style="border-radius: 50%; background: var(--slate-100); color: var(--ink);">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="shareModalContent" class="p-4 sm:p-6">
+                <div class="mb-4">
+                    <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">List name</label>
+                    <input id="shareListName" type="text" placeholder="e.g. Lekki shortlist for the Adewale family" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
+                </div>
+                <div class="mb-5">
+                    <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">Link expires after</label>
+                    <select id="shareDuration" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
+                        <option value="24">1 day</option>
+                        <option value="72" selected>3 days</option>
+                        <option value="168">7 days</option>
+                        <option value="720">30 days</option>
+                    </select>
+                </div>
+                <p class="text-xs mb-4" style="color: var(--slate-500);"><span id="shareSelectedCount">0</span> selected. Anyone with the link can view them — no account needed.</p>
+                <button id="createShareBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
+                    <i class="fas fa-link"></i> Create shareable link
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Comparison Modal -->
     <div id="comparisonModal" class="fixed inset-0 z-50 hidden items-center justify-center px-2 sm:px-4 py-4 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
         <div class="relative flex w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl max-h-[95vh]" style="border-radius: var(--r-xl); border: 1px solid var(--slate-200);">
@@ -407,6 +450,11 @@
         const properties = {{ properties_json|safe }};
         const filterRanges = {{ filter_ranges_json|safe }};
         const isFavoritesPage = {{ is_favorites_page|default:False|yesno:"true,false" }};
+        window.isInternalUser = {% if is_internal_user %}true{% else %}false{% endif %};
+        window.canShareProperties = {% if can_share_properties %}true{% else %}false{% endif %};
+        window.CSRF_TOKEN = '{{ csrf_token }}';
+        window.URLS = window.URLS || {};
+        window.URLS.createSharedList = '{% url "create_shared_list" %}';
         // Chat posts to the same-origin /api/chat/ proxy; the webhook URL stays server-side.
         window.ChatWidgetConfig = window.ChatWidgetConfig || {};
         window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || { route: 'general' };

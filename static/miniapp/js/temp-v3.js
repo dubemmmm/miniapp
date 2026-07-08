@@ -1077,12 +1077,10 @@ document.getElementById("propertyModal").addEventListener("click", (e) => {
 document.getElementById("closeModal").addEventListener("click", closeModal);
 
 document.getElementById("brochureBtn").addEventListener("click", () => {
-    if (selectedProperty) {
-        // Construct the PDF download URL
-        const pdfUrl = `/property/${selectedProperty.id}/pdf/`;
-        console.log('Downloading brochure from:', pdfUrl);
-        // Open in new tab to trigger download
-        window.open(pdfUrl, '_blank');
+    if (selectedProperty && selectedProperty.brochure) {
+        window.open(selectedProperty.brochure, '_blank');
+    } else {
+        alert('No brochure available for this property.');
     }
 });
 
@@ -1227,6 +1225,102 @@ const updateCompareButton = () => {
         trigger.style.boxShadow = 'var(--shadow-coral)';
         trigger.style.cursor = 'pointer';
     }
+
+    updateShareButton();
+};
+
+const updateShareButton = () => {
+    if (!window.canShareProperties) return;
+    const wrapper = document.getElementById('shareButton');
+    const label = document.getElementById('shareBtnLabel');
+    if (!wrapper) return;
+    const n = selectedForComparison.size;
+
+    if (n === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+    wrapper.classList.remove('hidden');
+    label.textContent = `Share (${n})`;
+};
+
+const openShareModal = () => {
+    if (selectedForComparison.size === 0) return;
+    document.getElementById('shareSelectedCount').textContent = selectedForComparison.size;
+    document.getElementById('shareListName').value = '';
+    document.getElementById('shareDuration').value = '72';
+    const modal = document.getElementById('shareModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+};
+
+const closeShareModal = () => {
+    const modal = document.getElementById('shareModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+};
+
+const createShare = async () => {
+    const propertyIds = Array.from(selectedForComparison);
+    const name = document.getElementById('shareListName').value.trim() || 'Shared Properties';
+    const duration = document.getElementById('shareDuration').value;
+    const btn = document.getElementById('createShareBtn');
+
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating link…';
+
+    try {
+        const response = await fetch(window.URLS.createSharedList, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                name,
+                property_ids: propertyIds,
+                duration_hours: parseInt(duration, 10)
+            })
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Failed to create share link');
+        }
+
+        document.getElementById('shareModalContent').innerHTML = `
+            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready — anyone with it can view these properties without an account.</p>
+            <div class="flex items-center gap-2 mb-4 p-2" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); background: var(--slate-100);">
+                <input id="shareLinkInput" type="text" readonly value="${result.share_url}" class="flex-1 bg-transparent text-sm px-1" style="border: none; outline: none; color: var(--ink);">
+            </div>
+            <button id="copyShareLinkBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
+                <i class="fas fa-copy"></i> Copy link
+            </button>
+        `;
+        document.getElementById('copyShareLinkBtn').addEventListener('click', () => {
+            const input = document.getElementById('shareLinkInput');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
+            const copyBtn = document.getElementById('copyShareLinkBtn');
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link'; }, 2000);
+        });
+
+        selectedForComparison.clear();
+        updateCompareButton();
+        renderCards();
+    } catch (error) {
+        console.error('Error creating share link:', error);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.innerHTML = originalHTML;
+        alert(error.message || 'Error creating share link. Please try again.');
+    }
 };
 
 const showComparison = async () => {
@@ -1360,6 +1454,16 @@ document.getElementById('closeComparisonModal').addEventListener('click', closeC
 document.getElementById('comparisonModal').addEventListener('click', (e) => {
     if (e.target.id === 'comparisonModal') closeComparisonModal();
 });
+
+// Event listeners for sharing (agents/employees only — button/modal aren't rendered otherwise)
+if (window.canShareProperties) {
+    document.getElementById('shareButton').addEventListener('click', openShareModal);
+    document.getElementById('closeShareModal').addEventListener('click', closeShareModal);
+    document.getElementById('shareModal').addEventListener('click', (e) => {
+        if (e.target.id === 'shareModal') closeShareModal();
+    });
+    document.getElementById('createShareBtn').addEventListener('click', createShare);
+}
 
 // Account dropdown toggle now lives in partials/profile_menu.html (shared by all pages).
 

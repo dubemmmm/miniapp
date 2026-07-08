@@ -228,6 +228,7 @@ def build_property_payload(
             'location': prop.location or extract_location(prop.address),
             'description': prop.description or '',
             'thumbnail': request.build_absolute_uri(prop.thumbnail.url) if prop.thumbnail else '',
+            'brochure': request.build_absolute_uri(prop.brochure.url) if prop.brochure else '',
             'latitude': float(prop.latitude) if prop.latitude else 0,
             'longitude': float(prop.longitude) if prop.longitude else 0,
             'contact_name': prop.contact_name or '',
@@ -986,6 +987,7 @@ def dashboard_view(request):
     try:
         profile = request.user.profile
         is_internal_user = profile.is_employee
+        can_share_properties = profile.can_share_properties
 
     except UserProfile.DoesNotExist:
         # Create profile if it doesn't exist (should not happen with new registration)
@@ -996,10 +998,12 @@ def dashboard_view(request):
             role=None
         )
         is_internal_user = False
+        can_share_properties = False
         logger.info(f"Created missing UserProfile for user: {request.user.username}")
 
     context = {
         'is_internal_user': is_internal_user,
+        'can_share_properties': can_share_properties,
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
         'user_initials': get_user_initials(request.user),
         'user_full_name': request.user.get_full_name() or request.user.username,
@@ -1395,12 +1399,21 @@ def favorites_view(request):
         config_queryset=config_queryset,
     )
 
+    try:
+        is_internal_user = request.user.profile.is_employee
+        can_share_properties = request.user.profile.can_share_properties
+    except UserProfile.DoesNotExist:
+        is_internal_user = False
+        can_share_properties = False
+
     context = {
         'properties_json': json.dumps(properties_data),
         'filter_ranges_json': json.dumps(filter_ranges_json),
         'filter_ranges': filter_ranges,
         'search_query': '',
         'is_favorites_page': True,
+        'is_internal_user': is_internal_user,
+        'can_share_properties': can_share_properties,
         'user_initials': get_user_initials(request.user),
         'user_full_name': request.user.get_full_name() or request.user.username,
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
@@ -1549,12 +1562,22 @@ def temp_view(request):
         config_queryset=all_configs,
         completion_dates_queryset=completion_dates_qs,
     )
+
+    try:
+        is_internal_user = request.user.profile.is_employee
+        can_share_properties = request.user.profile.can_share_properties
+    except UserProfile.DoesNotExist:
+        is_internal_user = False
+        can_share_properties = False
+
     context = {
         'properties_json': json.dumps(properties_data),
         'filter_ranges_json': json.dumps(filter_ranges_json),
         'filter_ranges': filter_ranges,
         'search_query': filters['search'],
         'is_favorites_page': False,
+        'is_internal_user': is_internal_user,
+        'can_share_properties': can_share_properties,
         'user_initials': get_user_initials(request.user),
         'user_full_name': request.user.get_full_name() or request.user.username,
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,

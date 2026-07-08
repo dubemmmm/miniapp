@@ -284,8 +284,8 @@ function initMap() {
                     <h3 class="font-bold text-sm">${property.name}</h3>
                     <p class="text-xs text-gray-600">${property.address}</p>
                     <p class="text-xs font-semibold">${price}</p>
-                    <button onclick="showPropertyModal(${property.id})" 
-                            class="mt-2 bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                    <button onclick="showPropertyModal(${property.id})"
+                            class="mt-2 text-white px-2 py-1 rounded text-xs" style="background: var(--ink, #161B33);">
                         View Details
                     </button>
                 </div>
@@ -382,8 +382,8 @@ async function showPropertyModal(propertyId) {
             
     modalContent.innerHTML = `
         <div class="flex items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <span class="ml-3 text-gray-600">Loading property details...</span>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2" style="border-color: var(--ink);"></div>
+            <span class="ml-3" style="color: var(--slate-500);">Loading property details...</span>
         </div>
     `;
             
@@ -398,11 +398,10 @@ async function showPropertyModal(propertyId) {
         currentModalImages = property.images || [];
         currentModalImageIndex = 0;
                 
-        modalTitle.innerHTML = `
-            <i class="fas fa-home"></i>
-            <span>${property.name || 'Property Details'}</span>
-        `;
-                
+        modalTitle.innerHTML = `<span>${property.name || 'Property Details'}</span>`;
+
+        const listName = (window.sharedConfig && window.sharedConfig.listName) || 'this shared list';
+
         modalContent.innerHTML = `
             <div class="space-y-6">
                 <!-- Image Gallery -->
@@ -425,49 +424,49 @@ async function showPropertyModal(propertyId) {
                             ` : ''}
                         </div>
                     ` : `
-                        <div class="w-full h-64 bg-gray-100 flex items-center justify-center rounded-12">
+                        <div class="w-full h-64 flex items-center justify-center" style="background: var(--slate-100); border-radius: var(--r-md);">
                             <div class="text-center">
-                                <i class="fas fa-image text-gray-400 text-4xl mb-2"></i>
-                                <p class="text-gray-500">No images available</p>
+                                <i class="fas fa-image text-4xl mb-2" style="color: var(--slate-400);"></i>
+                                <p style="color: var(--slate-500);">No images available</p>
                             </div>
                         </div>
                     `}
                 </div>
                 <!-- Property Information -->
                 <div class="modal-section">
-                    <h3 class="modal-section-title flex items-center gap-2">
-                        <i class="fas fa-info-circle text-blue-600"></i>
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-info-circle"></i>
                         Property Information
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-gray-50 p-4 rounded-12 border-l-4 border-blue-600">
-                            <div class="text-sm font-semibold text-gray-600 uppercase">Address</div>
-                            <div class="text-gray-800">${property.address || 'Not specified'}</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="info-tile">
+                            <div class="info-label">Address</div>
+                            <div class="info-value">${property.address || 'Not specified'}</div>
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-12 border-l-4 border-blue-600">
-                            <div class="text-sm font-semibold text-gray-600 uppercase">Luxury Status</div>
-                            <div class="text-gray-800">
-                                ${property.luxury_status === 'luxurious' ? 
-                                    '<span class="text-amber-600"><i class="fas fa-crown mr-1"></i>Luxurious</span>' : 
+                        <div class="info-tile">
+                            <div class="info-label">Luxury Status</div>
+                            <div class="info-value">
+                                ${property.luxury_status === 'luxurious' ?
+                                    '<span style="color: var(--gold);"><i class="fas fa-crown mr-1"></i>Luxurious</span>' :
                                     'Standard'
                                 }
                             </div>
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-12 border-l-4 border-blue-600">
-                            <div class="text-sm font-semibold text-gray-600 uppercase">Completion Date</div>
-                            <div class="text-gray-800">${property.completion_date || 'Not specified'}</div>
+                        <div class="info-tile">
+                            <div class="info-label">Completion Date</div>
+                            <div class="info-value">${property.completion_date || 'Not specified'}</div>
                         </div>
                     </div>
                 </div>
                 <!-- Description -->
                 ${property.description ? `
                     <div class="modal-section">
-                        <h3 class="modal-section-title flex items-center gap-2">
-                            <i class="fas fa-align-left text-blue-600"></i>
+                        <h3 class="modal-section-title">
+                            <i class="fas fa-align-left"></i>
                             Description
                         </h3>
-                        <div class="bg-gray-50 p-4 rounded-12 border-l-4 border-blue-600">
-                            <p class="text-gray-700 leading-relaxed">${property.description}</p>
+                        <div class="info-tile">
+                            <p style="color: var(--ink); line-height: 1.6;">${property.description}</p>
                         </div>
                     </div>
                 ` : ''}
@@ -475,10 +474,10 @@ async function showPropertyModal(propertyId) {
                 ${property.configurations?.length > 0 ? `
                     <div class="modal-section">
                         <h3 class="modal-section-title">
-                            <i class="fas fa-bed text-blue-600"></i>
+                            <i class="fas fa-bed"></i>
                             Available Configurations
                         </h3>
-                        <div class="space-y-3">
+                        <div class="space-y-2">
                             ${property.configurations.map(config => {
                                 let priceDisplay = 'Price on request';
                                 if (config.price && config.price !== 'TBD') {
@@ -488,7 +487,7 @@ async function showPropertyModal(propertyId) {
                                         const nairaPrice = cleanPrice;
                                         if (currencyConverter && currencyConverter.currentCurrency === 'USD') {
                                             const usdPrice = nairaPrice / currencyConverter.exchangeRate;
-                                            priceDisplay = usdPrice < 1000 ? 
+                                            priceDisplay = usdPrice < 1000 ?
                                                 `$${usdPrice.toLocaleString('en-US', {maximumFractionDigits: 0})}` :
                                                 `$${(usdPrice/1000).toFixed(1)}K`;
                                         } else {
@@ -497,26 +496,22 @@ async function showPropertyModal(propertyId) {
                                     }
                                 }
                                 return `
-                                    <div class="config-card">
-                                        <div class="flex justify-between items-center mb-2">
-                                            <div class="flex items-center gap-4">
-                                                <span class="flex items-center gap-1 text-gray-700">
-                                                    <i class="fas fa-bed"></i>
-                                                    <strong>${config.bedrooms || 'N/A'}</strong> Bed${(config.bedrooms && config.bedrooms !== 1) ? 's' : ''}
-                                                </span>
-                                                <span class="flex items-center gap-1 text-gray-700">
-                                                    <i class="fas fa-bath"></i>
-                                                    <strong>${config.bathrooms || 'N/A'}</strong> Bath${(config.bathrooms && config.bathrooms !== 1) ? 's' : ''}
-                                                </span>
-                                                <span class="flex items-center gap-1 text-gray-700">
-                                                    <strong>${config.square_footage || 'N/A'} sq ft</strong> 
-                                                </span>
-                                            </div>
-                                            <div class="text-right">
-                                                <div class="text-lg font-bold text-green-600">
-                                                    ${priceDisplay}
-                                                </div>
-                                            </div>
+                                    <div class="config-row">
+                                        <div style="display:flex; align-items:center; gap:16px;">
+                                            <span style="display:flex; align-items:center; gap:4px; color: var(--slate-600);">
+                                                <i class="fas fa-bed"></i>
+                                                <strong style="color: var(--ink);">${config.bedrooms || 'N/A'}</strong> Bed${(config.bedrooms && config.bedrooms !== 1) ? 's' : ''}
+                                            </span>
+                                            <span style="display:flex; align-items:center; gap:4px; color: var(--slate-600);">
+                                                <i class="fas fa-bath"></i>
+                                                <strong style="color: var(--ink);">${config.bathrooms || 'N/A'}</strong> Bath${(config.bathrooms && config.bathrooms !== 1) ? 's' : ''}
+                                            </span>
+                                            <span style="color: var(--slate-600);">
+                                                <strong style="color: var(--ink);">${config.square_footage || 'N/A'}</strong> sq ft
+                                            </span>
+                                        </div>
+                                        <div style="font-weight:600; font-variant-numeric: tabular-nums; color: var(--ink);">
+                                            ${priceDisplay}
                                         </div>
                                     </div>
                                 `;
@@ -527,37 +522,35 @@ async function showPropertyModal(propertyId) {
                 <!-- Amenities -->
                 ${property.amenities?.length > 0 ? `
                     <div class="modal-section">
-                        <h3 class="modal-section-title flex items-center gap-2">
-                            <i class="fas fa-star text-blue-600"></i>
+                        <h3 class="modal-section-title">
+                            <i class="fas fa-star"></i>
                             Amenities & Features
                         </h3>
                         <div class="flex flex-wrap gap-2">
                             ${property.amenities.map(amenity => `
-                                <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium border border-blue-200">${amenity}</span>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium" style="background: var(--slate-100); color: var(--ink);">${amenity}</span>
                             `).join('')}
                         </div>
                     </div>
                 ` : ''}
                 <!-- Contact Section -->
-                <div class="modal-section">
-                    <h3 class="modal-section-title flex items-center gap-2">
-                        <i class="fas fa-phone text-blue-600"></i>
+                <div class="modal-section" style="margin-bottom: 0;">
+                    <h3 class="modal-section-title">
+                        <i class="fas fa-phone"></i>
                         Contact Information
                     </h3>
-                    <div class="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-12 border border-green-200">
-                        <div class="text-center mb-4">
-                            <p class="text-gray-700 mb-4">Interested in this property? Get in touch with us!</p>
-                            <a href="https://wa.me/${property.contact?.split(' - ')[1] || '2348000000000'}?text=Hi! I'm interested in ${property.name} from the shared property list: {{ shared_list.name }}"
-                               class="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-12 font-semibold hover:from-green-600 hover:to-green-700 transition-all transform hover:scale-105 shadow-lg"
-                               target="_blank">
-                                <i class="fab fa-whatsapp text-lg"></i>
-                                Contact via WhatsApp
-                            </a>
-                        </div>
-                        <div class="text-center text-sm text-gray-600">
+                    <div class="info-tile" style="text-align: center;">
+                        <p style="color: var(--slate-600); margin-bottom: 14px;">Interested in this property? Get in touch with us!</p>
+                        <a href="https://wa.me/${property.contact?.split(' - ')[1] || '2348000000000'}?text=${encodeURIComponent(`Hi! I'm interested in ${property.name} from the shared property list: ${listName}`)}"
+                           class="whatsapp-button"
+                           target="_blank" rel="noopener">
+                            <i class="fab fa-whatsapp"></i>
+                            Contact via WhatsApp
+                        </a>
+                        <p style="margin-top: 12px; font-size: 12.5px; color: var(--slate-500);">
                             <i class="fas fa-clock mr-1"></i>
                             We typically respond within minutes
-                        </div>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -567,7 +560,7 @@ async function showPropertyModal(propertyId) {
         console.error('Error fetching property details:', error);
         modalContent.innerHTML = `
             <div class="text-center py-12">
-                <div class="bg-red-50 border border-red-200 rounded-12 p-6">
+                <div class="bg-red-50 border border-red-200 p-6" style="border-radius: var(--r-md);">
                     <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
                     <h3 class="text-lg font-semibold text-red-800 mb-2">Error Loading Property</h3>
                     <p class="text-red-600 mb-4">We couldn't load the property details. Please try again.</p>

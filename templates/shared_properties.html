@@ -18,38 +18,47 @@
     <link rel="stylesheet" href="{% static 'miniapp/css/shared_properties.css' %}">
 </head>
 <body>
-    <!-- Shared List Banner -->
-    <div class="shared-banner text-white py-6 shadow-lg sticky top-0 z-40">
-        <div class="container mx-auto px-4 lg:px-6">
-            <div class="flex items-center gap-4 lg:hidden">
-                <button id="mobileMenuBtn" class="hamburger-btn text-white p-3 rounded-lg">
-                    <i class="fas fa-bars text-lg"></i>
-                </button>
-            </div>
-            <div class="flex justify-between items-start banner-content">
-                <div>
-                    <div class="flex items-center gap-3 mb-2">
-                        <i class="fas fa-share-alt text-2xl"></i>
-                        <h1 class="serif-display text-2xl lg:text-4xl">{{ shared_list.name }}</h1>
-                    </div>
-                    <p class="text-gray-300 mb-2">
-                        Shared by {{ shared_list.created_by.get_full_name|default:shared_list.created_by.username }}
-                    </p>
-                    <p class="text-gray-300 text-sm">
-                        <i class="fas fa-eye mr-1"></i>{{ shared_list.view_count }} views • 
-                        <i class="fas fa-home mr-1"></i>{{ properties|length }} propert{{ properties|length|pluralize:"y,ies" }}
-                    </p>
-                </div>
-                <div class="text-right flex items-center gap-4">
+    <!-- Shared List Header -->
+    <div class="shared-banner sticky top-0 z-40">
+        <div class="container mx-auto px-4 lg:px-6 py-6">
+            <div class="flex items-center justify-between mb-5">
+                <div class="brand-logo" aria-label="CW Real Estate">CW</div>
+                <div class="flex items-center gap-3">
                     <button id="currencyToggle" class="currency-toggle flex items-center gap-2">
                         <i class="fas fa-exchange-alt"></i>
                         <span id="currentCurrency">₦ NGN</span>
                     </button>
-                    <div>
-                        
-                        <p class="text-gray-300 text-sm" id="expiresCountdown">
-                            Expires: {{ shared_list.expires_at|date:"M d, Y H:i" }}
-                        </p>
+                    <button id="mobileMenuBtn" class="hamburger-btn text-white p-3 rounded-lg lg:hidden">
+                        <i class="fas fa-filter text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="banner-content flex justify-between items-end flex-wrap gap-6">
+                <div>
+                    <div class="eyebrow coral" style="margin-bottom: 14px;">
+                        ● Shared by {{ shared_list.created_by.get_full_name|default:shared_list.created_by.username }}
+                    </div>
+                    <h1 class="serif-display" style="font-size: clamp(28px, 5vw, 52px); margin: 0 0 10px; letter-spacing: -0.02em; color: var(--ink);">
+                        {{ shared_list.name }}
+                    </h1>
+                    <p style="color: var(--slate-500); max-width: 560px; font-size: 14px;">
+                        A curated shortlist — view details, download brochures, and reach out directly. No account needed.
+                    </p>
+                </div>
+                <div class="shared-hero-stats">
+                    <div class="shared-hero-stat">
+                        <div class="serif-display stat-value">{{ properties|length }}</div>
+                        <div class="eyebrow stat-label">propert{{ properties|length|pluralize:"y,ies" }}</div>
+                    </div>
+                    <div class="shared-hero-stat">
+                        <div class="serif-display stat-value">{{ shared_list.view_count }}</div>
+                        <div class="eyebrow stat-label">views</div>
+                    </div>
+                    <div class="shared-hero-stat">
+                        <div class="serif-display stat-value" id="expiresCountdown" style="font-size: 18px;">
+                            {{ shared_list.expires_at|date:"M d, Y H:i" }}
+                        </div>
+                        <div class="eyebrow stat-label">link expires</div>
                     </div>
                 </div>
             </div>
@@ -57,7 +66,7 @@
     </div>
 
     <!-- Map View Toggle -->
-    <div class="container mx-auto px-4 lg:px-6 py-4">
+    <div class="container mx-auto px-4 lg:px-6 pt-6">
         <button id="toggleMapBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2">
             <i class="fas fa-map-marked-alt"></i>
             <span>Toggle Map View</span>
@@ -74,17 +83,16 @@
 
     <div class="flex">
         <!-- Filter Sidebar -->
-        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6 text-white">
+        <div id="filterSidebar" class="filter-sidebar w-80 lg:w-96 min-h-screen p-6">
             <div class="lg:hidden flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold">Filter Properties</h3>
-                <button id="closeMobileMenu" class="text-white p-2">
+                <h3 class="text-xl font-bold" style="color: var(--ink);">Filter Properties</h3>
+                <button id="closeMobileMenu" class="p-2" style="color: var(--ink);">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
             <div class="mb-6 hidden lg:block">
-                <h3 class="text-xl font-bold mb-4">
-                    <i class="fas fa-filter mr-2"></i>Filter Properties
-                </h3>
+                <div class="sidebar-eyebrow mb-2">Refine</div>
+                <h3 class="serif-display" style="font-size: 24px; color: var(--ink);">Filter properties</h3>
             </div>
             <!-- Currency Info -->
             <div class="currency-info mb-6">
@@ -100,9 +108,9 @@
             <form method="GET" id="filterForm">
                 <div class="mb-6">
                     <label class="block text-sm font-medium mb-3">Search</label>
-                    <input 
-                        type="text" 
-                        name="search" 
+                    <input
+                        type="text"
+                        name="search"
                         value="{{ search_query }}"
                         placeholder="Property name, address..."
                         class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
@@ -114,29 +122,29 @@
                         Price Range (<span id="priceRangeCurrency">₦</span>)
                     </label>
                     <div class="grid grid-cols-2 gap-3">
-                        <input 
-                            type="number" 
-                            name="min_price" 
+                        <input
+                            type="number"
+                            name="min_price"
                             id="minPriceInput"
                             value="{{ filters.min_price }}"
                             placeholder="Min Price"
                             class="filter-input px-4 py-3 rounded-lg focus:outline-none"
                         >
-                        <input 
-                            type="number" 
-                            name="max_price" 
+                        <input
+                            type="number"
+                            name="max_price"
                             id="maxPriceInput"
                             value="{{ filters.max_price }}"
                             placeholder="Max Price"
                             class="filter-input px-4 py-3 rounded-lg focus:outline-none"
                         >
                     </div>
-                    <div id="priceConversionHint" class="text-xs text-gray-300 mt-2 bg-gray-700/30 p-2 rounded hidden">
+                    <div id="priceConversionHint" class="text-xs mt-2 p-2 rounded hidden" style="color: var(--slate-500); background: var(--slate-100);">
                         <i class="fas fa-calculator mr-1"></i>
                         <span id="conversionHintText"></span>
                     </div>
                     {% if filter_ranges.price_range.min_price and filter_ranges.price_range.max_price %}
-                        <p class="text-xs text-gray-300 mt-2 bg-gray-700/50 p-2 rounded" id="priceRangeDisplay">
+                        <p class="text-xs mt-2 p-2 rounded" id="priceRangeDisplay" style="color: var(--slate-500); background: var(--slate-100);">
                             Range: ₦{{ filter_ranges.price_range.min_price|floatformat:0 }} - ₦{{ filter_ranges.price_range.max_price|floatformat:0 }}
                         </p>
                     {% endif %}
@@ -146,17 +154,17 @@
                     <div>
                         <label class="block text-sm font-medium mb-3">Bedrooms</label>
                         <div class="space-y-2">
-                            <input 
-                                type="number" 
-                                name="min_bedrooms" 
+                            <input
+                                type="number"
+                                name="min_bedrooms"
                                 value="{{ filters.min_bedrooms }}"
                                 placeholder="Min"
                                 min="0"
                                 class="filter-input w-full px-3 py-2 rounded-lg focus:outline-none"
                             >
-                            <input 
-                                type="number" 
-                                name="max_bedrooms" 
+                            <input
+                                type="number"
+                                name="max_bedrooms"
                                 value="{{ filters.max_bedrooms }}"
                                 placeholder="Max"
                                 min="0"
@@ -167,17 +175,17 @@
                     <div>
                         <label class="block text-sm font-medium mb-3">Bathrooms</label>
                         <div class="space-y-2">
-                            <input 
-                                type="number" 
-                                name="min_bathrooms" 
+                            <input
+                                type="number"
+                                name="min_bathrooms"
                                 value="{{ filters.min_bathrooms }}"
                                 placeholder="Min"
                                 min="0"
                                 class="filter-input w-full px-3 py-2 rounded-lg focus:outline-none"
                             >
-                            <input 
-                                type="number" 
-                                name="max_bathrooms" 
+                            <input
+                                type="number"
+                                name="max_bathrooms"
                                 value="{{ filters.max_bathrooms }}"
                                 placeholder="Max"
                                 min="0"
@@ -189,16 +197,16 @@
                 <!-- Completion Date Filter -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium mb-3">Completion Date</label>
-                    <input 
-                        type="date" 
-                        name="completion_date" 
+                    <input
+                        type="date"
+                        name="completion_date"
                         value="{{ filters.completion_date }}"
                         class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
                     >
                 </div>
                 <!-- Square Footage (Dual Slider) -->
                 <div class="mb-6" id="sqft-filter">
-                    <label class="block text-sm font-medium mb-3 text-white">Square Footage</label>
+                    <label class="block text-sm font-medium mb-3">Square Footage</label>
 
                     <!-- Hidden fields submitted with the form -->
                     <input type="hidden" name="min_square_footage" id="min_square_footage"
@@ -209,9 +217,9 @@
                     <!-- Slider container -->
                     <div class="relative h-8">
                         <!-- Base track -->
-                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/20"></div>
+                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full" style="background: var(--slate-200);"></div>
                         <!-- Selected range fill -->
-                        <div class="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-blue-400/70" id="sqft-range-fill"></div>
+                        <div class="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full" id="sqft-range-fill"></div>
 
                         <!-- Two overlapping range inputs -->
                         <input
@@ -237,12 +245,12 @@
                     </div>
 
                     <!-- Readouts -->
-                    <div class="flex justify-between text-sm text-gray-200 mt-2">
-                        <span>Min: <strong id="sqft-min-readout" class="text-white"></strong> sqft</span>
-                        <span>Max: <strong id="sqft-max-readout" class="text-white"></strong> sqft</span>
+                    <div class="flex justify-between text-sm mt-2" style="color: var(--slate-500);">
+                        <span>Min: <strong id="sqft-min-readout" style="color: var(--ink);"></strong> sqft</span>
+                        <span>Max: <strong id="sqft-max-readout" style="color: var(--ink);"></strong> sqft</span>
                     </div>
                     {% if filter_ranges.square_footage_range.min_square_footage and filter_ranges.square_footage_range.max_square_footage %}
-                        <p class="text-xs text-gray-300 mt-2 bg-gray-700/50 p-2 rounded">
+                        <p class="text-xs mt-2 p-2 rounded" style="color: var(--slate-500); background: var(--slate-100);">
                         Range: {{ filter_ranges.square_footage_range.min_square_footage|intcomma }} - {{ filter_ranges.square_footage_range.max_square_footage|intcomma }} sqft
                         </p>
                     {% endif %}
@@ -250,7 +258,7 @@
                 <!-- Luxury Status -->
                 <div class="mb-6">
                     <label class="block text-sm font-medium mb-3">Luxury Status</label>
-                    <select 
+                    <select
                         name="luxury_status"
                         class="filter-input w-full px-4 py-3 rounded-lg focus:outline-none"
                     >
@@ -264,28 +272,28 @@
                     <button type="submit" class="btn-primary w-full text-white py-3 px-4 rounded-lg transition-all font-semibold">
                         <i class="fas fa-search mr-2"></i>Apply Filters
                     </button>
-                    <a href="{% url 'shared_properties' shared_list.token %}" class="block w-full bg-gray-600 hover:bg-gray-500 text-white py-3 px-4 rounded-lg text-center transition-all font-medium">
+                    <a href="{% url 'shared_properties' shared_list.token %}" class="btn-secondary block w-full py-3 px-4 rounded-lg text-center transition-all font-medium">
                         <i class="fas fa-refresh mr-2"></i>Clear All
                     </a>
                 </div>
             </form>
             <!-- Share Info -->
-            <div class="border-t border-gray-600 pt-6">
-                <h4 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i class="fas fa-share-alt"></i>Share Information
+            <div class="pt-6" style="border-top: 1px solid var(--slate-200);">
+                <h4 class="text-base font-semibold mb-4 flex items-center gap-2" style="color: var(--ink);">
+                    <i class="fas fa-share-alt"></i>Share information
                 </h4>
-                <div class="bg-gray-800 rounded-lg p-4">
+                <div class="rounded-lg p-4" style="background: var(--slate-100);">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm text-gray-300">Created:</span>
-                        <span class="text-sm text-white">{{ shared_list.created_at|date:"M d, Y" }}</span>
+                        <span class="text-sm" style="color: var(--slate-500);">Created:</span>
+                        <span class="text-sm" style="color: var(--ink);">{{ shared_list.created_at|date:"M d, Y" }}</span>
                     </div>
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm text-gray-300">Views:</span>
-                        <span class="text-sm text-white">{{ shared_list.view_count }}</span>
+                        <span class="text-sm" style="color: var(--slate-500);">Views:</span>
+                        <span class="text-sm" style="color: var(--ink);">{{ shared_list.view_count }}</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-300">Properties:</span>
-                        <span class="text-sm text-white">{{ shared_list.properties.count }}</span>
+                        <span class="text-sm" style="color: var(--slate-500);">Properties:</span>
+                        <span class="text-sm" style="color: var(--ink);">{{ shared_list.properties.count }}</span>
                     </div>
                 </div>
             </div>
@@ -293,16 +301,16 @@
 
         <!-- Main Content -->
         <div class="flex-1 p-4 lg:p-8 main-content">
-            
+
             <!-- Properties Grid -->
             <div class="property-grid">
                 {% for property in properties %}
-                    <div class="property-card bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="property-card">
                         <!-- Property Image Gallery -->
                         <div class="image-gallery relative">
                             {% if property.images.all %}
-                                <img 
-                                    src="{{ property.images.first.image.url }}" 
+                                <img
+                                    src="{{ property.images.first.image.url }}"
                                     alt="{{ property.name }}"
                                     class="w-full h-full object-cover gallery-image transition-all duration-300"
                                     data-property-id="{{ property.id }}"
@@ -316,19 +324,19 @@
                                     </button>
                                 {% endif %}
                             {% elif property.thumbnail %}
-                                <img 
-                                    src="{{ property.thumbnail.url }}" 
+                                <img
+                                    src="{{ property.thumbnail.url }}"
                                     alt="{{ property.name }}"
                                     class="w-full h-full object-cover transition-all duration-300"
                                 >
                             {% else %}
-                                <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                                    <i class="fas fa-home text-gray-400 text-4xl"></i>
+                                <div class="w-full h-full flex items-center justify-center" style="background: var(--slate-100);">
+                                    <i class="fas fa-home text-4xl" style="color: var(--slate-400);"></i>
                                 </div>
                             {% endif %}
                             <!-- Luxury Badge -->
                             {% if property.luxury_status == 'luxurious' %}
-                                <div class="absolute top-4 right-4">
+                                <div class="absolute top-3 right-3">
                                     <span class="luxury-badge flex items-center gap-1">
                                         <i class="fas fa-crown"></i>Luxury
                                     </span>
@@ -336,82 +344,62 @@
                             {% endif %}
                         </div>
                         <!-- Property Details -->
-                        <div class="p-6">
-                            <div class="mb-4">
-                                <h3 class="serif-display text-2xl text-gray-900 mb-2">{{ property.name }}</h3>
-                                <p class="text-gray-600 text-sm mb-2 flex items-center">
-                                    <i class="fas fa-map-marker-alt mr-2" style="color: var(--coral);"></i>{{ property.address }}
-                                </p>
-                                <p class="text-gray-700 text-sm line-clamp-2">{{ property.description|truncatewords:20 }}</p>
-                            </div>
+                        <div class="card-info">
+                            <div class="card-title">{{ property.name }}</div>
+                            <div class="card-subtitle"><i class="fas fa-map-marker-alt mr-1"></i>{{ property.address }}</div>
+                            <p class="card-desc line-clamp-2">{{ property.description|truncatewords:20 }}</p>
                             <!-- Configurations -->
                             {% if property.configurations.all %}
-                                <div class="mb-4">
-                                    <div class="flex flex-wrap gap-2 mb-3">
-                                        {% for config in property.configurations.all|slice:":2" %}
-                                            <div class="bg-gray-100 px-3 py-1 rounded-full text-sm font-medium">
-                                                <i class="fas fa-bed mr-1"></i>{{ config.bedrooms }} 
-                                                <i class="fas fa-bath ml-2 mr-1"></i>{{ config.bathrooms }}
-                                            </div>
-                                        {% endfor %}
-                                        {% if property.configurations.all|length > 2 %}
-                                            <span class="text-sm text-gray-500">+{{ property.configurations.all|length|add:"-2" }} more</span>
-                                        {% endif %}
-                                    </div>
-                                    <!-- Price with Currency Conversion -->
-                                    {% with property.get_min_price as min_price %}
-                                        {% if min_price %}
-                                            <div class="price-tag" data-naira-price="{{ min_price }}" data-property-id="{{ property.id }}">
-                                                <i class="fas fa-tag mr-2"></i>
-                                                <span class="price-display">₦{{ min_price|floatformat:0|intcomma }}</span>{% if property.configurations.all|length > 1 %}+{% endif %}
-                                            </div>
-                                        {% else %}
-                                            <div class="price-tag">
-                                                <i class="fas fa-phone mr-2"></i>Price on Request
-                                            </div>
-                                        {% endif %}
-                                    {% endwith %}
+                                <div class="flex flex-wrap gap-2 mt-2 mb-1">
+                                    {% for config in property.configurations.all|slice:":2" %}
+                                        <div class="px-3 py-1 rounded-full text-xs font-medium" style="background: var(--slate-100); color: var(--ink);">
+                                            <i class="fas fa-bed mr-1"></i>{{ config.bedrooms }}
+                                            <i class="fas fa-bath ml-2 mr-1"></i>{{ config.bathrooms }}
+                                        </div>
+                                    {% endfor %}
+                                    {% if property.configurations.all|length > 2 %}
+                                        <span class="text-xs" style="align-self: center; color: var(--slate-400);">+{{ property.configurations.all|length|add:"-2" }} more</span>
+                                    {% endif %}
                                 </div>
+                                <!-- Price with Currency Conversion -->
+                                {% with property.get_min_price as min_price %}
+                                    {% if min_price %}
+                                        <div class="price-tag" data-naira-price="{{ min_price }}" data-property-id="{{ property.id }}">
+                                            <span class="price-display">₦{{ min_price|floatformat:0|intcomma }}</span>{% if property.configurations.all|length > 1 %}+{% endif %}
+                                        </div>
+                                    {% else %}
+                                        <div class="price-tag" style="color: var(--slate-500); font-size: 13px; font-weight: 500;">
+                                            <i class="fas fa-phone"></i>Price on Request
+                                        </div>
+                                    {% endif %}
+                                {% endwith %}
                             {% endif %}
-                            {% comment %} <!-- Amenities -->
-                            {% if property.amenities.all %}
-                                <div class="mb-4">
-                                    <div class="flex flex-wrap gap-1">
-                                        {% for amenity in property.amenities.all|slice:":3" %}
-                                            <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium border border-blue-200">{{ amenity.name }}</span>
-                                        {% endfor %}
-                                        {% if property.amenities.all|length > 3 %}
-                                            <span class="text-xs text-gray-500">+{{ property.amenities.all|length|add:"-3" }} more</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endif %} {% endcomment %}
                             <!-- Actions -->
-                            <div class="flex gap-3">
+                            <div class="card-actions">
                                 <button
                                     onclick="showPropertyModal({{ property.id }})"
-                                    class="btn-primary flex-1 text-white py-3 px-4 rounded-lg transition-all font-semibold"
+                                    class="btn-primary"
                                 >
-                                    <i class="fas fa-eye mr-2"></i>View Details
+                                    <i class="fas fa-eye mr-1"></i>View details
                                 </button>
-                                <button 
+                                <button
                                     onclick="downloadPropertyPDF({{ property.id }})"
-                                    class="pdf-button flex-shrink-0"
+                                    class="pdf-button"
                                     title="Download Property Details PDF"
                                 >
                                     <i class="fas fa-file-pdf"></i>
-                                    Download PDF
+                                    <span>PDF</span>
                                 </button>
                             </div>
                         </div>
                     </div>
                 {% empty %}
                     <div class="col-span-full text-center py-12">
-                        <div class="bg-white rounded-2xl shadow-lg p-8">
-                            <i class="fas fa-home text-gray-300 text-6xl mb-4"></i>
-                            <h3 class="text-xl font-semibold text-gray-600 mb-2">No Properties Found</h3>
-                            <p class="text-gray-500 mb-4">Try adjusting your filters or search terms.</p>
-                            <a href="{% url 'shared_properties' shared_list.token %}" class="btn-primary text-white px-6 py-3 rounded-lg no-underline font-semibold">
+                        <div class="property-card p-8">
+                            <i class="fas fa-home text-6xl mb-4" style="color: var(--slate-200);"></i>
+                            <h3 class="text-xl font-semibold mb-2" style="color: var(--ink);">No properties found</h3>
+                            <p class="mb-4" style="color: var(--slate-500);">Try adjusting your filters or search terms.</p>
+                            <a href="{% url 'shared_properties' shared_list.token %}" class="btn-primary text-white px-6 py-3 rounded-lg no-underline font-semibold inline-block">
                                 <i class="fas fa-refresh mr-2"></i>Reset Filters
                             </a>
                         </div>
@@ -425,8 +413,7 @@
     <div id="propertyModal" class="modal-overlay fixed inset-0 hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle" class="text-xl font-bold flex items-center gap-2">
-                    <i class="fas fa-home"></i>
+                <h2 id="modalTitle" class="serif-display flex items-center gap-2" style="font-size: 22px; font-weight: 400;">
                     <span>Property Details</span>
                 </h2>
                 <button onclick="closePropertyModal()" class="modal-close-btn">
@@ -443,6 +430,7 @@
     <script>
         window.sharedConfig = {
             expiresAt: '{{ shared_list.expires_at|date:"c" }}',
+            listName: "{{ shared_list.name|escapejs }}",
             propertyData: [
                 {% for property in properties %}
                     {
