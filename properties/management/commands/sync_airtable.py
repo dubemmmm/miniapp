@@ -590,6 +590,12 @@ class Command(BaseCommand):
                 self.stdout.write(f"🔍 Would upsert config: {prop.name} - {c['type']}")
                 continue
             try:
+                self.stdout.write(
+                f"DEBUG CONFIG | property={prop.name} | "
+                f"type={c['type']} | price={c['price']!r} | "
+                f"square_footage={c['square_footage']!r} | "
+                f"airtable_id={c['airtable_id']}"
+                )
                 obj, created = PropertyConfiguration.objects.get_or_create(
                     airtable_id=c["airtable_id"], defaults=fields
                 )
