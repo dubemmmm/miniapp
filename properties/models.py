@@ -138,7 +138,7 @@ class PropertyConfiguration(models.Model):
     bedrooms = models.PositiveIntegerField(default=0)
     bathrooms = models.PositiveIntegerField(default=1)
     square_footage = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
     is_available = models.BooleanField(default=True)
     
     # Timestamps
