@@ -6,6 +6,58 @@
 console.log('Properties loaded:', properties.length);
 console.log('Filter ranges:', filterRanges);
 
+// Sub-neighborhood keyword groups — order matters, first match wins.
+// These aren't in Airtable's Location field, so we derive them from the
+// free-text address instead (verified these terms show up reliably there).
+const NEIGHBORHOOD_KEYWORDS = [
+    // Ikoyi
+    { label: 'Old Ikoyi', keywords: ['old ikoyi'] },
+    { label: 'Banana Island', keywords: ['banana island'] },
+    { label: 'Parkview', keywords: ['parkview', 'park view'] },
+    { label: 'Osborne 1&2', keywords: ['osborne'] },
+    { label: 'SW Ikoyi', keywords: ['sw ikoyi', 'south west ikoyi'] },
+    // Victoria Island
+    { label: 'Eko Atlantic', keywords: ['eko atlantic'] },
+    { label: 'Oniru', keywords: ['oniru'] },
+    { label: 'Adeola Odeku', keywords: ['adeola odeku'] },
+    { label: 'Ademola Adetokunbo', keywords: ['ademola adetokunbo', 'adetokunbo ademola'] },
+    // Lekki
+    { label: 'Lekki Foreshore', keywords: ['lekki foreshore', 'foreshore'] },
+    { label: 'U3 Estate', keywords: ['u3 estate', 'u3'] },
+    { label: 'Orange Island', keywords: ['orange island'] },
+    { label: 'Cowrie Creek', keywords: ['cowrie creek', 'cowrie'] },
+    { label: 'Pinnock Beach Estate', keywords: ['pinnock beach', 'pinnock'] },
+    { label: 'Osapa', keywords: ['osapa'] },
+    { label: 'Chevron', keywords: ['chevron'] },
+];
+
+const extractNeighborhood = (address) => {
+    if (!address) return null;
+    const addressLower = address.toLowerCase();
+    for (const { label, keywords } of NEIGHBORHOOD_KEYWORDS) {
+        if (keywords.some(kw => addressLower.includes(kw))) return label;
+    }
+    return null;
+};
+
+// Amenity-name keywords that indicate a waterfront property. Amenity data is
+// free text from Airtable ("Waterfront", "Water front", "Panoramic water
+// view", etc.) rather than a clean boolean, so we match on substrings.
+const WATERFRONT_KEYWORDS = ['waterfront', 'water front', 'waterview', 'water view', 'panoramic water'];
+
+const isWaterfrontProperty = (property) => {
+    const amenities = property.amenities || [];
+    return amenities.some(a => {
+        const name = (a.name || '').toLowerCase();
+        return WATERFRONT_KEYWORDS.some(kw => name.includes(kw));
+    });
+};
+
+properties.forEach(property => {
+    property.neighborhood = extractNeighborhood(property.address);
+    property.isWaterfront = isWaterfrontProperty(property);
+});
+
 const favoritePropertyIds = new Set(
     properties.filter(prop => prop.is_favorite).map(prop => prop.id)
 );
@@ -93,6 +145,8 @@ fetchExchangeRate();
 const filters = {
     search: '',
     location: 'all',
+    neighborhood: 'all',
+    waterfrontOnly: false,
     bedrooms: 'all',
     completionQuarter: 'all',
     completionYear: 'all',
@@ -145,7 +199,7 @@ const toggleCurrency = async () => {
                 <div class="flex justify-between items-start gap-2">
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-slate-900 text-sm sm:text-base truncate">${config.type}</p>
-                        <p class="text-xs sm:text-sm text-slate-600 mt-1">${config.bedrooms} bed " ${config.bathrooms} bath " ${formatNumber(config.square_footage)} sqft</p>
+                        <p class="text-xs sm:text-sm text-slate-600 mt-1">${config.bedrooms} bed " ${config.bathrooms} bath " ${formatNumber(config.square_footage)} sqm</p>
                     </div>
                     <div class="text-right flex-shrink-0">
                         <p class="text-base sm:text-lg font-semibold text-rose-500">${formatCurrency(config.price)}</p>
@@ -171,6 +225,8 @@ const updateActiveFilterCount = () => {
     let count = 0;
     if (filters.search) count++;
     if (filters.location !== 'all') count++;
+    if (filters.neighborhood !== 'all') count++;
+    if (filters.waterfrontOnly) count++;
     if (filters.bedrooms !== 'all') count++;
     if (filters.completionQuarter !== 'all') count++;
     if (filters.completionYear !== 'all') count++;
@@ -244,6 +300,10 @@ const getFilteredProperties = () => {
 
         const matchesLocation = filters.location === 'all' || property.location === filters.location;
 
+        const matchesNeighborhood = filters.neighborhood === 'all' || property.neighborhood === filters.neighborhood;
+
+        const matchesWaterfront = !filters.waterfrontOnly || property.isWaterfront;
+
         const matchesBedrooms = filters.bedrooms === 'all' ||
             property.configurations.some(c => {
                 if (filters.bedrooms === '5+') return c.bedrooms >= 5;
@@ -279,13 +339,15 @@ const getFilteredProperties = () => {
             c.square_footage >= filters.sqftRange[0] && c.square_footage <= filters.sqftRange[1]
         );
 
-        const passes = matchesSearch && matchesLocation && matchesBedrooms && matchesCompletion() && matchesLuxury && matchesPrice && matchesSqft;
+        const passes = matchesSearch && matchesLocation && matchesNeighborhood && matchesWaterfront && matchesBedrooms && matchesCompletion() && matchesLuxury && matchesPrice && matchesSqft;
 
         // Debug: Log properties that don't pass
         if (!passes) {
             const reasons = [];
             if (!matchesSearch) reasons.push('search');
             if (!matchesLocation) reasons.push('location');
+            if (!matchesNeighborhood) reasons.push('neighborhood');
+            if (!matchesWaterfront) reasons.push('waterfront');
             if (!matchesBedrooms) reasons.push('bedrooms');
             if (!matchesCompletion()) reasons.push('completion');
             if (!matchesLuxury) reasons.push('luxury');
@@ -424,6 +486,12 @@ const createPropertyCard = (property, opts = {}) => {
         </div>`;
     const topControls = `<div style="display:flex;gap:8px;align-items:center;">${favoriteButtonTemplate(property)}${compareCheckbox}</div>`;
 
+    // Completed vs. still-building status, top-left of the card image.
+    const isCompleted = property.completion_date && new Date(property.completion_date) <= new Date();
+    const completionBadge = property.completion_date
+        ? `<span class="status-v2 ${isCompleted ? 'available' : 'progress'}"><span class="dot"></span>${isCompleted ? 'Completed' : 'In Progress'}</span>`
+        : '<span></span>';
+
     if (rail) { card.style.width = width + "px"; card.style.flex = "0 0 " + width + "px"; }
 
     // All cards use the split (CardB) layout: image with save/compare controls,
@@ -432,7 +500,8 @@ const createPropertyCard = (property, opts = {}) => {
     card.innerHTML = `
         <div class="card-img-wrap">
             <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
-            <div class="card-top" style="justify-content: flex-end;">
+            <div class="card-top">
+                ${completionBadge}
                 ${topControls}
             </div>
         </div>
@@ -565,6 +634,7 @@ const renderCards = () => {
 // Compact naira for stat displays (₦200M, ₦2.2B).
 const compactNaira = (v) => {
     if (!v) return '—';
+    if (v >= 1e12) return '₦' + (v / 1e12).toFixed(1).replace(/\.0$/, '') + 'T';
     if (v >= 1e9) return '₦' + (v / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
     if (v >= 1e6) return '₦' + Math.round(v / 1e6) + 'M';
     return formatCurrency(v);
@@ -822,7 +892,7 @@ const openModal = (property) => {
             <div>
                 <div style="font-weight:600;font-size:14.5px;">${config.type}</div>
                 <div style="font-size:12.5px;color:var(--slate-500);font-family:var(--font-mono);margin-top:2px;">
-                    ${config.bedrooms} bd · ${config.bathrooms} ba · ${formatNumber(config.square_footage)} sqft
+                    ${config.bedrooms} bd · ${config.bathrooms} ba · ${formatNumber(config.square_footage)} sqm
                 </div>
             </div>
             <div style="text-align:right;">
@@ -900,7 +970,7 @@ const updatePriceLabel = () => {
 
 const updateSqftLabel = () => {
     document.getElementById("sqftRangeLabel").textContent =
-        `${formatNumber(filters.sqftRange[0])} - ${formatNumber(filters.sqftRange[1])} sqft`;
+        `${formatNumber(filters.sqftRange[0])} - ${formatNumber(filters.sqftRange[1])} sqm`;
 };
 
 const initFilters = () => {
@@ -952,6 +1022,33 @@ const initFilters = () => {
         });
         locationSelect.addEventListener('change', event => {
             filters.location = event.target.value;
+            updateActiveFilterCount();
+            renderCards();
+        });
+    }
+
+    // Sub-neighborhood (Banana Island, Old Ikoyi, Parkview, Eko Atlantic, ...)
+    const neighborhoodSelect = document.getElementById('neighborhoodSelect');
+    if (neighborhoodSelect) {
+        const neighborhoods = [...new Set(properties.map(property => property.neighborhood).filter(Boolean))].sort();
+        neighborhoods.forEach(neighborhood => {
+            const option = document.createElement('option');
+            option.value = neighborhood;
+            option.textContent = neighborhood;
+            neighborhoodSelect.appendChild(option);
+        });
+        neighborhoodSelect.addEventListener('change', event => {
+            filters.neighborhood = event.target.value;
+            updateActiveFilterCount();
+            renderCards();
+        });
+    }
+
+    // Waterfront only
+    const waterfrontCheckbox = document.getElementById('waterfrontOnlyCheckbox');
+    if (waterfrontCheckbox) {
+        waterfrontCheckbox.addEventListener('change', event => {
+            filters.waterfrontOnly = event.target.checked;
             updateActiveFilterCount();
             renderCards();
         });
@@ -1045,6 +1142,8 @@ const initFilters = () => {
     document.getElementById("resetFilters").addEventListener("click", () => {
         filters.search = '';
         filters.location = 'all';
+        filters.neighborhood = 'all';
+        filters.waterfrontOnly = false;
         filters.bedrooms = 'all';
         filters.completionQuarter = 'all';
         filters.completionYear = 'all';
@@ -1054,6 +1153,8 @@ const initFilters = () => {
 
         document.getElementById("searchInput").value = '';
         if (locationSelect) locationSelect.value = 'all';
+        if (neighborhoodSelect) neighborhoodSelect.value = 'all';
+        if (waterfrontCheckbox) waterfrontCheckbox.checked = false;
         document.getElementById("bedroomsSelect").value = 'all';
         document.getElementById("completionQuarterSelect").value = 'all';
         document.getElementById("completionYearSelect").value = 'all';
@@ -1183,14 +1284,15 @@ document.getElementById('enquiryForm').addEventListener('submit', function(e) {
 });
 
 // Property comparison functions
+// This selection set is shared by two features: Compare (side-by-side table,
+// capped at MAX_COMPARE since that's what the table/PDF is laid out for) and
+// Share (creates a link with no such limit — see createShare/create_shared_list).
+const MAX_COMPARE = 5;
+
 const togglePropertySelection = (propertyId) => {
     if (selectedForComparison.has(propertyId)) {
         selectedForComparison.delete(propertyId);
     } else {
-        if (selectedForComparison.size >= 5) {
-            alert('You can compare up to 5 properties at a time');
-            return;
-        }
         selectedForComparison.add(propertyId);
     }
     updateCompareButton();
@@ -1216,6 +1318,14 @@ const updateCompareButton = () => {
         trigger.style.color = 'var(--ink)';
         trigger.style.border = '1px solid var(--slate-200)';
         trigger.style.boxShadow = 'var(--shadow-lg)';
+        trigger.style.cursor = 'default';
+    } else if (n > MAX_COMPARE) {
+        // Past the compare table's limit — Share still works at this size, Compare doesn't.
+        label.textContent = `Deselect to compare (max ${MAX_COMPARE})`;
+        trigger.style.background = 'white';
+        trigger.style.color = 'var(--slate-500)';
+        trigger.style.border = '1px solid var(--slate-200)';
+        trigger.style.boxShadow = 'none';
         trigger.style.cursor = 'default';
     } else {
         label.textContent = `Compare (${n})`;
@@ -1326,6 +1436,8 @@ const createShare = async () => {
 const showComparison = async () => {
     // Need at least two to compare; the button is in a hint state at one.
     if (selectedForComparison.size < 2) return;
+    // Past this, the button is disabled (see updateCompareButton) — Share has no such limit.
+    if (selectedForComparison.size > MAX_COMPARE) return;
 
     const propertyIds = Array.from(selectedForComparison);
 
@@ -1388,12 +1500,12 @@ const buildComparisonTable = (properties) => {
                         }).join('')}
                     </tr>
                     <tr class="border-b border-slate-100">
-                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Square Footage</td>
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Square Metres</td>
                         ${properties.map(p => {
                             const sqft = p.configurations.map(c => c.square_footage);
                             const minSqft = Math.min(...sqft);
                             const maxSqft = Math.max(...sqft);
-                            return `<td class="p-3">${minSqft === maxSqft ? formatNumber(minSqft) : `${formatNumber(minSqft)} - ${formatNumber(maxSqft)}`} sqft</td>`;
+                            return `<td class="p-3">${minSqft === maxSqft ? formatNumber(minSqft) : `${formatNumber(minSqft)} - ${formatNumber(maxSqft)}`} sqm</td>`;
                         }).join('')}
                     </tr>
                     <tr class="border-b border-slate-100">
@@ -1489,7 +1601,8 @@ const populateHero = () => {
             p.configurations.forEach(c => { if (c.price > highest) highest = c.price; });
         });
         if (highest > 0) {
-            if (highest >= 1e9) highestEl.textContent = '₦' + (highest / 1e9).toFixed(1) + 'B';
+            if (highest >= 1e12) highestEl.textContent = '₦' + (highest / 1e12).toFixed(1) + 'T';
+            else if (highest >= 1e9) highestEl.textContent = '₦' + (highest / 1e9).toFixed(1) + 'B';
             else if (highest >= 1e6) highestEl.textContent = '₦' + (highest / 1e6).toFixed(0) + 'M';
             else highestEl.textContent = formatCurrency(highest);
         }

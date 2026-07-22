@@ -118,7 +118,11 @@
                     <div id="filterContent" class="filter-panel-v2" style="margin-top:12px;">
 
                         <!-- Filter Pills -->
-                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-3">
+                            <select id="neighborhoodSelect" class="appearance-none px-3 py-2 text-sm cursor-pointer focus:outline-none transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
+                                <option value="all">All Neighborhoods</option>
+                            </select>
+
                             <select id="bedroomsSelect" class="appearance-none px-3 py-2 text-sm cursor-pointer focus:outline-none transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--ink);">
                                 <option value="all">All Bedrooms</option>
                                 <option value="0">Studio</option>
@@ -146,6 +150,13 @@
                                 <option value="luxurious">Luxurious</option>
                                 <option value="non_luxurious">Non-Luxurious</option>
                             </select>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 2px;">
+                                <input id="waterfrontOnlyCheckbox" type="checkbox" style="accent-color: var(--coral); width: 16px; height: 16px; cursor: pointer;" />
+                                <span class="text-sm" style="color: var(--ink);">Waterfront only</span>
+                            </label>
 
                             <button id="resetFilters" class="px-3 py-2 text-sm font-medium transition" style="border-radius: var(--r-md); border: 1px solid var(--slate-200); background: white; color: var(--slate-600);">
                                 Clear All
@@ -175,7 +186,7 @@
 
                             <div style="background: linear-gradient(135deg, var(--slate-100), white); border-radius: var(--r-md); padding: 16px; border: 1px solid var(--slate-200);">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="eyebrow">Square Footage</span>
+                                    <span class="eyebrow">Square Metres</span>
                                     <span id="sqftRangeLabel" class="text-sm font-semibold" style="color: var(--ink);"></span>
                                 </div>
                                 <div class="space-y-2">

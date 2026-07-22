@@ -652,6 +652,210 @@ function setupModalEvents() {
     });
 }
 
+// ——— Property comparison ———
+// Same selection cap as the landing page's Compare feature (temp-v3.js) —
+// the table below is laid out for a handful of side-by-side properties.
+const MAX_COMPARE = 5;
+let selectedForComparison = new Set();
+
+const formatCurrency = (value) => {
+    if (!value || value === 0) return "Price on Request";
+    if (currencyConverter && currencyConverter.currentCurrency === 'USD') {
+        const usdValue = value / currencyConverter.exchangeRate;
+        return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(usdValue);
+    }
+    return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value);
+};
+const formatNumber = (value) => value.toLocaleString("en-US");
+
+function toggleCompareSelection(propertyId) {
+    if (selectedForComparison.has(propertyId)) {
+        selectedForComparison.delete(propertyId);
+    } else {
+        selectedForComparison.add(propertyId);
+    }
+
+    const control = document.querySelector(`.compare-select[data-property-id="${propertyId}"]`);
+    if (control) {
+        const isSelected = selectedForComparison.has(propertyId);
+        control.classList.toggle('selected', isSelected);
+        control.setAttribute('aria-pressed', isSelected);
+        control.title = isSelected ? 'In comparison — click to remove' : 'Compare';
+    }
+
+    updateCompareButton();
+}
+
+function updateCompareButton() {
+    const wrapper = document.getElementById('compareButton');
+    const trigger = document.getElementById('compareTrigger');
+    const label = document.getElementById('compareBtnLabel');
+    if (!wrapper || !trigger || !label) return;
+    const n = selectedForComparison.size;
+
+    if (n === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+    wrapper.classList.remove('hidden');
+
+    if (n === 1) {
+        label.textContent = 'Select 1 more to compare';
+        trigger.style.background = 'white';
+        trigger.style.color = 'var(--ink)';
+        trigger.style.border = '1px solid var(--slate-200)';
+        trigger.style.boxShadow = 'var(--shadow-lg)';
+        trigger.style.cursor = 'default';
+    } else if (n > MAX_COMPARE) {
+        label.textContent = `Deselect to compare (max ${MAX_COMPARE})`;
+        trigger.style.background = 'white';
+        trigger.style.color = 'var(--slate-500)';
+        trigger.style.border = '1px solid var(--slate-200)';
+        trigger.style.boxShadow = 'none';
+        trigger.style.cursor = 'default';
+    } else {
+        label.textContent = `Compare (${n})`;
+        trigger.style.background = 'var(--coral)';
+        trigger.style.color = 'white';
+        trigger.style.border = 'none';
+        trigger.style.boxShadow = 'var(--shadow-coral)';
+        trigger.style.cursor = 'pointer';
+    }
+}
+
+function buildComparisonTable(properties) {
+    if (!properties.length) return '<p class="text-slate-600">No properties selected</p>';
+
+    return `
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="border-b-2 border-slate-200">
+                        <th class="p-3 text-left font-semibold text-slate-900 bg-slate-50 sticky left-0 z-10">Feature</th>
+                        ${properties.map(p => `
+                            <th class="p-3 text-left font-semibold text-slate-900">
+                                <div class="min-w-[200px]">
+                                    <img src="${p.thumbnail}" alt="${p.name}" class="w-full h-32 object-cover rounded-lg mb-2" />
+                                    <p class="font-semibold text-sm">${p.name}</p>
+                                    <p class="text-xs text-slate-500 mt-1">${p.address}</p>
+                                </div>
+                            </th>
+                        `).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Price Range</td>
+                        ${properties.map(p => {
+                            const prices = p.configurations.map(c => c.price).filter(price => price > 0);
+                            const minPrice = prices.length ? Math.min(...prices) : 0;
+                            const maxPrice = prices.length ? Math.max(...prices) : 0;
+                            return `<td class="p-3">${minPrice === maxPrice ? formatCurrency(minPrice) : `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`}</td>`;
+                        }).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Bedrooms</td>
+                        ${properties.map(p => {
+                            const bedrooms = [...new Set(p.configurations.map(c => c.bedrooms))].sort((a, b) => a - b);
+                            return `<td class="p-3">${bedrooms.length === 1 ? bedrooms[0] : `${bedrooms[0]} - ${bedrooms[bedrooms.length - 1]}`}</td>`;
+                        }).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Bathrooms</td>
+                        ${properties.map(p => {
+                            const bathrooms = [...new Set(p.configurations.map(c => c.bathrooms))].sort((a, b) => a - b);
+                            return `<td class="p-3">${bathrooms.length === 1 ? bathrooms[0] : `${bathrooms[0]} - ${bathrooms[bathrooms.length - 1]}`}</td>`;
+                        }).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Square Metres</td>
+                        ${properties.map(p => {
+                            const sqft = p.configurations.map(c => c.square_footage);
+                            const minSqft = Math.min(...sqft);
+                            const maxSqft = Math.max(...sqft);
+                            return `<td class="p-3">${minSqft === maxSqft ? formatNumber(minSqft) : `${formatNumber(minSqft)} - ${formatNumber(maxSqft)}`} sqm</td>`;
+                        }).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Type</td>
+                        ${properties.map(p => `<td class="p-3">${p.luxury_status === 'luxurious' ? 'Luxurious' : 'Standard'}</td>`).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Location</td>
+                        ${properties.map(p => `<td class="p-3">${p.location || 'N/A'}</td>`).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Amenities</td>
+                        ${properties.map(p => `
+                            <td class="p-3">
+                                <ul class="text-sm space-y-1">
+                                    ${p.amenities.slice(0, 5).map(a => `<li>${a.name}</li>`).join('')}
+                                    ${p.amenities.length > 5 ? `<li class="text-slate-500">+ ${p.amenities.length - 5} more</li>` : ''}
+                                </ul>
+                            </td>
+                        `).join('')}
+                    </tr>
+                    <tr class="border-b border-slate-100">
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Completion Date</td>
+                        ${properties.map(p => `<td class="p-3">${p.completion_date ? new Date(p.completion_date).toLocaleDateString() : 'N/A'}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td class="p-3 font-medium text-slate-700 bg-slate-50 sticky left-0">Actions</td>
+                        ${properties.map(p => `
+                            <td class="p-3">
+                                <button onclick="closeComparisonModal(); showPropertyModal(${p.id});" class="text-sm text-rose-500 hover:text-rose-600 font-medium">View Details →</button>
+                            </td>
+                        `).join('')}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function showComparison() {
+    if (selectedForComparison.size < 2 || selectedForComparison.size > MAX_COMPARE) return;
+
+    const propertyIds = Array.from(selectedForComparison);
+    const comparisonProperties = (typeof sharedProperties !== 'undefined' ? sharedProperties : [])
+        .filter(p => propertyIds.includes(p.id));
+
+    document.getElementById('comparisonContent').innerHTML = buildComparisonTable(comparisonProperties);
+
+    const modal = document.getElementById('comparisonModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeComparisonModal() {
+    const modal = document.getElementById('comparisonModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+}
+
+function setupCompareEvents() {
+    const compareButton = document.getElementById('compareButton');
+    const closeBtn = document.getElementById('closeComparisonModal');
+    const modal = document.getElementById('comparisonModal');
+
+    if (compareButton) compareButton.addEventListener('click', showComparison);
+    if (closeBtn) closeBtn.addEventListener('click', closeComparisonModal);
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target.id === 'comparisonModal') closeComparisonModal();
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!modal || modal.classList.contains('hidden')) return;
+        closeComparisonModal();
+    });
+}
+
 // Slider functionality (IIFE)
 (function () {
     const minRange = document.getElementById('sqft-min-range');
@@ -720,9 +924,11 @@ if (document.readyState === 'loading') {
         setupMapToggle();
         setupMobileMenu();
         setupModalEvents();
+        setupCompareEvents();
     });
 } else {
     setupMapToggle();
     setupMobileMenu();
     setupModalEvents();
+    setupCompareEvents();
 }

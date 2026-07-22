@@ -266,7 +266,7 @@ function createModalHTML(property) {
                 <div>
                     <div style="font-weight:600; font-size:14.5px;">${config.type}</div>
                     <div style="font-size:12.5px; color:var(--slate-500); font-family:var(--font-mono); margin-top:2px;">
-                        ${config.bedrooms || 0} bd · ${config.bathrooms || 0} ba · ${(config.square_footage || 0).toLocaleString()} sqft
+                        ${config.bedrooms || 0} bd · ${config.bathrooms || 0} ba · ${(config.square_footage || 0).toLocaleString()} sqm
                     </div>
                 </div>
                 <div style="text-align:right;">

@@ -232,6 +232,29 @@ body {
 .gallery-nav.prev { left: 10px; }
 .gallery-nav.next { right: 10px; }
 
+.compare-select {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.compare-select.selected {
+    background: var(--navy);
+    box-shadow: 0 0 0 3px rgba(28,35,80,0.30), var(--shadow-sm);
+}
+.compare-select.selected .icon-plus { display: none; }
+.compare-select.selected .icon-check { display: block !important; }
+
 .luxury-badge {
     background: rgba(255, 255, 255, 0.95);
     color: var(--ink);

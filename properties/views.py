@@ -676,7 +676,7 @@ class PropertyPDFGenerator:
         if property_obj.configurations.exists():
             story.append(Paragraph("Available Configurations", self.styles['SectionHeader']))
             
-            config_data = [['Type', 'Bedrooms', 'Bathrooms', 'Sq. Ft.', 'Price', 'Available']]
+            config_data = [['Type', 'Bedrooms', 'Bathrooms', 'Sq. M.', 'Price', 'Available']]
             
             for config in property_obj.configurations.all():
                 price_str = f"₦{config.price:,.0f}" if config.price else "On Request"
@@ -816,7 +816,7 @@ class PropertyPDFGenerator:
             
             # Configurations
             if prop.configurations.exists():
-                config_headers = ['Type', 'Bed', 'Bath', 'Sq.Ft', 'Price']
+                config_headers = ['Type', 'Bed', 'Bath', 'Sq.M', 'Price']
                 config_data = [config_headers]
                 
                 for config in prop.configurations.all()[:5]:  # Limit to 5 configs
@@ -1250,7 +1250,7 @@ def shared_properties_view(request, token):
     
     # Get properties from shared list
     properties = shared_list.properties.filter(is_active=True).prefetch_related(
-        'configurations', 'images', 'amenities'
+        *PROPERTY_PREFETCHES
     )
     
     # Apply filters
@@ -1304,7 +1304,13 @@ def shared_properties_view(request, token):
             pass
     
     properties = properties.distinct()
-        
+
+    # Full property payload (configs, amenities, images, etc.) for the client-side
+    # Compare table — mirrors temp_view/favorites_view so anonymous shared-link
+    # viewers get everything up front instead of hitting the login-required
+    # property_detail_api.
+    properties_data, _, _ = build_property_payload(request, properties)
+
     # Get filter ranges
     all_shared_properties = shared_list.properties.filter(is_active=True)
     price_range = all_shared_properties.aggregate(
@@ -1326,6 +1332,7 @@ def shared_properties_view(request, token):
     
     context = {
         'properties': properties,
+        'properties_json': json.dumps(properties_data),
         'shared_list': shared_list,
         'is_shared_view': True,
         'search_query': search_query,

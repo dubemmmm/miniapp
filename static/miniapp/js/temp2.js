@@ -22,7 +22,7 @@
         const formatted = min === max
             ? min.toLocaleString('en-US')
             : `${min.toLocaleString('en-US')}-${max.toLocaleString('en-US')}`;
-        return `${formatted} sqft`;
+        return `${formatted} sqm`;
     };
 
     const markMissingImage = image => {

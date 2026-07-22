@@ -206,7 +206,7 @@
                 </div>
                 <!-- Square Footage (Dual Slider) -->
                 <div class="mb-6" id="sqft-filter">
-                    <label class="block text-sm font-medium mb-3">Square Footage</label>
+                    <label class="block text-sm font-medium mb-3">Square Metres</label>
 
                     <!-- Hidden fields submitted with the form -->
                     <input type="hidden" name="min_square_footage" id="min_square_footage"
@@ -246,12 +246,12 @@
 
                     <!-- Readouts -->
                     <div class="flex justify-between text-sm mt-2" style="color: var(--slate-500);">
-                        <span>Min: <strong id="sqft-min-readout" style="color: var(--ink);"></strong> sqft</span>
-                        <span>Max: <strong id="sqft-max-readout" style="color: var(--ink);"></strong> sqft</span>
+                        <span>Min: <strong id="sqft-min-readout" style="color: var(--ink);"></strong> sqm</span>
+                        <span>Max: <strong id="sqft-max-readout" style="color: var(--ink);"></strong> sqm</span>
                     </div>
                     {% if filter_ranges.square_footage_range.min_square_footage and filter_ranges.square_footage_range.max_square_footage %}
                         <p class="text-xs mt-2 p-2 rounded" style="color: var(--slate-500); background: var(--slate-100);">
-                        Range: {{ filter_ranges.square_footage_range.min_square_footage|intcomma }} - {{ filter_ranges.square_footage_range.max_square_footage|intcomma }} sqft
+                        Range: {{ filter_ranges.square_footage_range.min_square_footage|intcomma }} - {{ filter_ranges.square_footage_range.max_square_footage|intcomma }} sqm
                         </p>
                     {% endif %}
                 </div>
@@ -305,9 +305,14 @@
             <!-- Properties Grid -->
             <div class="property-grid">
                 {% for property in properties %}
-                    <div class="property-card">
+                    <div class="property-card" data-property-id="{{ property.id }}">
                         <!-- Property Image Gallery -->
                         <div class="image-gallery relative">
+                            <!-- Compare selection toggle -->
+                            <div class="compare-select" role="button" tabindex="0" aria-pressed="false" aria-label="Add to comparison" title="Compare" data-property-id="{{ property.id }}" onclick="toggleCompareSelection({{ property.id }})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCompareSelection({{ property.id }});}">
+                                <svg class="icon-plus" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1C2350" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                                <svg class="icon-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none;"><path d="M5 13l4 4L19 7"/></svg>
+                            </div>
                             {% if property.images.all %}
                                 <img
                                     src="{{ property.images.first.image.url }}"
@@ -426,6 +431,32 @@
         </div>
     </div>
 
+    <!-- Floating Compare Button -->
+    <div id="compareButton" class="fixed bottom-6 right-6 z-40 hidden">
+        <button id="compareTrigger" class="flex items-center gap-2 px-6 py-3 transition-all hover:scale-105" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+            </svg>
+            <span id="compareBtnLabel">Compare</span>
+        </button>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="fixed inset-0 z-50 hidden items-center justify-center px-2 sm:px-4 py-4 sm:py-10" style="background: rgba(11,16,36,0.45); backdrop-filter: blur(4px);">
+        <div class="relative flex w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl max-h-[95vh]" style="border-radius: var(--r-xl); border: 1px solid var(--slate-200);">
+            <div class="flex items-center justify-between p-4 sm:p-6" style="border-bottom: 1px solid var(--slate-200);">
+                <h2 class="serif-display" style="font-size: 24px;">Property Comparison</h2>
+                <button id="closeComparisonModal" class="flex h-9 w-9 items-center justify-center transition" style="border-radius: 50%; background: var(--slate-100); color: var(--ink);">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="comparisonContent" class="overflow-auto p-4 sm:p-6">
+            </div>
+        </div>
+    </div>
+
     <!-- Inline script for shared configuration data -->
     <script>
         window.sharedConfig = {
@@ -461,6 +492,10 @@
             },
             pdfUrlTemplate: "{% url 'property_pdf' property_id=0 %}"
         };
+
+        // Full property data (configs, amenities, etc.) for the Compare table —
+        // sent server-side so it works for anonymous viewers without an account.
+        const sharedProperties = {{ properties_json|safe }};
     </script>
 
     <!-- External JS file -->
