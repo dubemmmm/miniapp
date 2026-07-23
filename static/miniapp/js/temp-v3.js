@@ -486,11 +486,11 @@ const createPropertyCard = (property, opts = {}) => {
         </div>`;
     const topControls = `<div style="display:flex;gap:8px;align-items:center;">${favoriteButtonTemplate(property)}${compareCheckbox}</div>`;
 
-    // Completed vs. still-building status, top-left of the card image.
+    // Completed vs. still-building vs. no known date, top-left of the card image.
     const isCompleted = property.completion_date && new Date(property.completion_date) <= new Date();
     const completionBadge = property.completion_date
         ? `<span class="status-v2 ${isCompleted ? 'available' : 'progress'}"><span class="dot"></span>${isCompleted ? 'Completed' : 'In Progress'}</span>`
-        : '<span></span>';
+        : `<span class="status-v2 tba"><span class="dot"></span>Timeline TBA</span>`;
 
     if (rail) { card.style.width = width + "px"; card.style.flex = "0 0 " + width + "px"; }
 

@@ -193,6 +193,8 @@ body {
 .status-v2.sold .dot    { background: var(--slate-400); }
 .status-v2.new          { background: var(--navy-50); color: var(--navy); }
 .status-v2.new .dot     { background: var(--navy); }
+.status-v2.tba          { background: var(--slate-100); color: var(--slate-500); }
+.status-v2.tba .dot     { background: var(--slate-400); }
 
 /* ——————————————— v3 NEW: listing badges ——————————————— */
 /* Translucent white pills with a colored dot. Adapted to our data:
