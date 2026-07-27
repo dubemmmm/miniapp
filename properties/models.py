@@ -297,6 +297,15 @@ class AirtableSyncLog(models.Model):
                 self.images_processed + self.amenities_processed)
 
 
+class SyncState(models.Model):
+    """Per-domain watermark for incremental Airtable sync (see sync_airtable --incremental)."""
+    key = models.CharField(max_length=50, unique=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.key} (last synced: {self.last_synced_at or 'never'})"
+
+
 class SharedPropertyList(models.Model):
     """Model for sharing selected properties with temporary links"""
     name = models.CharField(max_length=200, help_text="Name for this shared list")

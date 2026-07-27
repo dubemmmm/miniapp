@@ -15,10 +15,16 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
-    # Existing Airtable sync
-    "run-sync-airtable-daily": {
-        "task": "properties.tasks.run_sync_airtable",
-        "schedule": crontab(hour=0, minute=0),  # daily at midnight UTC
+    # Airtable sync: hourly incremental (only records changed since last watermark)
+    "run-sync-airtable-incremental": {
+        "task": "properties.tasks.run_sync_airtable_incremental",
+        "schedule": crontab(minute=0),  # top of every hour
+    },
+    # Airtable sync: weekly full pull + prune-missing (catches misconfigured
+    # "Last Modified" fields and reconciles deletions the incremental job can't see)
+    "run-sync-airtable-full-weekly": {
+        "task": "properties.tasks.run_sync_airtable_full",
+        "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 UTC
     },
     # CRM: mark overdue leads every 30 minutes
     "crm-sweep-overdue-leads": {

@@ -5,8 +5,8 @@ import re
 import hashlib
 import logging
 from decimal import Decimal, InvalidOperation
-from datetime import datetime
-from typing import Dict, List, Any, Optional, Set
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Set, Tuple
 
 import requests
 from decouple import config
@@ -27,9 +27,15 @@ from properties.models import (
     PropertyAmenity,
     PropertyProgress,
     PropertyProgressImage,
+    SyncState,
 )
 
 log = logging.getLogger(__name__)
+
+# Buffer against clock drift between Airtable and this server, and lag between
+# a record being saved and its "Last Modified" field actually updating.
+INCREMENTAL_BUFFER_MINUTES = 10
+LAST_MODIFIED_FIELD = "Last Modified"
 
 # ---------------------------- Helpers ---------------------------------
 
@@ -109,6 +115,16 @@ class Command(BaseCommand):
             default=None,
             help="Only sync N properties and their related records",
         )
+        parser.add_argument(
+            "--incremental",
+            action="store_true",
+            help=(
+                "Only fetch records changed since the last incremental run, per domain "
+                "(requires a 'Last Modified' field on each Airtable table). Cannot be "
+                "combined with --prune-missing, since a partial fetch can't tell what's "
+                "actually missing."
+            ),
+        )
 
     # ---------------------------- handle ---------------------------------
 
@@ -130,10 +146,19 @@ class Command(BaseCommand):
         no_files: bool = opts["no_files"]
         prune_missing: bool = opts["prune_missing"]
         limit_properties: Optional[int] = opts["limit_properties"]
+        incremental: bool = opts["incremental"]
+
+        if incremental and prune_missing:
+            raise CommandError(
+                "--incremental and --prune-missing cannot be combined: an incremental "
+                "fetch only sees changed records, so it can't tell what's actually "
+                "missing from Airtable. Run --prune-missing as part of a full pull."
+            )
 
         self.stdout.write("Starting Airtable sync...")
         self.stdout.write(
-            f"Base: {base_id} | Only: {only} | Limit: {limit or '∞'} | Dry-run: {dry_run} | Files: {'OFF' if no_files else 'ON'}"
+            f"Base: {base_id} | Only: {only} | Limit: {limit or '∞'} | Dry-run: {dry_run} | "
+            f"Files: {'OFF' if no_files else 'ON'} | Incremental: {incremental}"
         )
 
         props_t = Table(pat, base_id, tbl_props)
@@ -143,85 +168,85 @@ class Command(BaseCommand):
         progress_t = Table(pat, base_id, tbl_progress)
 
         # ----------------- Fetch all data first (so we can map links) -----------------
+        # States to advance (to their captured sync_start) once the sync below succeeds.
+        watermarks: List[Tuple[SyncState, datetime]] = []
+
+        def fetch_domain(table: Table, key: str) -> List[Dict[str, Any]]:
+            """Fetch a domain's records, applying the incremental filter/watermark when enabled."""
+            sync_start = timezone.now()
+            state = None
+            formula = None
+            if incremental:
+                state, _ = SyncState.objects.get_or_create(key=key)
+                if state.last_synced_at:
+                    since = state.last_synced_at - timedelta(minutes=INCREMENTAL_BUFFER_MINUTES)
+                    formula = f"IS_AFTER({{{LAST_MODIFIED_FIELD}}}, '{since.isoformat()}')"
+                    self.stdout.write(f"  ↳ incremental '{key}' since {since.isoformat()}")
+                else:
+                    self.stdout.write(f"  ↳ no prior watermark for '{key}'; doing a full fetch")
+            records = iter_records(table, max_records=limit, **({"formula": formula} if formula else {}))
+            if state is not None:
+                watermarks.append((state, sync_start))
+            return records
+
         prop_map: Dict[str, Dict[str, Any]] = {}
         if "properties" in only:
             self.stdout.write("Fetching properties ...")
-            prop_records = iter_records(props_t, max_records=limit)
+            prop_records = fetch_domain(props_t, "properties")
             if limit_properties:
                 prop_records = prop_records[:limit_properties]
             self.stdout.write(f"Fetched {len(prop_records)} property records")
             prop_map = self._shape_properties(prop_records, download_files=not no_files)
             self.stdout.write(f"Prepared {len(prop_map)} properties")
 
-        # track the set of property Airtable IDs we are syncing (for selective pruning)
+        # Track the set of property Airtable IDs fetched this run (for selective pruning;
+        # only meaningful on a full pull — incremental + --prune-missing is disallowed above).
         synced_prop_ids: Set[str] = set(prop_map.keys())
+
+        # Full universe of known properties, used to resolve links for the domains below.
+        # An incremental fetch only returns *changed* properties, so a configuration/image/
+        # amenity/progress row whose linked property didn't change today still needs to
+        # resolve against something — fall back to what's already in the DB for those.
+        link_map: Dict[str, Dict[str, Any]] = dict(prop_map)
+        if incremental or "properties" not in only:
+            db_props = Property.objects.filter(airtable_id__isnull=False).values("airtable_id", "name", "slug")
+            for dp in db_props:
+                link_map.setdefault(dp["airtable_id"], {"name": dp["name"], "slug": dp["slug"]})
 
         cfg_data: List[Dict[str, Any]] = []
         if "configurations" in only:
-            # If we're syncing configurations but not properties, build a minimal prop_map from DB
-            if not prop_map:
-                self.stdout.write("Building property map from database for configurations sync...")
-                db_props = Property.objects.filter(airtable_id__isnull=False)
-                for prop in db_props:
-                    prop_map[prop.airtable_id] = {"name": prop.name, "slug": prop.slug}
-                self.stdout.write(f"Found {len(prop_map)} properties in database")
-
             self.stdout.write("Fetching configurations ...")
-            cfg_records = iter_records(cfgs_t, max_records=limit)
+            cfg_records = fetch_domain(cfgs_t, "configurations")
             self.stdout.write(f"Fetched {len(cfg_records)} configuration records")
-            cfg_data = self._shape_configurations(cfg_records, prop_map)
+            cfg_data = self._shape_configurations(cfg_records, link_map)
             self.stdout.write(f"Prepared {len(cfg_data)} configurations")
 
         img_data: List[Dict[str, Any]] = []
         if "images" in only:
-            # If we're syncing images but not properties, build a minimal prop_map from DB
-            if not prop_map:
-                self.stdout.write("Building property map from database for images sync...")
-                db_props = Property.objects.filter(airtable_id__isnull=False)
-                for prop in db_props:
-                    prop_map[prop.airtable_id] = {"name": prop.name, "slug": prop.slug}
-                self.stdout.write(f"Found {len(prop_map)} properties in database")
-
             self.stdout.write("Fetching images ...")
-            img_records = iter_records(imgs_t, max_records=limit)
+            img_records = fetch_domain(imgs_t, "images")
             self.stdout.write(f"Fetched {len(img_records)} image records")
-            img_data = self._shape_images(img_records, prop_map)
+            img_data = self._shape_images(img_records, link_map)
             self.stdout.write(f"Prepared {len(img_data)} images")
 
         amen_data: List[Dict[str, Any]] = []
         if "amenities" in only:
-            # If we're syncing amenities but not properties, build a minimal prop_map from DB
-            if not prop_map:
-                self.stdout.write("Building property map from database for amenities sync...")
-                db_props = Property.objects.filter(airtable_id__isnull=False)
-                for prop in db_props:
-                    prop_map[prop.airtable_id] = {"name": prop.name, "slug": prop.slug}
-                self.stdout.write(f"Found {len(prop_map)} properties in database")
-
             self.stdout.write("Fetching amenities ...")
-            amen_records = iter_records(amen_t, max_records=limit)
+            amen_records = fetch_domain(amen_t, "amenities")
             self.stdout.write(f"Fetched {len(amen_records)} amenity records")
-            amen_data = self._shape_amenities(amen_records, prop_map)
+            amen_data = self._shape_amenities(amen_records, link_map)
             self.stdout.write(f"Prepared {len(amen_data)} amenities")
 
         progress_data: List[Dict[str, Any]] = []
         if "progress" in only:
-            # If we're syncing progress but not properties, build a minimal prop_map from DB
-            if not prop_map:
-                self.stdout.write("Building property map from database for progress sync...")
-                db_props = Property.objects.filter(airtable_id__isnull=False)
-                for prop in db_props:
-                    prop_map[prop.airtable_id] = {"name": prop.name, "slug": prop.slug}
-                self.stdout.write(f"Found {len(prop_map)} properties in database")
-
             self.stdout.write("Fetching progress updates ...")
-            progress_records = iter_records(progress_t, max_records=limit)
+            progress_records = fetch_domain(progress_t, "progress")
             self.stdout.write(f"Fetched {len(progress_records)} progress records")
-            progress_data = self._shape_progress(progress_records, prop_map)
+            progress_data = self._shape_progress(progress_records, link_map)
             self.stdout.write(f"Prepared {len(progress_data)} progress updates")
 
         if dry_run:
-            self._preview(prop_map, cfg_data, img_data, amen_data)
+            self._preview(prop_map, cfg_data, img_data, amen_data, link_map=link_map)
             if prune_missing and synced_prop_ids:
                 self._preview_prune(prop_map, cfg_data, img_data, amen_data)
             self.stdout.write(self.style.SUCCESS("Dry run complete — no writes performed."))
@@ -256,6 +281,15 @@ class Command(BaseCommand):
                     self._prune_missing_amenities(synced_prop_ids, {a["airtable_id"] for a in amen_data})
                 if "progress" in only:
                     self._prune_missing_progress(synced_prop_ids, {p["airtable_id"] for p in progress_data})
+
+            # Only advance each domain's watermark once its writes above have gone through —
+            # if anything before this point raises, the whole transaction rolls back and
+            # these updates never commit, so next run naturally retries the same window.
+            for state, sync_start in watermarks:
+                state.last_synced_at = sync_start
+                state.save(update_fields=["last_synced_at"])
+            if watermarks:
+                self.stdout.write(f"Advanced watermark for: {', '.join(s.key for s, _ in watermarks)}")
 
         self.stdout.write(self.style.SUCCESS("✅ Airtable sync finished"))
 
@@ -912,30 +946,35 @@ class Command(BaseCommand):
         except Property.DoesNotExist:
             return None
 
-    def _preview(self, prop_map, cfg_data, img_data, amen_data):
+    def _preview(self, prop_map, cfg_data, img_data, amen_data, *, link_map=None):
+        # link_map covers the full known-property universe (used for incremental runs,
+        # where cfg/img/amenity records may point at properties that weren't re-fetched
+        # this run); falls back to prop_map itself for a plain full-pull preview.
+        names = link_map if link_map is not None else prop_map
+
         self.stdout.write(f"🔎 Would upsert {len(prop_map)} properties:")
         for p in list(prop_map.values())[:10]:
             self.stdout.write(f"  - {p['name']} (slug: {p['slug']})")
 
-        cfgs = [c for c in cfg_data if c['property_id'] in prop_map]
+        cfgs = [c for c in cfg_data if c['property_id'] in names]
         self.stdout.write(f"🔎 Would upsert {len(cfgs)} configurations:")
         for c in cfgs[:10]:
-            pname = prop_map[c['property_id']]['name']
+            pname = names[c['property_id']]['name']
             self.stdout.write(
                 f"  - {pname}: {c['type']} | {c['bedrooms']} BR / {c['bathrooms']} BA | price={c['price']}"
             )
 
-        imgs = [i for i in img_data if i['property_id'] in prop_map]
+        imgs = [i for i in img_data if i['property_id'] in names]
         self.stdout.write(f"🔎 Would upsert {len(imgs)} images:")
         for i in imgs[:10]:
-            pname = prop_map[i['property_id']]['name']
+            pname = names[i['property_id']]['name']
             url = i['image_url']
             self.stdout.write(f"  - {pname}: order={i['order']} url={(url[:60] + '...') if url else '—'}")
 
-        ams = [a for a in amen_data if a['property_id'] in prop_map]
+        ams = [a for a in amen_data if a['property_id'] in names]
         self.stdout.write(f"🔎 Would upsert {len(ams)} amenities:")
         for a in ams[:10]:
-            pname = prop_map[a['property_id']]['name']
+            pname = names[a['property_id']]['name']
             self.stdout.write(f"  - {pname}: {a['name']}")
 
     def _preview_prune(self, prop_map, cfg_data, img_data, amen_data):
