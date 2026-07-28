@@ -250,9 +250,11 @@ class LeadsListView(CRMAccessMixin, TemplateView):
         page = self.request.GET.get('page', 1)
         leads_page = paginator.get_page(page)
 
-        # Annotate each lead with current agent name
+        # Annotate each lead with current agent name. Uses the already-prefetched
+        # `.all()` and filters in Python — calling `.filter()` on the related manager
+        # here would issue a fresh query per lead instead of reading the prefetch cache.
         for lead in leads_page:
-            current = lead.assignments.filter(is_current=True).first()
+            current = next((a for a in lead.assignments.all() if a.is_current), None)
             lead.current_agent = current.agent if current else None
 
         # KPI counts (unfiltered, scoped to what the user can see)

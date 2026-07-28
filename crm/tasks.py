@@ -443,7 +443,7 @@ def compute_response_scores():
     from crm.models import Lead, ActivityLog
     from properties.models import UserProfile
     from datetime import timedelta
-    from django.db.models import Q
+    from django.db.models import Q, Min, F
 
     now = timezone.now()
     thirty_days_ago = now - timedelta(days=30)
@@ -456,11 +456,19 @@ def compute_response_scores():
     agents = UserProfile.objects.filter(role='agent', user__is_active=True).select_related('user')
 
     for agent_profile in agents:
-        # Leads assigned to this agent in the last 30 days
+        # Leads assigned to this agent in the last 30 days, annotated with each lead's
+        # earliest contact timestamp (if any) — computed in the DB, not fetched and
+        # looped over in Python, so this is 2 aggregate queries per agent regardless
+        # of how many leads they have.
         assigned_leads = Lead.objects.filter(
             assignments__agent=agent_profile.user,
             assignments__is_current=True,
             created_at__gte=thirty_days_ago,
+        ).annotate(
+            first_contact_at=Min(
+                'activity_logs__created_at',
+                filter=Q(activity_logs__event_type__in=contact_events),
+            )
         )
         total = assigned_leads.count()
 
@@ -468,14 +476,10 @@ def compute_response_scores():
             # No leads → keep existing score to avoid penalising new/inactive agents
             continue
 
-        # Of those, how many were contacted within SLA?
-        contacted_within_sla = 0
-        for lead in assigned_leads:
-            first_contact = lead.activity_logs.filter(
-                event_type__in=contact_events
-            ).order_by('created_at').first()
-            if first_contact and first_contact.created_at <= lead.sla_deadline:
-                contacted_within_sla += 1
+        contacted_within_sla = assigned_leads.filter(
+            first_contact_at__isnull=False,
+            first_contact_at__lte=F('sla_deadline'),
+        ).count()
 
         score = round(contacted_within_sla / total, 4)
         UserProfile.objects.filter(pk=agent_profile.pk).update(response_score=score)
