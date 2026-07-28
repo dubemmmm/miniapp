@@ -20,11 +20,12 @@ app.conf.beat_schedule = {
         "task": "properties.tasks.run_sync_airtable_incremental",
         "schedule": crontab(minute=0),  # top of every hour
     },
-    # Airtable sync: weekly full pull + prune-missing (catches misconfigured
-    # "Last Modified" fields and reconciles deletions the incremental job can't see)
-    "run-sync-airtable-full-weekly": {
+    # Airtable sync: daily full pull + prune-missing (catches misconfigured
+    # "Last Modified" fields and reconciles deletions the incremental job can't see).
+    # Matches the cadence of the old sync_airtable.sh cron job it replaces.
+    "run-sync-airtable-full-daily": {
         "task": "properties.tasks.run_sync_airtable_full",
-        "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 UTC
+        "schedule": crontab(hour=19, minute=0),  # daily 19:00 UTC
     },
     # CRM: mark overdue leads every 30 minutes
     "crm-sweep-overdue-leads": {
