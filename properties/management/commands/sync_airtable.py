@@ -691,6 +691,10 @@ class Command(BaseCommand):
                 continue
 
             obj, created = PropertyImage.objects.get_or_create(airtable_id=im["airtable_id"], defaults=defaults)
+            # Capture the hash as it was BEFORE the diff loop below can overwrite it, so the
+            # download decision compares old vs. new correctly instead of comparing a value
+            # against itself.
+            prior_hash = "" if created else obj.image_url_hash
 
             if not created:
                 changed = False
@@ -703,7 +707,7 @@ class Command(BaseCommand):
                     obj.save()
                     self.stdout.write(f"🔄 Updated image meta: {prop.name} (order {obj.order})")
 
-            needs_download = created or not obj.image or obj.image_url_hash != url_hash
+            needs_download = created or not obj.image or prior_hash != url_hash
 
             if not no_files and needs_download:
                 if not url:
