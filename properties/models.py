@@ -60,7 +60,11 @@ class Property(models.Model):
     contact_phone = models.CharField(max_length=20, blank=True)
     brochure = models.FileField(upload_to=brochure_path, blank=True, null=True)
     thumbnail = models.ImageField(upload_to=property_thumbnail_path, blank=True, null=True)
-    
+    brochure_url_hash = models.CharField(max_length=64, blank=True,
+                                         help_text="SHA256 hash of brochure URL to detect changes")
+    thumbnail_url_hash = models.CharField(max_length=64, blank=True,
+                                          help_text="SHA256 hash of thumbnail URL to detect changes")
+
     # Status fields
     is_active = models.BooleanField(default=True)
     luxury_status = models.CharField(

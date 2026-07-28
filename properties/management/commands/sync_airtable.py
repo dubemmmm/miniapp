@@ -196,7 +196,7 @@ class Command(BaseCommand):
             if limit_properties:
                 prop_records = prop_records[:limit_properties]
             self.stdout.write(f"Fetched {len(prop_records)} property records")
-            prop_map = self._shape_properties(prop_records, download_files=not no_files)
+            prop_map = self._shape_properties(prop_records)
             self.stdout.write(f"Prepared {len(prop_map)} properties")
 
         # Track the set of property Airtable IDs fetched this run (for selective pruning;
@@ -295,15 +295,11 @@ class Command(BaseCommand):
 
     # --------------------------- Shapers ---------------------------------
 
-    def _shape_properties(self, records: List[Dict[str, Any]], download_files: bool = False) -> Dict[str, Dict[str, Any]]:
-        """Shape properties and (optionally) download files immediately while Airtable URLs are fresh."""
+    def _shape_properties(self, records: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Shape properties. Brochure/thumbnail files are NOT downloaded here — only their
+        URL hashes are computed, so the sync step can skip re-downloading files that haven't
+        actually changed (see _sync_properties)."""
         out: Dict[str, Dict[str, Any]] = {}
-
-        sess = None
-        headers = None
-        if download_files:
-            sess = requests.Session()
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
 
         for rec in records:
             rid = rec.get("id")
@@ -318,32 +314,8 @@ class Command(BaseCommand):
             thumbnail_att = first_attachment(f.get("Thumbnail") or f.get("Thumbnails"))
             brochure_url = brochure_att.get("url") if brochure_att else None
             thumbnail_url = thumbnail_att.get("url") if thumbnail_att else None
-
-            brochure_data = None
-            thumbnail_data = None
-
-            if download_files and sess is not None:
-                if brochure_url:
-                    try:
-                        r = sess.get(brochure_url, timeout=60, headers=headers)
-                        if r.status_code == 200 and r.content and len(r.content) > 100:
-                            brochure_data = r.content
-                            self.stdout.write(f"  📎 Downloaded brochure for {name} ({len(r.content)} bytes)")
-                        else:
-                            self.stdout.write(f"  ⚠️ Brochure download issue for {name}: status={r.status_code}")
-                    except Exception as e:
-                        self.stdout.write(f"  ⚠️ Brochure download error for {name}: {e}")
-
-                if thumbnail_url:
-                    try:
-                        r = sess.get(thumbnail_url, timeout=60, headers=headers)
-                        if r.status_code == 200 and r.content and len(r.content) > 100:
-                            thumbnail_data = r.content
-                            self.stdout.write(f"  🖼️ Downloaded thumbnail for {name} ({len(r.content)} bytes)")
-                        else:
-                            self.stdout.write(f"  ⚠️ Thumbnail download issue for {name}: status={r.status_code}")
-                    except Exception as e:
-                        self.stdout.write(f"  ⚠️ Thumbnail download error for {name}: {e}")
+            brochure_url_hash = hashlib.sha256(brochure_url.encode()).hexdigest() if brochure_url else ""
+            thumbnail_url_hash = hashlib.sha256(thumbnail_url.encode()).hexdigest() if thumbnail_url else ""
 
             out[rid] = {
                 "airtable_id": rid,
@@ -359,9 +331,10 @@ class Command(BaseCommand):
                 "luxury_status": (f.get("Luxury Status") or "non_luxurious").strip(),
                 "is_active": bool(f.get("Is Active")),
                 "completion_date": to_date(f.get("Completion Date")),
-                # File bytes (if downloaded now)
-                "brochure_data": brochure_data,
-                "thumbnail_data": thumbnail_data,
+                "brochure_url": brochure_url,
+                "thumbnail_url": thumbnail_url,
+                "brochure_url_hash": brochure_url_hash,
+                "thumbnail_url_hash": thumbnail_url_hash,
             }
 
         return out
@@ -533,6 +506,9 @@ class Command(BaseCommand):
 
     def _sync_properties(self, prop_map: Dict[str, Dict[str, Any]], *, dry_run: bool, no_files: bool):
         self.stdout.write(f"Syncing {len(prop_map)} properties ...")
+        sess = requests.Session() if not no_files else None
+        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"} if sess else None
+
         for rid, p in prop_map.items():
             fields = {
                 "name": p["name"],
@@ -550,19 +526,21 @@ class Command(BaseCommand):
                 "is_active": p["is_active"],
                 "luxury_status": p["luxury_status"] if p["luxury_status"] in {c[0] for c in Property.LUXURY_CHOICES} else "non_luxurious",
                 "completion_date": p["completion_date"],
+                "brochure_url_hash": p["brochure_url_hash"],
+                "thumbnail_url_hash": p["thumbnail_url_hash"],
             }
 
             if dry_run:
                 self.stdout.write(f"🔍 Would upsert property: {fields['name']}")
-                if not no_files:
-                    if p.get("brochure_data"):
-                        self.stdout.write(f"  → Would save brochure ({len(p['brochure_data'])} bytes)")
-                    if p.get("thumbnail_data"):
-                        self.stdout.write(f"  → Would save thumbnail ({len(p['thumbnail_data'])} bytes)")
                 continue
 
             try:
                 obj, created = Property.objects.get_or_create(airtable_id=rid, defaults=fields)
+                # Capture the hashes as they were BEFORE the diff loop below can overwrite
+                # them, so the file-download decision compares old vs. new correctly.
+                prior_brochure_hash = "" if created else obj.brochure_url_hash
+                prior_thumbnail_hash = "" if created else obj.thumbnail_url_hash
+
                 if not created:
                     changed = False
                     for k, v in fields.items():
@@ -581,22 +559,37 @@ class Command(BaseCommand):
                     self.stdout.write(f"✅ Created property: {obj.name}")
 
                 if not no_files:
+                    needs_brochure = created or not obj.brochure or prior_brochure_hash != p["brochure_url_hash"]
+                    needs_thumbnail = created or not obj.thumbnail or prior_thumbnail_hash != p["thumbnail_url_hash"]
+
                     try:
-                        if p.get("brochure_data"):
-                            fname = f"brochure_{obj.slug}.pdf"
-                            if obj.brochure:
-                                obj.brochure.delete(save=False)
-                            obj.brochure.save(fname, ContentFile(p["brochure_data"]), save=False)
-                            self.stdout.write("  📎 Saved brochure to storage")
+                        if needs_brochure and p.get("brochure_url"):
+                            r = sess.get(p["brochure_url"], timeout=60, headers=headers)
+                            if r.status_code == 200 and r.content and len(r.content) > 100:
+                                fname = f"brochure_{obj.slug}.pdf"
+                                if obj.brochure:
+                                    obj.brochure.delete(save=False)
+                                obj.brochure.save(fname, ContentFile(r.content), save=False)
+                                self.stdout.write(f"  📎 Downloaded + saved brochure for {obj.name} ({len(r.content)} bytes)")
+                            else:
+                                self.stderr.write(f"  ⚠️ Brochure download issue for {obj.name}: status={r.status_code}")
+                        elif not no_files and obj.brochure:
+                            self.stdout.write(f"  ✅ Brochure unchanged for {obj.name} — skipping download")
 
-                        if p.get("thumbnail_data"):
-                            fname = f"thumbnail_{obj.slug}.jpg"
-                            if obj.thumbnail:
-                                obj.thumbnail.delete(save=False)
-                            obj.thumbnail.save(fname, ContentFile(p["thumbnail_data"]), save=False)
-                            self.stdout.write("  🖼️ Saved thumbnail to storage")
+                        if needs_thumbnail and p.get("thumbnail_url"):
+                            r = sess.get(p["thumbnail_url"], timeout=60, headers=headers)
+                            if r.status_code == 200 and r.content and len(r.content) > 100:
+                                fname = f"thumbnail_{obj.slug}.jpg"
+                                if obj.thumbnail:
+                                    obj.thumbnail.delete(save=False)
+                                obj.thumbnail.save(fname, ContentFile(r.content), save=False)
+                                self.stdout.write(f"  🖼️ Downloaded + saved thumbnail for {obj.name} ({len(r.content)} bytes)")
+                            else:
+                                self.stderr.write(f"  ⚠️ Thumbnail download issue for {obj.name}: status={r.status_code}")
+                        elif not no_files and obj.thumbnail:
+                            self.stdout.write(f"  ✅ Thumbnail unchanged for {obj.name} — skipping download")
 
-                        if p.get("brochure_data") or p.get("thumbnail_data"):
+                        if needs_brochure or needs_thumbnail:
                             obj.save()
                     except Exception as file_err:
                         self.stderr.write(f"  ⚠️ File save error for {obj.name}: {file_err}")
