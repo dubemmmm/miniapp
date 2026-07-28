@@ -20,6 +20,9 @@ db.sqlite3
 dump.rdb
 *.rdb
 
+# Celery
+celerybeat-schedule.db
+
 # Environment
 .env
 *.env
