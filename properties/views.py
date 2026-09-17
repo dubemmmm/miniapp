@@ -1007,6 +1007,7 @@ def dashboard_view(request):
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
         'user_initials': get_user_initials(request.user),
         'user_full_name': request.user.get_full_name() or request.user.username,
+        'carto_api_key': settings.CARTO_API_KEY,
     }
 
     return render(request, 'dashboard.html', context)

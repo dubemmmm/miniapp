@@ -320,6 +320,9 @@ AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=31536000, public"}  # good 
 # N8N Chat Widget Settings
 N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')
 
+# CARTO Basemaps API key (dashboard map tiles)
+CARTO_API_KEY = config('CARTO_API_KEY', default='')
+
 # CRM / SendGrid Settings
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='cwresocial@gmail.com')

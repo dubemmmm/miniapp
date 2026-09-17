@@ -59,7 +59,9 @@ function initMap() {
 
     // CartoDB "Voyager" basemap — clean editorial style with subtle colour
     // (green parks, blue water, soft roads); labels are baked in.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // Requires a CARTO Basemaps API key (window.CARTO_API_KEY, injected by dashboard.html).
+    const cartoApiKey = window.CARTO_API_KEY || '';
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(cartoApiKey), {
         subdomains: 'abcd',
         maxZoom: 20,
         attribution: '© OpenStreetMap contributors © CARTO'

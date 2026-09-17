@@ -670,6 +670,7 @@
     };
 </script>
 
+<script>window.CARTO_API_KEY = "{{ carto_api_key|escapejs }}";</script>
 <script src="{% static 'miniapp/js/cards.js' %}"></script>
 <script src="{% static 'miniapp/js/dashboard-v3.js' %}"></script>
 {% endblock %}
