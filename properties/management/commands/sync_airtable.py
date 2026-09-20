@@ -516,8 +516,11 @@ class Command(BaseCommand):
                 "address": p["address"],
                 # Airtable's Location single-select is authoritative. Any value it
                 # sends is trusted (so new locations work without a code change);
-                # only fall back to guessing from the address when it's left blank.
-                "location": p["location"] or extract_location(p["address"]),
+                # only fall back to guessing from the address when it's left blank
+                # OR when Airtable itself sent the literal "Others" sentinel — that's
+                # its own lazy default, not a deliberate choice, so it's always worth
+                # a second guess from the address text.
+                "location": p["location"] if p["location"] and p["location"] != "Others" else extract_location(p["address"]),
                 "description": p["description"],
                 "latitude": p["latitude"],
                 "longitude": p["longitude"],
