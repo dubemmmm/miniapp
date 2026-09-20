@@ -741,3 +741,50 @@ class PropertyProgressImage(models.Model):
 
     def __str__(self):
         return f"{self.progress_update.property.name} - Progress Image {self.order}"
+
+
+class NeighbourhoodProfile(models.Model):
+    """Editable editorial copy for a public market page (see properties/markets.py).
+
+    Everything is optional. When a field is blank the page falls back to text
+    generated from the tracked data, so a page is never empty. The market is
+    identified by its URL slug, e.g. 'ikoyi' or 'banana-island'.
+    """
+    market_slug = models.SlugField(
+        unique=True,
+        help_text="URL slug of the market this copy belongs to, e.g. ikoyi or banana-island.",
+    )
+    overview = models.TextField(
+        blank=True,
+        help_text="Neighbourhood overview. Leave blank to show a factual paragraph built from the numbers.",
+    )
+    commentary = models.TextField(
+        blank=True,
+        help_text="Market commentary, shown above the generated 'What the numbers say' points.",
+    )
+    guide_title = models.CharField(max_length=200, blank=True, help_text="Title of the downloadable guide.")
+    guide_file = models.FileField(
+        upload_to='guides/', blank=True,
+        help_text="Guide PDF. The download section only appears once a file is uploaded.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['market_slug']
+
+    def __str__(self):
+        return f"Neighbourhood copy: {self.market_slug}"
+
+
+class NeighbourhoodFAQ(models.Model):
+    """A hand-written question and answer for a market page, shown after the generated ones."""
+    profile = models.ForeignKey(NeighbourhoodProfile, on_delete=models.CASCADE, related_name='faqs')
+    question = models.CharField(max_length=300)
+    answer = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.question

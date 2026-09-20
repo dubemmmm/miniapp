@@ -5,6 +5,7 @@ import hashlib
 import math
 import random
 from decimal import Decimal
+from django.utils.text import slugify
 
 
 # Canonical location groups shown in the admin dropdown.
@@ -30,6 +31,41 @@ LOCATION_KEYWORDS = {
     'Lekki': ['lekki', 'ajah', 'osapa', 'chevron', 'ikate', 'agungi'],
     'Victoria Island': ['victoria island', 'oniru', 'vi ', ' vi,', 'v.i'],
 }
+
+# Slug <-> canonical location lookup for public neighbourhood pages. 'Others'
+# is never a real, linkable district, so it's excluded here — stays correct
+# automatically if LOCATION_CHOICES grows.
+TRACKED_LOCATION_SLUGS = {
+    slugify(value): value for value, _ in LOCATION_CHOICES if value != 'Others'
+}
+
+
+def location_slug(value):
+    """Canonical location value -> its public URL slug."""
+    return slugify(value)
+
+
+def location_from_slug(slug):
+    """Public URL slug -> canonical location value, or None if unknown."""
+    return TRACKED_LOCATION_SLUGS.get(slug)
+
+
+PAIR_SEPARATOR = '-vs-'
+
+
+def pair_slug(slug_a, slug_b):
+    """Canonical URL slug for comparing two neighbourhoods. Sorted, so every
+    pair has exactly one URL ('ikoyi-vs-victoria-island', never the reverse)."""
+    first, second = sorted([slug_a, slug_b])
+    return f"{first}{PAIR_SEPARATOR}{second}"
+
+
+def parse_pair_slug(pair):
+    """'ikoyi-vs-victoria-island' -> ('ikoyi', 'victoria-island'), or None."""
+    if PAIR_SEPARATOR not in pair:
+        return None
+    first, second = pair.split(PAIR_SEPARATOR, 1)
+    return first, second
 
 
 def extract_location(address):

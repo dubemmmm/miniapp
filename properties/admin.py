@@ -651,3 +651,46 @@ class PropertyProgressImageAdmin(admin.ModelAdmin):
             )
         return "No image"
     image_preview_large.short_description = 'Large Preview'
+
+
+# ---------------------------------------------------------------------------
+# Public neighbourhood pages: editable copy
+# ---------------------------------------------------------------------------
+from django import forms as _forms
+from .markets import MARKETS
+from .models import NeighbourhoodProfile, NeighbourhoodFAQ
+
+
+class NeighbourhoodFAQInline(admin.StackedInline):
+    model = NeighbourhoodFAQ
+    extra = 1
+
+
+class NeighbourhoodProfileForm(_forms.ModelForm):
+    market_slug = _forms.ChoiceField(
+        choices=[(m.slug, m.label) for m in MARKETS],
+        help_text="Which public neighbourhood page this copy belongs to.",
+    )
+
+    class Meta:
+        model = NeighbourhoodProfile
+        fields = '__all__'
+
+
+@admin.register(NeighbourhoodProfile)
+class NeighbourhoodProfileAdmin(admin.ModelAdmin):
+    form = NeighbourhoodProfileForm
+    list_display = ('market_slug', 'has_overview', 'has_commentary', 'has_guide', 'updated_at')
+    inlines = [NeighbourhoodFAQInline]
+
+    @admin.display(boolean=True, description='Overview')
+    def has_overview(self, obj):
+        return bool(obj.overview.strip())
+
+    @admin.display(boolean=True, description='Commentary')
+    def has_commentary(self, obj):
+        return bool(obj.commentary.strip())
+
+    @admin.display(boolean=True, description='Guide')
+    def has_guide(self, obj):
+        return bool(obj.guide_file)
