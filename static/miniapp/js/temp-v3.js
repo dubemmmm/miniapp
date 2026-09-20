@@ -1609,7 +1609,10 @@ const populateHero = () => {
     }
 
     // Featured card — pick luxury or first property
-    const featured = properties.find(p => p.luxury_status === 'luxurious') || properties[0];
+    // Only consider properties that have at least one configuration — a synced
+    // property with none would otherwise crash the reduce() below.
+    const featurable = properties.filter(p => p.configurations && p.configurations.length);
+    const featured = featurable.find(p => p.luxury_status === 'luxurious') || featurable[0];
     const card = document.getElementById('heroFeaturedCard');
     if (!card || !featured) return;
 
@@ -1647,7 +1650,12 @@ const populateHero = () => {
     }
 };
 
-populateHero();
+// The hero is decorative — a failure here must never stop the grid from rendering.
+try {
+    populateHero();
+} catch (error) {
+    console.error('Hero initialization error:', error);
+}
 
 try {
     initFilters();
