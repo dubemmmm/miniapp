@@ -54,6 +54,11 @@ def assign_agent(lead):
             property_category = (prop.luxury_status or '').lower()
         except Exception:
             pass
+    elif lead.property_location_snapshot:
+        # Leads without a property (e.g. a curated-shortlist request from a
+        # neighbourhood page) carry their market as the location snapshot, so
+        # agents whose coverage_locations include that area still match.
+        property_location = lead.property_location_snapshot.lower()
 
     # --- Compute raw metrics ---
     max_open = max((a.current_open_leads for a in eligible), default=0) or 1

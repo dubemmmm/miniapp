@@ -117,7 +117,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-slate-200 text-xs font-semibold truncate">{{ request.user.get_full_name|default:request.user.username }}</p>
-          <p class="text-slate-500 text-xs capitalize truncate">{{ request.user.profile.role|default:"—" }}</p>
+          <p class="text-slate-500 text-xs capitalize truncate">{{ request.user.profile.role|default:"N/A" }}</p>
         </div>
         <a href="{% url 'logout' %}" class="text-slate-500 hover:text-rose-400 transition" title="Sign out">
           <i class="fas fa-sign-out-alt text-sm"></i>

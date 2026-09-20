@@ -55,6 +55,8 @@ def send_visitor_confirmation(self, lead_id):
     lead = _get_lead(lead_id)
     agent_user = _get_current_agent(lead)
 
+    is_access = getattr(lead.source, 'slug', '') == 'access-request'
+    template_name = 'access_confirmation' if is_access else 'visitor_confirmation'
     idempotency_key = f"{lead_id}:visitor_confirmation:{lead.email}"
     email_log, created = EmailLog.objects.get_or_create(
         idempotency_key=idempotency_key,
@@ -62,8 +64,9 @@ def send_visitor_confirmation(self, lead_id):
             'lead': lead,
             'recipient_email': lead.email,
             'recipient_type': EmailLog.RecipientType.VISITOR,
-            'template_name': 'visitor_confirmation',
-            'subject': f"Your enquiry for {lead.property_title_snapshot} has been received",
+            'template_name': template_name,
+            'subject': ("We've received your request for access to CW Real Estate" if is_access
+                        else f"Your enquiry for {lead.property_title_snapshot} has been received"),
             'status': EmailLog.Status.PENDING,
         }
     )
@@ -99,7 +102,7 @@ def send_visitor_confirmation(self, lead_id):
         'privacy_policy_link': f"{_site_url()}/privacy/",
     }
 
-    body = render_template('visitor_confirmation', context)
+    body = render_template(template_name, context)
     # Extract subject from first line of template (line starting with "Subject:")
     lines = body.splitlines()
     subject = email_log.subject

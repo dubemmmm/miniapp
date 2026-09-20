@@ -9,7 +9,7 @@ ${agent_name}
 Email: ${agent_email}
 
 WHAT HAPPENS NEXT
-1. Your agent will review your enquiry within 2 business hours.
+1. Your agent will review your enquiry within 2 business days.
 2. They will contact you to discuss the property and answer your questions.
 3. If you're interested, they'll arrange a viewing at a time that suits you.
 

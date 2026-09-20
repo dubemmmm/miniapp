@@ -14,10 +14,10 @@ from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
 from crm.assignment import assign_agent
-from crm.forms import EnquiryForm
+from crm.forms import EnquiryForm, ShortlistForm
 from crm.mixins import AdminOnlyMixin, CRMAccessMixin
 from crm.models import (
-    ActivityLog, EmailLog, FollowUp, Lead, LeadAssignment, SLAConfig,
+    ActivityLog, EmailLog, FollowUp, Lead, LeadAssignment, LeadSource, SLAConfig,
 )
 from crm.utils import compute_sla_deadline, get_client_ip
 from properties.models import Property, UserProfile
@@ -203,6 +203,165 @@ def enquiry_submit(request, property_pk):
 
     _increment_rate(request)
     return JsonResponse({'success': True})
+
+
+SHORTLIST_SOURCES = {
+    'shortlist': ('neighbourhood-shortlist', 'Neighbourhood page: curated shortlist'),
+    'guide': ('guide-download', 'Neighbourhood page: guide download'),
+    'access': ('access-request', 'Private access request'),
+}
+
+
+def request_shortlist(request):
+    """Public POST endpoint for the neighbourhood pages: a curated-shortlist
+    request, or details left to download that neighbourhood's guide.
+
+    Runs the same pipeline as a property enquiry (dedup, Lead, activity log,
+    agent assignment, confirmation and agent emails) but for a lead that has no
+    single property: the market is carried in the location snapshot, so agent
+    coverage matching still works. Returns JSON for the in-page fetch handler.
+    """
+    from properties.markets import market_from_slug
+    from properties.models import NeighbourhoodProfile
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    # Silent honeypot discard: report success so bots learn nothing.
+    if request.POST.get('website'):
+        return JsonResponse({'success': True})
+
+    # Same lightweight session rate limit as the property enquiry form.
+    now_ts = timezone.now().timestamp()
+    window_start = request.session.get('enquiry_rate_window', now_ts)
+    if now_ts - window_start > 600:
+        request.session['enquiry_rate'] = 0
+        request.session['enquiry_rate_window'] = now_ts
+    if request.session.get('enquiry_rate', 0) >= 3:
+        return JsonResponse({'error': 'Too many submissions. Please wait a few minutes and try again.'}, status=429)
+
+    form = ShortlistForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({'errors': form.errors}, status=400)
+    data = form.cleaned_data
+
+    market = market_from_slug(data['market']) if data.get('market') else None
+    intent = data['intent']
+    if intent == 'guide':
+        profile = NeighbourhoodProfile.objects.filter(market_slug=market.slug).first()
+        if not (profile and profile.guide_file):
+            return JsonResponse({'error': 'This guide is not available yet.'}, status=404)
+        title = f"the {market.label} market guide"
+    elif intent == 'access':
+        title = 'private access'
+    else:
+        title = 'a curated shortlist'
+    location = f"{market.label}, Lagos" if market else 'Lagos'
+    if market:
+        page_url = request.build_absolute_uri(f'/neighbourhoods/{market.slug}/')
+    else:
+        page_url = request.build_absolute_uri('/request-access/')
+
+    if intent == 'access':
+        message_lines = [
+            'Private access request: wants a client account.',
+            f"Area of interest: {market.label}" if market else 'Area of interest: not stated',
+        ]
+    else:
+        message_lines = [
+            f"{'Guide download' if intent == 'guide' else 'Curated shortlist request'} from the {market.label} page.",
+        ]
+    if data.get('budget'):
+        message_lines.append(f"Budget: {data['budget']}")
+    if data.get('bedrooms'):
+        message_lines.append(f"Bedrooms: {data['bedrooms']}")
+    if data.get('message'):
+        message_lines.append(f"\n{data['message']}")
+    message = '\n'.join(message_lines)
+
+    ip_hash = hashlib.sha256(get_client_ip(request).encode()).hexdigest()
+    sla_config = SLAConfig.get()
+    from datetime import timedelta
+    cutoff = timezone.now() - timedelta(hours=sla_config.dedup_window_hours)
+    existing = Lead.objects.filter(
+        email=data['email'], related_property__isnull=True,
+        property_title_snapshot=title, property_location_snapshot=location,
+        is_duplicate=False, created_at__gte=cutoff,
+    ).first()
+
+    if existing is None:
+        source_slug, source_name = SHORTLIST_SOURCES[intent]
+        source, _ = LeadSource.objects.get_or_create(slug=source_slug, defaults={'name': source_name})
+        with transaction.atomic():
+            lead = Lead.objects.create(
+                related_property=None,
+                property_title_snapshot=title,
+                property_location_snapshot=location,
+                property_url_snapshot=page_url,
+                first_name=data['first_name'], last_name=data['last_name'],
+                email=data['email'], phone=data.get('phone', ''),
+                message=message,
+                source=source,
+                ip_address_hash=ip_hash,
+                sla_deadline=compute_sla_deadline(timezone.now(), sla_config),
+                consent_given=data.get('consent', False),
+                lead_status=Lead.Status.NEW,
+                followup_status=Lead.FollowUpStatus.NOT_STARTED,
+                utm_source=request.session.get('utm_source', ''),
+                utm_medium=request.session.get('utm_medium', ''),
+                utm_campaign=request.session.get('utm_campaign', ''),
+                utm_term=request.session.get('utm_term', ''),
+            )
+            ActivityLog.objects.create(
+                lead=lead, actor=None,
+                event_type=ActivityLog.EventType.LEAD_CREATED,
+                note=(f"Lead created from the {market.label} neighbourhood page ({source_name})."
+                      if market and intent != 'access' else f"Lead created from the access request page ({source_name})."),
+            )
+            agent_profile, score_snapshot, reason = assign_agent(lead)
+            agent_user = agent_profile.user if agent_profile else None
+            LeadAssignment.objects.create(
+                lead=lead, agent=agent_user, assigned_by=None,
+                assignment_reason=reason, score_snapshot=score_snapshot, is_current=True,
+            )
+            if agent_profile:
+                UserProfile.objects.filter(pk=agent_profile.pk).update(
+                    current_open_leads=agent_profile.current_open_leads + 1,
+                    total_leads_assigned=agent_profile.total_leads_assigned + 1,
+                    last_assigned_at=timezone.now(),
+                )
+            ActivityLog.objects.create(
+                lead=lead, actor=None,
+                event_type=ActivityLog.EventType.AGENT_ASSIGNED,
+                new_value=agent_user.get_full_name() if agent_user else 'Unassigned',
+                note=f"Agent assigned via {reason}",
+            )
+            from crm.tasks import send_visitor_confirmation, send_agent_notification
+            lead_id = str(lead.id)
+            transaction.on_commit(lambda: _safe_enqueue(send_visitor_confirmation, lead_id))
+            transaction.on_commit(lambda: _safe_enqueue(send_agent_notification, lead_id))
+    else:
+        # Same person, same request, inside the dedup window: record it as a
+        # duplicate and just re-send their confirmation.
+        Lead.objects.create(
+            related_property=None,
+            property_title_snapshot=title, property_location_snapshot=location,
+            property_url_snapshot=page_url,
+            first_name=data['first_name'], last_name=data['last_name'],
+            email=data['email'], phone=data.get('phone', ''), message=message,
+            ip_address_hash=ip_hash, is_duplicate=True, duplicate_of=existing,
+            sla_deadline=existing.sla_deadline, consent_given=data.get('consent', False),
+            lead_status=Lead.Status.NEW, followup_status=Lead.FollowUpStatus.NOT_STARTED,
+        )
+        from crm.tasks import send_visitor_confirmation
+        transaction.on_commit(lambda: _safe_enqueue(send_visitor_confirmation, str(existing.id)))
+
+    _increment_rate(request)
+    response = {'success': True}
+    if intent == 'guide':
+        response['download_url'] = profile.guide_file.url
+        response['title'] = profile.guide_title or f"{market.label} off-plan market guide"
+    return JsonResponse(response)
 
 
 def _increment_rate(request):
@@ -578,11 +737,11 @@ class CRMSettingsView(AdminOnlyMixin, TemplateView):
             ('agents', 'Agents'),
         ]
         ctx['weight_fields'] = [
-            ('w1', 'w1 — Open leads (penalise load)', sla.w1_open_leads),
-            ('w2', 'w2 — Overdue leads (penalise load)', sla.w2_overdue_leads),
-            ('w3', 'w3 — Response score (reward quality)', sla.w3_response_score),
-            ('w4', 'w4 — Location match (reward relevance)', sla.w4_location_match),
-            ('w5', 'w5 — Specialty match (reward relevance)', sla.w5_specialty_match),
+            ('w1', 'w1: Open leads (penalise load)', sla.w1_open_leads),
+            ('w2', 'w2: Overdue leads (penalise load)', sla.w2_overdue_leads),
+            ('w3', 'w3: Response score (reward quality)', sla.w3_response_score),
+            ('w4', 'w4: Location match (reward relevance)', sla.w4_location_match),
+            ('w5', 'w5: Specialty match (reward relevance)', sla.w5_specialty_match),
         ]
         ctx['is_admin'] = True
         return ctx

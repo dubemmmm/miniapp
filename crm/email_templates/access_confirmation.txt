@@ -1,0 +1,21 @@
+Subject: We've received your request for access to CW Real Estate
+
+Hi ${first_name},
+
+Thank you for asking for access to the CW Real Estate off-plan platform. We've received your request and a dedicated adviser will be in touch.
+
+YOUR ADVISER
+${agent_name}
+Email: ${agent_email}
+
+WHAT HAPPENS NEXT
+1. Your adviser will review your request within 2 business days.
+2. They will contact you to understand what you are looking for.
+3. Once approved, you will receive an invitation code to create your account and browse the full portfolio, including unit-level detail and pricing.
+
+If you have urgent questions, contact your adviser directly using the details above.
+
+NOTE: If you are expecting further emails from us, please add cwresocial@gmail.com to your contacts or mark this email as "Not Spam" to ensure our messages reach your inbox.
+
+Warm regards,
+The CW Real Estate Team

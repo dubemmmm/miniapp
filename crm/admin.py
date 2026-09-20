@@ -64,7 +64,7 @@ class LeadAdmin(admin.ModelAdmin):
         assignment = obj.assignments.filter(is_current=True).select_related('agent').first()
         if assignment and assignment.agent:
             return assignment.agent.get_full_name() or assignment.agent.username
-        return '—'
+        return 'N/A'
     current_agent.short_description = 'Agent'
 
     STATUS_COLOURS = {
@@ -103,7 +103,7 @@ class LeadAdmin(admin.ModelAdmin):
     def is_overdue_display(self, obj):
         if obj.is_overdue:
             return format_html('<span style="color:#EF4444;font-weight:bold">⚠ Overdue</span>')
-        return '—'
+        return 'N/A'
     is_overdue_display.short_description = 'SLA'
 
 

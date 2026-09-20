@@ -95,7 +95,7 @@ class Lead(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} — {self.property_title_snapshot}"
+        return f"{self.first_name} {self.last_name} | {self.property_title_snapshot}"
 
     @property
     def full_name(self):
@@ -200,7 +200,7 @@ class ActivityLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.lead} — {self.get_event_type_display()} at {self.created_at:%Y-%m-%d %H:%M}"
+        return f"{self.lead} | {self.get_event_type_display()} at {self.created_at:%Y-%m-%d %H:%M}"
 
     # Append-only: block updates and deletes at the manager level
     def save(self, *args, **kwargs):

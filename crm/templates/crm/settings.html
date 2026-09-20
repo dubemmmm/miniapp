@@ -110,7 +110,7 @@
             </div>
           </td>
           <td class="px-5 py-4 text-slate-500 text-xs">{{ agent.user.email }}</td>
-          <td class="px-5 py-4 text-slate-500 text-xs hidden md:table-cell">{{ agent.phone|default:"—" }}</td>
+          <td class="px-5 py-4 text-slate-500 text-xs hidden md:table-cell">{{ agent.phone|default:"N/A" }}</td>
           <td class="px-5 py-4 text-slate-500 text-xs hidden lg:table-cell max-w-[160px] truncate">{{ agent.coverage_locations|default:"All" }}</td>
           <td class="px-5 py-4">
             {% if agent.is_available %}

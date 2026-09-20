@@ -6,6 +6,7 @@ app_name = 'crm'
 urlpatterns = [
     # Enquiry form (public)
     path('enquire/<int:property_pk>/', views.enquiry_submit, name='enquiry_submit'),
+    path('request-shortlist/', views.request_shortlist, name='request_shortlist'),
 
     # CRM dashboard
     path('', views.LeadsListView.as_view(), name='leads_list'),
