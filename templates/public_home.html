@@ -1,0 +1,253 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CW Intelligence | Lagos Off-Plan Market Data</title>
+    <meta name="description" content="Track every off-plan development in Lagos and compare price per square metre by neighbourhood, before you register or speak to anyone.">
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-hero">
+        {% if hero_property.thumbnail %}
+        <div class="cw-hero-img" style="background-image:url('{{ hero_property.thumbnail.url }}');"></div>
+        {% else %}
+        <div class="cw-hero-img cw-hero-fallback"></div>
+        {% endif %}
+        <div class="cw-hero-scrim"></div>
+        <div class="cw-container cw-hero-inner">
+            <h1 class="cw-hero-title">Lagos Off-Plan.<br>Intelligently Tracked.<br>Clearly Priced.</h1>
+            <p class="cw-hero-sub">Every off-plan development we know of, compared by price per square metre and neighbourhood, before you register or speak to anyone.</p>
+            <div class="cw-hero-actions">
+                <a href="#neighbourhoods" class="cw-btn cw-btn-white">Explore the market</a>
+                <a href="{% url 'request_access' %}" class="cw-btn cw-btn-ghost">Request private access</a>
+            </div>
+            <div class="cw-hero-stats">
+                <div>
+                    <div class="cw-hero-stat-num">{{ total_developments }}</div>
+                    <div class="cw-hero-stat-label">Developments tracked</div>
+                </div>
+                <div>
+                    <div class="cw-hero-stat-num">{{ total_units }}</div>
+                    <div class="cw-hero-stat-label">Units in the database</div>
+                </div>
+                <div>
+                    <div class="cw-hero-stat-num">{{ district_count }}</div>
+                    <div class="cw-hero-stat-label">Neighbourhood{{ district_count|pluralize }} covered</div>
+                </div>
+                <div>
+                    <div class="cw-hero-stat-num">{% if citywide_avg_psqm_display %}{{ citywide_avg_psqm_display }}{% else %}N/A{% endif %}</div>
+                    <div class="cw-hero-stat-label">Avg price per sqm</div>
+                </div>
+            </div>
+            {% if hero_property %}
+            <div class="cw-hero-caption">{{ hero_property.name }}, {{ hero_property.get_location_display }}</div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="cw-section" id="market">
+        <div class="cw-container cw-intro">
+            <div class="cw-intro-copy">
+                <div class="cw-label">Off-plan Index</div>
+                <h2 class="cw-h2">Developments Curated by CW</h2>
+                <p class="cw-lede">Active off-plan developments across the city's most considered addresses, priced per square metre and updated as the market moves.</p>
+                <div class="cw-actions-row">
+                    <a href="{% url 'compare_neighbourhoods_index' %}" class="cw-btn cw-btn-navy">Compare neighbourhoods</a>
+                    <a href="#neighbourhoods" class="cw-btn cw-btn-outline">Explore districts</a>
+                </div>
+            </div>
+            {% if hero_property %}
+            <a href="{% url 'property_detail' property_pk=hero_property.id %}" class="cw-feature">
+                {% if hero_property.thumbnail %}<div class="cw-feature-img" style="background-image:url('{{ hero_property.thumbnail.url }}');"></div>{% endif %}
+                <div class="cw-glass-bar">
+                    <div>
+                        <div class="cw-glass-loc">{{ hero_property.get_location_display }}</div>
+                        <div class="cw-glass-name">{{ hero_property.name }}</div>
+                    </div>
+                    <span class="cw-arrow-btn" aria-hidden="true">↗</span>
+                </div>
+            </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="cw-section" id="neighbourhoods">
+        <div class="cw-container">
+            {% if districts %}
+            <div class="cw-rail-wrap">
+                <aside class="cw-rail">
+                    <div class="cw-rail-num"></div>
+                    <div class="cw-rail-name">Districts</div>
+                    <div class="cw-rail-rule"></div>
+                    <p class="cw-rail-note">{{ districts|length }} neighbourhood{{ districts|length|pluralize }}, ranked by supply. Price per square metre is based on verified unit prices with recorded floor areas.</p>
+                </aside>
+                <div class="cw-rail-body">
+                    <h2 class="cw-h3" style="margin:0;">Explore Neighbourhoods by Price</h2>
+                    <div class="cw-district-grid">
+                        {% for d in districts %}
+                        <a href="{% url 'neighbourhood_detail' location_slug=d.slug %}" class="cw-district">
+                            {% if d.image_url %}
+                            <div class="cw-district-img" style="background-image:url('{{ d.image_url }}');"></div>
+                            {% else %}
+                            <div class="cw-district-img cw-district-fallback"></div>
+                            {% endif %}
+                            <div class="cw-district-scrim"></div>
+                            <div class="cw-district-info">
+                                <div class="cw-district-name">{{ d.label }}</div>
+                                <div class="cw-district-count">{{ d.count }} development{{ d.count|pluralize }}</div>
+                                {% if d.avg_psqm_display %}<span class="cw-tag">{{ d.avg_psqm_display }}<span class="cw-tag-unit"> /sqm</span></span>{% endif %}
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <a href="{% url 'neighbourhood_index' %}" class="cw-inline-link">All neighbourhoods and sub-markets →</a>
+                </div>
+            </div>
+            {% else %}
+            <p class="cw-muted">No districts have enough tracked data yet.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="cw-section" id="compare">
+        <div class="cw-container">
+            <div class="cw-label">Compare</div>
+            <h2 class="cw-h2">Neighbourhood vs Neighbourhood</h2>
+            <p class="cw-lede" style="margin-bottom:32px;">See how two areas stack up on price per square metre, supply and new launches, side by side, from the same data as everything else on this page.</p>
+            {% if comparison_pairs %}
+            <div class="cw-pair-grid">
+                {% for p in comparison_pairs %}
+                <a href="{% url 'compare_neighbourhoods' pair=p.slug %}" class="cw-pair">
+                    <div class="cw-pair-names">{{ p.a.label }} <span>vs</span> {{ p.b.label }}</div>
+                    <div class="cw-pair-figs">
+                        <span>{% if p.a.avg_psqm_display %}{{ p.a.avg_psqm_display }}<small>/sqm</small>{% else %}N/A{% endif %}</span>
+                        <span>{% if p.b.avg_psqm_display %}{{ p.b.avg_psqm_display }}<small>/sqm</small>{% else %}N/A{% endif %}</span>
+                    </div>
+                    <span class="cw-pair-go">Compare →</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <a href="{% url 'compare_neighbourhoods_index' %}" class="cw-inline-link">Choose any two neighbourhoods →</a>
+        </div>
+    </section>
+
+    {% if launches %}
+    <section class="cw-section" id="launches">
+        <div class="cw-container">
+            <div class="cw-label">New launches</div>
+            <h2 class="cw-h2">Newly Broken Ground</h2>
+            <p class="cw-lede" style="margin-bottom:0;">{{ launch_count }} development{{ launch_count|pluralize }} at foundation stage, the earliest point at which we track construction.</p>
+            <div class="cw-card-grid">
+                {% for r in launches %}
+                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                    <div class="cw-card-photo">
+                        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+                        <div class="cw-card-pills">
+                            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+                            {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="cw-card-body">
+                        <div class="cw-card-loc">{{ r.property.get_location_display }}</div>
+                        <div class="cw-card-name">{{ r.property.name }}</div>
+                        <div class="cw-card-price">
+                            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+                            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="cw-section" id="recent">
+        <div class="cw-container">
+            <div class="cw-label">Recently added</div>
+            <h2 class="cw-h2">New on the Platform</h2>
+            {% if recent %}
+            <div class="cw-card-grid">
+                {% for r in recent %}
+                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                    <div class="cw-card-photo">
+                        {% if r.property.thumbnail %}
+                        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+                        {% else %}
+                        <div class="cw-card-img cw-district-fallback"></div>
+                        {% endif %}
+                        <div class="cw-card-pills">
+                            {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="cw-card-body">
+                        <div class="cw-card-loc">{{ r.property.get_location_display }}</div>
+                        <div class="cw-card-name">{{ r.property.name }}</div>
+                        <div class="cw-card-price">
+                            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+                            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="cw-muted">Nothing tracked yet.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if priciest_district %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <p class="cw-statement">{{ priciest_district.label }} commands the market's premium, at {{ priciest_district.avg_psqm_display }} per square metre.</p>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="cw-section cw-section-last">
+        <div class="cw-container cw-two">
+            <div class="cw-panel">
+                <div class="cw-label cw-label-plain">Explore freely</div>
+                <h3 class="cw-h3">Explore the market</h3>
+                <p class="cw-muted">Open to everyone. No registration needed to start looking.</p>
+                <div class="cw-links">
+                    <a href="#neighbourhoods">Explore neighbourhoods <span aria-hidden="true">→</span></a>
+                    <a href="#recent">Browse recently added projects <span aria-hidden="true">→</span></a>
+                </div>
+            </div>
+            <div class="cw-panel cw-panel-navy">
+                <div class="cw-label cw-label-plain">Go deeper</div>
+                <h3 class="cw-h3">Request private access</h3>
+                <p>For buyers ready to move: curated, advisor-led, and off-platform.</p>
+                <ul class="cw-checks">
+                    <li>Curated shortlists matched to your brief</li>
+                    <li>Off-market and pre-launch opportunities</li>
+                    <li>A dedicated advisor on WhatsApp or call</li>
+                </ul>
+                <a href="{% url 'request_access' %}" class="cw-btn cw-btn-white">Request private access</a>
+            </div>
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+</body>
+</html>

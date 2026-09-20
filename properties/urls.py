@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path('register/', views.register_view, name='register'),
+    path('request-access/', views.request_access_view, name='request_access'),
     path('employee-register/', views.employee_register_view, name='employee_register'),
     path('api/properties/', views.properties_api, name='properties_api'),
     path('api/properties/<int:property_id>/', views.property_detail_api, name='property_detail_api'),
@@ -22,7 +23,12 @@ urlpatterns = [
     path('google-oauth-signup/', views.google_oauth_with_invitation, name='google_oauth_signup'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
     path('property/<int:property_pk>/', views.property_detail_view, name='property_detail'),
+    path('neighbourhoods/', views.neighbourhood_index_view, name='neighbourhood_index'),
+    path('neighbourhoods/<slug:location_slug>/', views.neighbourhood_detail_view, name='neighbourhood_detail'),
+    path('compare/', views.compare_neighbourhoods_view, name='compare_neighbourhoods_index'),
+    path('compare/<slug:pair>/', views.compare_neighbourhoods_view, name='compare_neighbourhoods'),
     path('temp2/', views.temp_view, name='temp2'),
+    path('portfolio/', views.temp_view, name='temp'),
     path('reports/', views.reports_view, name='reports'),
-    path('', views.temp_view, name='temp')
+    path('', views.public_homepage_view, name='home'),
 ]

@@ -4,7 +4,11 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.views.generic import CreateView, UpdateView
 from django.utils.decorators import method_decorator
-from django.db.models import Q, Min, Max, Prefetch
+from django.db.models import Q, Min, Max, Avg, Count, F, DecimalField, ExpressionWrapper, Prefetch
+from django.core.paginator import Paginator
+from itertools import combinations
+import statistics
+from collections import Counter
 from django.contrib import messages
 from .models import (
     SharedPropertyList,
@@ -16,7 +20,13 @@ from .models import (
     PropertyFavorite,
     PropertyProgress,
 )
-from .location_utils import extract_location
+from .location_utils import (
+    extract_location, LOCATION_CHOICES, TRACKED_LOCATION_SLUGS,
+    location_slug, location_from_slug, pair_slug, parse_pair_slug,
+)
+from .markets import (
+    MARKETS, MARKET_MIN_PROJECTS, market_from_slug, market_properties, qualifying_markets,
+)
 from django.utils import timezone
 from django.db.models.functions import ExtractMonth, ExtractYear
 from datetime import timedelta
@@ -66,6 +76,358 @@ PROPERTY_PREFETCHES = (
     Prefetch('progress_updates', queryset=PropertyProgress.objects.order_by('-update_date')),
     'progress_updates__images',
 )
+
+# Sanity bounds (naira per square metre) used to exclude data-entry errors from
+# any publicly displayed price-per-sqm figure. Despite the model field being
+# named `square_footage`, the synced Airtable values are actually square
+# metres (verified against real listing prices — see memory).
+PUBLIC_PSQM_MIN = 50_000
+PUBLIC_PSQM_MAX = 20_000_000
+# Same idea for a single unit's total price — excludes data-entry errors
+# (extra zeros etc.) from any publicly displayed min/max price figure.
+PUBLIC_PRICE_MAX = 50_000_000_000
+# Floor-area sanity bounds (sqm) for any public average size; the synced data
+# contains obvious entry errors (e.g. 170,000,000).
+PUBLIC_SQM_MIN = 15
+PUBLIC_SQM_MAX = 3_000
+# A section is only shown when at least this many data points sit behind it.
+MIN_SAMPLE = 3
+PUBLIC_LISTING_PREVIEW = 8  # extra projects shown to visitors on a neighbourhood page
+
+
+def _trim_trailing_zeros(formatted):
+    """'498.00' -> '498', '3.50' -> '3.5', '3.51' -> '3.51'."""
+    if '.' in formatted:
+        formatted = formatted.rstrip('0').rstrip('.')
+    return formatted
+
+
+def _format_naira_compact(value):
+    """₦2,340,000,000 -> '₦2.34B', ₦1,950,000 -> '₦1.95M', ₦498,000,000 -> '₦498M'. None passes through."""
+    if value is None:
+        return None
+    value = float(value)
+    if value >= 1_000_000_000:
+        return f"₦{_trim_trailing_zeros(f'{value / 1_000_000_000:.2f}')}B"
+    if value >= 1_000_000:
+        return f"₦{_trim_trailing_zeros(f'{value / 1_000_000:.2f}')}M"
+    if value >= 1_000:
+        return f"₦{value / 1_000:.0f}K"
+    return f"₦{value:,.0f}"
+
+
+def _market_stats(props_qs):
+    """Aggregate public stats for a set of properties (an area or a sub-market).
+    Shared by the homepage, neighbourhood pages and comparisons so the numbers
+    can never disagree between pages. Applies the same PUBLIC_PSQM_MIN/MAX and
+    PUBLIC_PRICE_MAX outlier guards as the rest of the public site.
+    """
+    prop_ids = props_qs.values('pk')
+    count = props_qs.count()
+
+    psqm_configs = PropertyConfiguration.objects.filter(
+        property_id__in=prop_ids,
+        square_footage__gt=0,
+        price__isnull=False,
+        price__gt=0,
+    ).annotate(
+        psqm=ExpressionWrapper(
+            F('price') / F('square_footage'),
+            output_field=DecimalField(max_digits=20, decimal_places=2),
+        )
+    ).filter(psqm__gte=PUBLIC_PSQM_MIN, psqm__lte=PUBLIC_PSQM_MAX)
+    psqm_stats = psqm_configs.aggregate(avg_psqm=Avg('psqm'), sample_size=Count('id'))
+
+    price_stats = PropertyConfiguration.objects.filter(
+        property_id__in=prop_ids,
+        price__isnull=False,
+        price__gt=0,
+        price__lt=PUBLIC_PRICE_MAX,
+    ).aggregate(min_price=Min('price'), max_price=Max('price'))
+    unit_count = PropertyConfiguration.objects.filter(property_id__in=prop_ids).count()
+
+    return {
+        'count': count,
+        'avg_psqm': psqm_stats['avg_psqm'],
+        'avg_psqm_display': _format_naira_compact(psqm_stats['avg_psqm']),
+        'sample_size': psqm_stats['sample_size'],
+        'unit_count': unit_count,
+        'min_price_display': _format_naira_compact(price_stats['min_price']),
+        'max_price_display': _format_naira_compact(price_stats['max_price']),
+    }
+
+
+def _district_stats(location_value):
+    """Stats for one broad area, by Property.location value."""
+    return _market_stats(Property.objects.filter(is_active=True, location=location_value))
+
+
+def _property_card_data(prop):
+    """Per-property card fields shared by the homepage's 'Recently added'
+    cards and the neighbourhood detail page's listing grid. Expects `prop`'s
+    `configurations` and `progress_updates` (filtered to is_latest) to already
+    be prefetched by the caller.
+    """
+    # Starting price needs only a price; price per sqm additionally needs a floor area.
+    priced = [c for c in prop.configurations.all() if c.price and 0 < c.price <= PUBLIC_PRICE_MAX]
+    cheapest = min(priced, key=lambda c: c.price) if priced else None
+    psqm = None
+    if cheapest and cheapest.square_footage:
+        candidate = cheapest.price / cheapest.square_footage
+        if PUBLIC_PSQM_MIN <= candidate <= PUBLIC_PSQM_MAX:
+            psqm = candidate
+    latest_progress = next(iter(prop.progress_updates.all()), None)
+    return {
+        'property': prop,
+        'starting_price_display': _format_naira_compact(cheapest.price) if cheapest else None,
+        'psqm_display': _format_naira_compact(psqm),
+        'stage_label': latest_progress.get_stage_display() if latest_progress else None,
+        'is_new': (timezone.now() - prop.created_at).days <= 21,
+    }
+
+
+def _foundation_properties():
+    """Active developments whose latest recorded stage is 'foundation' — the
+    earliest construction stage we track, i.e. what we treat as a new launch."""
+    return Property.objects.filter(
+        is_active=True,
+        progress_updates__is_latest=True,
+        progress_updates__stage='foundation',
+    ).distinct()
+
+
+def _even_rows(items, per_row=4):
+    """Trim a card list so it fills whole rows at desktop (per_row) and at
+    tablet/mobile (2 per row); with fewer than per_row cards, keep pairs."""
+    n = len(items)
+    n -= n % per_row if n >= per_row else n % 2
+    return items[:n]
+
+
+def _prefer_classified(qs, limit):
+    """First `limit` properties from qs (newest first), preferring ones with a
+    real neighbourhood tag; only backfill from 'Others' if there aren't enough."""
+    picked = list(qs.exclude(location='Others').order_by('-created_at')[:limit])
+    if len(picked) < limit:
+        have_ids = [p.id for p in picked]
+        picked += list(
+            qs.filter(location='Others').exclude(id__in=have_ids)
+            .order_by('-created_at')[:limit - len(picked)]
+        )
+    return picked
+
+
+def _card_queryset(qs):
+    """Public cards need a photo, plus the configs/progress the card helper reads."""
+    return (
+        qs.exclude(thumbnail='').exclude(thumbnail__isnull=True)
+        .prefetch_related(
+            'configurations',
+            Prefetch('progress_updates', queryset=PropertyProgress.objects.filter(is_latest=True)),
+        )
+    )
+
+
+BED_ORDER = ['1', '2', '3', '4', '5+']
+
+
+def _bed_bucket(bedrooms):
+    if bedrooms is None or bedrooms < 1:
+        return None
+    return '5+' if bedrooms >= 5 else str(bedrooms)
+
+
+def _plural(n, word):
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def _market_insights(props_qs):
+    """Everything on a market page beyond the headline stats: availability,
+    typical prices, sizes, unit mix and the completion pipeline. Each block is
+    None (or empty) when fewer than MIN_SAMPLE data points sit behind it, so
+    the template can hide it rather than show a number that means nothing."""
+    prop_ids = props_qs.values('pk')
+    cfgs = list(
+        PropertyConfiguration.objects.filter(property_id__in=prop_ids)
+        .values('bedrooms', 'square_footage', 'price', 'is_available')
+    )
+
+    def valid_price(c):
+        return bool(c['price']) and 0 < c['price'] < PUBLIC_PRICE_MAX
+
+    def valid_size(c):
+        return bool(c['square_footage']) and PUBLIC_SQM_MIN <= c['square_footage'] <= PUBLIC_SQM_MAX
+
+    prices = sorted(float(c['price']) for c in cfgs if valid_price(c))
+    sizes = [float(c['square_footage']) for c in cfgs if valid_size(c)]
+
+    typical = None
+    if len(prices) >= MIN_SAMPLE:
+        quartiles = statistics.quantiles(prices, n=4) if len(prices) >= 4 else [prices[0], None, prices[-1]]
+        typical = {
+            'n': len(prices),
+            'median': _format_naira_compact(statistics.median(prices)),
+            'low': _format_naira_compact(quartiles[0]),
+            'high': _format_naira_compact(quartiles[2]),
+        }
+    avg_size = {'n': len(sizes), 'value': round(statistics.mean(sizes))} if len(sizes) >= MIN_SAMPLE else None
+
+    groups = {}
+    for c in cfgs:
+        bucket = _bed_bucket(c['bedrooms'])
+        if bucket:
+            groups.setdefault(bucket, []).append(c)
+    with_beds = sum(len(g) for g in groups.values())
+    unit_mix = []
+    for bucket in BED_ORDER:
+        group = groups.get(bucket)
+        if not group:
+            continue
+        gp = sorted(float(c['price']) for c in group if valid_price(c))
+        gs = [float(c['square_footage']) for c in group if valid_size(c)]
+        unit_mix.append({
+            'label': f"{bucket} bedroom",
+            'units': len(group),
+            'share': round(len(group) / with_beds * 100) if with_beds else 0,
+            'median_price': _format_naira_compact(statistics.median(gp)) if len(gp) >= MIN_SAMPLE else None,
+            'price_n': len(gp),
+            'avg_size': round(statistics.mean(gs)) if len(gs) >= MIN_SAMPLE else None,
+            'size_n': len(gs),
+        })
+    top_mix = max(unit_mix, key=lambda r: r['units']) if unit_mix else None
+
+    dates = list(props_qs.values_list('completion_date', flat=True))
+    dated = [d for d in dates if d]
+    year_counts = Counter(d.year for d in dated)
+    this_year = timezone.localdate().year
+    pipeline = [{'year': y, 'count': n, 'past': y < this_year} for y, n in sorted(year_counts.items())]
+    stage_order = [c[0] for c in PropertyProgress._meta.get_field('stage').choices]
+    stage_labels = dict(PropertyProgress._meta.get_field('stage').choices)
+    stage_counts = dict(
+        PropertyProgress.objects.filter(property_id__in=prop_ids, is_latest=True)
+        .values_list('stage').annotate(n=Count('id'))
+    )
+    stages = [{'label': stage_labels[k], 'count': stage_counts[k], 'key': k}
+              for k in stage_order if stage_counts.get(k)]
+
+    return {
+        'total_units': len(cfgs),
+        'available_units': sum(1 for c in cfgs if c['is_available']),
+        'typical': typical,
+        'avg_size': avg_size,
+        'unit_mix': unit_mix,
+        'top_mix': top_mix,
+        'pipeline': pipeline,
+        'pipeline_max': max((p['count'] for p in pipeline), default=0),
+        'dated_count': len(dated),
+        'undated_count': len(dates) - len(dated),
+        'stages': stages,
+        'foundation_count': stage_counts.get('foundation', 0),
+    }
+
+
+def _default_overview(label, stats, ins):
+    """Factual paragraph from the numbers. Deliberately says nothing about an
+    area's character: that is editorial copy and belongs in the admin."""
+    parts = [
+        f"{label} has {_plural(stats['count'], 'off-plan development')} tracked on this platform, "
+        f"with {_plural(ins['total_units'], 'unit')} on record ({ins['available_units']} currently marked available)."
+    ]
+    if stats['avg_psqm_display']:
+        parts.append(f"Verified prices average {stats['avg_psqm_display']} per square metre across {_plural(stats['sample_size'], 'unit price')}.")
+    if ins['typical']:
+        parts.append(f"The median priced unit is {ins['typical']['median']}.")
+    return ' '.join(parts)
+
+
+def _default_commentary(label, stats, ins, citywide, total_developments):
+    """'What the numbers say': plain statements, each computed from the data."""
+    points = []
+    if stats['avg_psqm'] and citywide['avg_psqm']:
+        pct = round((float(stats['avg_psqm']) / float(citywide['avg_psqm']) - 1) * 100)
+        if pct == 0:
+            points.append(f"At {stats['avg_psqm_display']} per sqm, {label} sits in line with the tracked citywide average of {citywide['avg_psqm_display']}.")
+        else:
+            points.append(
+                f"At {stats['avg_psqm_display']} per sqm, {label} sits {abs(pct)}% {'above' if pct > 0 else 'below'} "
+                f"the tracked citywide average of {citywide['avg_psqm_display']}."
+            )
+    if total_developments:
+        share = round(stats['count'] / total_developments * 100)
+        points.append(f"{label} accounts for {share}% of the {total_developments} developments we track.")
+    if ins['typical']:
+        points.append(
+            f"The middle half of priced units cost between {ins['typical']['low']} and {ins['typical']['high']}, "
+            f"with a median of {ins['typical']['median']}."
+        )
+    if stats['count'] and ins['foundation_count']:
+        pct = round(ins['foundation_count'] / stats['count'] * 100)
+        points.append(
+            f"{_plural(ins['foundation_count'], 'project')} ({pct}%) are at foundation stage, the earliest stage we track."
+        )
+    if ins['pipeline']:
+        peak = max(ins['pipeline'], key=lambda p: p['count'])
+        points.append(f"Most stated completion dates fall in {peak['year']} ({_plural(peak['count'], 'project')}).")
+    if stats['sample_size'] and stats['sample_size'] < 10:
+        points.append(f"The average price rests on only {_plural(stats['sample_size'], 'verified price')}, so treat it as indicative.")
+    return points
+
+
+def _default_faqs(label, stats, ins):
+    faqs = []
+    if stats['avg_psqm_display']:
+        faqs.append((f"What is the average price per square metre in {label}?",
+                     f"{stats['avg_psqm_display']}, based on {_plural(stats['sample_size'], 'verified unit price')} with a recorded floor area."))
+    else:
+        faqs.append((f"What is the average price per square metre in {label}?",
+                     f"We do not yet have enough verified prices in {label} to publish an average."))
+    faqs.append((f"How many off-plan projects are tracked in {label}?",
+                 f"{_plural(stats['count'], 'active development')} and {_plural(ins['total_units'], 'unit')}, "
+                 f"of which {ins['available_units']} are currently marked available."))
+    if ins['typical']:
+        faqs.append((f"What do off-plan units in {label} typically cost?",
+                     f"The median priced unit is {ins['typical']['median']}, and the middle half of priced units cost between "
+                     f"{ins['typical']['low']} and {ins['typical']['high']} ({_plural(ins['typical']['n'], 'priced unit')})."))
+    size_bits = []
+    if ins['top_mix']:
+        size_bits.append(f"The most common unit type is the {ins['top_mix']['label']} ({ins['top_mix']['share']}% of units).")
+    if ins['avg_size']:
+        size_bits.append(f"Average floor area is {ins['avg_size']['value']} sqm across {_plural(ins['avg_size']['n'], 'unit')} with a recorded size.")
+    if size_bits:
+        faqs.append((f"What sizes and unit types are available in {label}?", ' '.join(size_bits)))
+    if ins['pipeline']:
+        top = sorted(ins['pipeline'], key=lambda p: -p['count'])[:3]
+        years = ', '.join(f"{p['year']} ({p['count']})" for p in sorted(top, key=lambda p: p['year']))
+        faqs.append((f"When are projects in {label} due for completion?",
+                     f"Of {_plural(ins['dated_count'], 'project')} with a stated completion date, the largest groups fall in {years}. "
+                     f"{ins['undated_count']} have no date recorded yet."))
+    return faqs
+
+
+def _nearby_rows(market, this_avg):
+    """Price comparison with each nearby market that has enough projects."""
+    rows = []
+    for slug in market.nearby:
+        other = market_from_slug(slug)
+        if not other:
+            continue
+        qs = market_properties(other)
+        n = qs.count()
+        if n < MARKET_MIN_PROJECTS:
+            continue
+        st = _market_stats(qs)
+        delta = None
+        if this_avg and st['avg_psqm']:
+            delta = round((float(st['avg_psqm']) / float(this_avg) - 1) * 100)
+        rows.append({
+            'market': other,
+            'count': n,
+            'avg': st['avg_psqm_display'],
+            'sample': st['sample_size'],
+            'delta': delta,
+            'compare_slug': pair_slug(market.slug, other.slug) if market.kind == 'area' and other.kind == 'area' else None,
+        })
+    return rows
 
 
 def property_favorite_prefetch(prefetch):
@@ -300,9 +662,9 @@ def employee_register_view(request):
 
 
 def custom_logout_view(request):
-    """Custom logout view that redirects to login page"""
+    """Custom logout view that redirects to the public landing page"""
     logout(request)
-    return redirect('login')
+    return redirect('home')
 
 
 @login_required
@@ -1427,6 +1789,381 @@ def favorites_view(request):
         'n8n_chat_url': settings.N8N_CHAT_WEBHOOK_URL,
     }
     return render(request, 'favorites.html', context)
+
+
+def public_homepage_view(request):
+    """Public, unauthenticated market-intelligence homepage — now the site root.
+
+    Already-authenticated users (agents, clients) land on their portfolio
+    instead, so moving the gated view off "/" doesn't strand anyone who has
+    it bookmarked as their app entry point.
+
+    Every number here is computed from real data, not fixtures — see
+    PUBLIC_PSQM_MIN/MAX above for the outlier guard applied to any
+    price-per-square-metre figure before it's shown publicly.
+    """
+    if request.user.is_authenticated:
+        return redirect('temp')
+
+    active_properties = Property.objects.filter(is_active=True)
+
+    valid_configs = PropertyConfiguration.objects.filter(
+        property__is_active=True,
+        square_footage__gt=0,
+        price__isnull=False,
+        price__gt=0,
+    ).annotate(
+        psqm=ExpressionWrapper(
+            F('price') / F('square_footage'),
+            output_field=DecimalField(max_digits=20, decimal_places=2),
+        )
+    ).filter(psqm__gte=PUBLIC_PSQM_MIN, psqm__lte=PUBLIC_PSQM_MAX)
+
+    citywide = valid_configs.aggregate(avg_psqm=Avg('psqm'), sample_size=Count('id'))
+
+    districts = []
+    for loc_value, loc_label in LOCATION_CHOICES:
+        if loc_value == 'Others':
+            continue
+        stats = _district_stats(loc_value)
+        if stats['count'] == 0:
+            continue
+        rep_property = (
+            active_properties.filter(location=loc_value)
+            .exclude(thumbnail='').exclude(thumbnail__isnull=True)
+            .order_by('-created_at')
+            .first()
+        )
+        districts.append({
+            'label': loc_label,
+            'value': loc_value,
+            'slug': location_slug(loc_value),
+            'count': stats['count'],
+            'avg_psqm': stats['avg_psqm'],
+            'avg_psqm_display': stats['avg_psqm_display'],
+            'sample_size': stats['sample_size'],
+            'image_url': rep_property.thumbnail.url if rep_property and rep_property.thumbnail else None,
+        })
+    districts.sort(key=lambda d: d['count'], reverse=True)
+    max_district_psqm = max((d['avg_psqm'] for d in districts if d['avg_psqm']), default=None)
+
+    # A real (not fabricated) editorial line for the trends area: whichever
+    # district has the highest avg psqm among those with a reliable sample.
+    priciest_district = None
+    reliable = [d for d in districts if d['sample_size'] and d['sample_size'] >= 3 and d['avg_psqm']]
+    if reliable:
+        priciest_district = max(
+            reliable,
+            key=lambda d: d['avg_psqm'],
+        )
+
+    # A real property image for the hero. Prefer a hand-picked flagship listing
+    # (genuinely strong photography); fall back to the highest-value active
+    # listing with a thumbnail if that one's ever renamed or deactivated —
+    # excluding the same price outliers kept out of the public psqm figures.
+    hero_property = (
+        active_properties.filter(name__iexact="Metropolitan Towers")
+        .exclude(thumbnail='').exclude(thumbnail__isnull=True)
+        .first()
+        or active_properties
+        .exclude(thumbnail='').exclude(thumbnail__isnull=True)
+        .annotate(max_config_price=Max('configurations__price'))
+        .filter(max_config_price__isnull=False, max_config_price__lt=PUBLIC_PRICE_MAX)
+        .order_by('-max_config_price')
+        .first()
+    )
+
+    # Prefer properties with a real neighbourhood tag so these rows aren't
+    # dominated by unclassified listings (see _prefer_classified).
+    recent = _even_rows([_property_card_data(p) for p in _prefer_classified(_card_queryset(active_properties), 8)])
+
+    # "New launches": developments at foundation stage — the earliest point we track.
+    launches = _even_rows([_property_card_data(p) for p in _prefer_classified(_card_queryset(_foundation_properties()), 4)])
+    launch_count = _foundation_properties().count()
+
+    # Popular-looking entry points into the comparison tool: every pair among
+    # the top districts by supply (canonical, sorted URLs).
+    comparison_pairs = [
+        {'a': a, 'b': b, 'slug': pair_slug(a['slug'], b['slug'])}
+        for a, b in combinations(districts[:4], 2)
+    ][:6]
+
+    context = {
+        'total_developments': active_properties.count(),
+        'district_count': active_properties.exclude(location='').exclude(location='Others').values('location').distinct().count(),
+        'citywide_avg_psqm_display': _format_naira_compact(citywide['avg_psqm']),
+        'citywide_sample_size': citywide['sample_size'],
+        'districts': districts[:5],
+        'max_district_psqm': max_district_psqm,
+        'priciest_district': priciest_district,
+        'total_units': PropertyConfiguration.objects.filter(property__is_active=True).count(),
+        'recent': recent,
+        'launches': launches,
+        'launch_count': launch_count,
+        'comparison_pairs': comparison_pairs,
+        'hero_property': hero_property,
+        'data_updated_at': timezone.now(),
+    }
+    return render(request, 'public_home.html', context)
+
+
+def _faq_jsonld(faqs):
+    """schema.org FAQPage JSON-LD built from the same Q&As the page displays."""
+    data = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
+            for q, a in faqs
+        ],
+    }
+    return json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
+
+
+def neighbourhood_detail_view(request, location_slug):
+    """Public market page (an area like Ikoyi, or a sub-market like Banana
+    Island). Public, no login required, same as property_detail_view below.
+
+    Every figure is computed from tracked data. Editorial copy (overview,
+    commentary, extra FAQs, guide) comes from NeighbourhoodProfile when an
+    editor has written it; otherwise the page shows generated, factual text.
+    """
+    from .models import NeighbourhoodProfile
+
+    market = market_from_slug(location_slug)
+    if market is None:
+        raise Http404("Unknown neighbourhood")
+
+    props = market_properties(market)
+    stats = _market_stats(props)
+    limited = stats['count'] < MARKET_MIN_PROJECTS
+    ins = _market_insights(props)
+    citywide = _market_stats(Property.objects.filter(is_active=True))
+
+    profile = NeighbourhoodProfile.objects.filter(market_slug=market.slug).first()
+    editorial_overview = profile.overview.strip() if profile else ''
+    overview = editorial_overview or _default_overview(market.label, stats, ins)
+    editorial_commentary = profile.commentary.strip() if profile else ''
+    faqs = _default_faqs(market.label, stats, ins)
+    if profile:
+        faqs += [(f.question, f.answer) for f in profile.faqs.all()]
+    guide = None
+    if profile and profile.guide_file:
+        # The file URL is deliberately not put in the page: the download link is
+        # returned by the guide form endpoint once the visitor has left their details.
+        guide = {'title': profile.guide_title or f"{market.label} off-plan market guide"}
+
+    rep_property = (
+        _card_queryset(props).order_by('-created_at').first()
+    )
+
+    selected = [
+        _property_card_data(p)
+        for p in _card_queryset(props).filter(configurations__price__gt=0).distinct().order_by('-created_at')[:8]
+    ]
+    selected = _even_rows(selected)
+
+    properties_qs = (
+        _card_queryset(props).annotate(min_config_price=Min('configurations__price'))
+    )
+    sort = request.GET.get('sort', 'newest')
+    if sort == 'price_asc':
+        properties_qs = properties_qs.order_by(F('min_config_price').asc(nulls_last=True))
+    elif sort == 'price_desc':
+        properties_qs = properties_qs.order_by(F('min_config_price').desc(nulls_last=True))
+    else:
+        sort = 'newest'
+        properties_qs = properties_qs.order_by('-created_at')
+
+    if request.user.is_authenticated:
+        paginator = Paginator(properties_qs, 24)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        listings = [_property_card_data(prop) for prop in page_obj]
+        gated_remaining = 0
+    else:
+        # Visitors get a short preview (not repeating the selected projects);
+        # the full inventory and sorting sit behind sign-up.
+        page_obj = None
+        shown_ids = [c['property'].id for c in selected]
+        rest = properties_qs.exclude(id__in=shown_ids).order_by('-created_at')
+        listings = _even_rows([_property_card_data(prop) for prop in rest[:PUBLIC_LISTING_PREVIEW]])
+        gated_remaining = max(rest.count() - len(listings), 0)
+
+    label = market.label
+    context = {
+        'market': market,
+        'limited': limited,
+        'location_label': label,
+        'location_slug': market.slug,
+        'stats': stats,
+        'insights': ins,
+        'overview': overview,
+        'overview_is_editorial': bool(editorial_overview),
+        'editorial_commentary': editorial_commentary,
+        'commentary_points': _default_commentary(label, stats, ins, citywide, citywide['count']),
+        'faqs': faqs,
+        'faq_jsonld': _faq_jsonld(faqs),
+        'guide': guide,
+        'selected': selected,
+        'nearby': _nearby_rows(market, stats['avg_psqm']),
+        'page_obj': page_obj,
+        'listings': listings,
+        'gated_remaining': gated_remaining,
+        'sort': sort,
+        'data_updated_at': timezone.now(),
+        'compare_links': [
+            {'label': dict(LOCATION_CHOICES)[v], 'slug': pair_slug(market.slug, other)}
+            for other, v in TRACKED_LOCATION_SLUGS.items() if other != market.slug
+        ] if market.kind == 'area' else [],
+        'image_url': rep_property.thumbnail.url if rep_property and rep_property.thumbnail else None,
+        'meta_title': f"{label} Off-Plan Property Market: {_plural(stats['count'], 'development')}"
+                      + (f", {stats['avg_psqm_display']} avg/sqm" if stats['avg_psqm_display'] else "")
+                      + " | CW Intelligence",
+        'meta_description': f"Track {_plural(stats['count'], 'active off-plan development')} in {label}, Lagos: "
+                             f"average price per square metre, typical unit prices, completion pipeline and verified listing data.",
+    }
+    return render(request, 'neighbourhood_detail.html', context)
+
+
+def request_access_view(request):
+    """Public page: ask for a client account. Submits to the CRM as a lead; an
+    adviser then issues an invitation code (see register_view)."""
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    return render(request, 'request_access.html', {
+        'markets': qualifying_markets(),
+        'meta_title': 'Request Private Access | CW Intelligence',
+        'meta_description': 'Ask for a CW Real Estate client account to browse the full off-plan inventory, unit-level pricing and curated shortlists.',
+    })
+
+
+def neighbourhood_index_view(request):
+    """Public index of every market with enough tracked projects."""
+    areas, subs = [], []
+    for m in MARKETS:
+        qs = market_properties(m)
+        if qs.count() < MARKET_MIN_PROJECTS:
+            continue
+        stats = _market_stats(qs)
+        rep = _card_queryset(qs).order_by('-created_at').first()
+        item = {
+            'market': m,
+            'stats': stats,
+            'image_url': rep.thumbnail.url if rep and rep.thumbnail else None,
+            'parent_label': market_from_slug(m.parent).label if m.parent else '',
+        }
+        (areas if m.kind == 'area' else subs).append(item)
+    return render(request, 'neighbourhoods_index.html', {
+        'areas': areas,
+        'subs': subs,
+        'data_updated_at': timezone.now(),
+    })
+
+
+def _comparison_side(slug):
+    """Everything one side of a neighbourhood comparison needs."""
+    value = TRACKED_LOCATION_SLUGS[slug]
+    stats = _district_stats(value)
+    latest = _prefer_classified(
+        _card_queryset(Property.objects.filter(is_active=True, location=value)), 3,
+    )
+    return {
+        'slug': slug,
+        'label': dict(LOCATION_CHOICES)[value],
+        'stats': stats,
+        'launches': _foundation_properties().filter(location=value).count(),
+        'latest': [_property_card_data(p) for p in latest],
+        'image_url': latest[0].thumbnail.url if latest and latest[0].thumbnail else None,
+    }
+
+
+def compare_neighbourhoods_view(request, pair=None):
+    """Public neighbourhood-vs-neighbourhood comparison. Every figure comes from
+    the same _district_stats used on the homepage and district pages, so the
+    numbers can never disagree between pages. Public, no login required."""
+    if pair is None:
+        a, b = request.GET.get('a'), request.GET.get('b')
+        if a in TRACKED_LOCATION_SLUGS and b in TRACKED_LOCATION_SLUGS and a != b:
+            return redirect('compare_neighbourhoods', pair=pair_slug(a, b))
+        options = [{'slug': s, 'label': dict(LOCATION_CHOICES)[v]} for s, v in TRACKED_LOCATION_SLUGS.items()]
+        pairs = []
+        for x, y in combinations(options, 2):
+            sx, sy = _district_stats(TRACKED_LOCATION_SLUGS[x['slug']]), _district_stats(TRACKED_LOCATION_SLUGS[y['slug']])
+            pairs.append({'a': x, 'b': y, 'a_psqm': sx['avg_psqm_display'], 'b_psqm': sy['avg_psqm_display'],
+                          'slug': pair_slug(x['slug'], y['slug'])})
+        return render(request, 'compare_neighbourhoods.html', {
+            'chooser': True,
+            'options': options,
+            'pairs': pairs,
+            'data_updated_at': timezone.now(),
+            'meta_title': 'Compare Lagos Off-Plan Neighbourhoods | CW Intelligence',
+            'meta_description': 'Compare off-plan price per square metre, supply and new launches between Lagos neighbourhoods, side by side.',
+        })
+
+    parsed = parse_pair_slug(pair)
+    if not parsed:
+        raise Http404("Unknown comparison")
+    slug_a, slug_b = parsed
+    if slug_a not in TRACKED_LOCATION_SLUGS or slug_b not in TRACKED_LOCATION_SLUGS or slug_a == slug_b:
+        raise Http404("Unknown comparison")
+    canonical = pair_slug(slug_a, slug_b)
+    if canonical != pair:
+        return redirect('compare_neighbourhoods', pair=canonical, permanent=True)
+
+    a, b = _comparison_side(slug_a), _comparison_side(slug_b)
+    sa, sb = a['stats'], b['stats']
+
+    def range_text(st):
+        return f"{st['min_price_display']} to {st['max_price_display']}" if st['min_price_display'] else 'N/A'
+
+    rows = [
+        {'label': 'Active developments', 'a': sa['count'], 'b': sb['count']},
+        {'label': 'Avg price per sqm', 'a': sa['avg_psqm_display'] or 'N/A', 'b': sb['avg_psqm_display'] or 'N/A', 'bars': True},
+        {'label': 'Verified prices behind that average', 'a': sa['sample_size'], 'b': sb['sample_size']},
+        {'label': 'Units tracked', 'a': sa['unit_count'], 'b': sb['unit_count']},
+        {'label': 'Unit price range (lowest to highest)', 'a': range_text(sa), 'b': range_text(sb)},
+        {'label': 'At foundation stage (new launches)', 'a': a['launches'], 'b': b['launches']},
+    ]
+
+    # Plain-language takeaways, derived only from the numbers above.
+    takeaways = []
+    if sa['avg_psqm'] and sb['avg_psqm']:
+        hi, lo = (a, b) if sa['avg_psqm'] >= sb['avg_psqm'] else (b, a)
+        pct = round((float(hi['stats']['avg_psqm']) / float(lo['stats']['avg_psqm']) - 1) * 100)
+        takeaways.append(
+            f"{hi['label']} averages {hi['stats']['avg_psqm_display']} per sqm, {pct}% higher than "
+            f"{lo['label']} at {lo['stats']['avg_psqm_display']}."
+        )
+    if sa['count'] != sb['count']:
+        more, fewer = (a, b) if sa['count'] > sb['count'] else (b, a)
+        takeaways.append(
+            f"{more['label']} has more tracked supply: {more['stats']['count']} developments "
+            f"against {fewer['stats']['count']} in {fewer['label']}."
+        )
+    thin = [x for x in (a, b) if x['stats']['sample_size'] < 10]
+    caveat = None
+    if thin:
+        names = ' and '.join(x['label'] for x in thin)
+        caveat = (f"{names}'s average rests on fewer than 10 verified prices, so treat it as indicative, "
+                  "not definitive.")
+
+    max_psqm = max((x['stats']['avg_psqm'] for x in (a, b) if x['stats']['avg_psqm']), default=None)
+    verdict = takeaways[0] if takeaways else f"{a['label']} and {b['label']}, side by side."
+    return render(request, 'compare_neighbourhoods.html', {
+        'chooser': False,
+        'a': a, 'b': b, 'sides': [a, b], 'rows': rows, 'takeaways': takeaways, 'caveat': caveat, 'max_psqm': max_psqm,
+        'options': [{'slug': s, 'label': dict(LOCATION_CHOICES)[v]} for s, v in TRACKED_LOCATION_SLUGS.items()],
+        'other_pairs': [
+            {'label': f"{a['label']} vs {dict(LOCATION_CHOICES)[TRACKED_LOCATION_SLUGS[o]]}", 'slug': pair_slug(slug_a, o)}
+            for o in TRACKED_LOCATION_SLUGS if o not in (slug_a, slug_b)
+        ] + [
+            {'label': f"{b['label']} vs {dict(LOCATION_CHOICES)[TRACKED_LOCATION_SLUGS[o]]}", 'slug': pair_slug(slug_b, o)}
+            for o in TRACKED_LOCATION_SLUGS if o not in (slug_a, slug_b)
+        ],
+        'data_updated_at': timezone.now(),
+        'meta_title': f"{a['label']} vs {b['label']}: Lagos Off-Plan Prices Compared | CW Intelligence",
+        'meta_description': verdict,
+    })
 
 
 @login_required

@@ -1,0 +1,361 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'neighbourhood_detail' location_slug=market.slug %}">
+    {% if limited %}<meta name="robots" content="noindex, follow">{% endif %}
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    {% if not limited and faqs %}<script type="application/ld+json">{{ faq_jsonld|safe }}</script>{% endif %}
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-subhero">
+        {% if image_url %}
+        <div class="cw-hero-img" style="background-image:url('{{ image_url }}');"></div>
+        {% else %}
+        <div class="cw-hero-img cw-hero-fallback"></div>
+        {% endif %}
+        <div class="cw-hero-scrim"></div>
+        <div class="cw-container cw-hero-inner">
+            <div class="cw-crumbs"><a href="{% url 'home' %}">Market</a><span>/</span><a href="{% url 'neighbourhood_index' %}">Neighbourhoods</a><span>/</span>{{ location_label }}</div>
+            <h1 class="cw-subhero-title">{{ location_label }}</h1>
+            <p class="cw-subhero-sub">Off-plan property market intelligence: {{ stats.count }} active development{{ stats.count|pluralize }} tracked{% if market.kind == 'sub' %}, within <a href="{% url 'neighbourhood_detail' location_slug=market.parent %}" style="color:#fff;text-decoration:underline;">its wider area</a>{% endif %}.</p>
+        </div>
+    </section>
+
+    {% if limited %}
+    <div class="cw-container" style="margin-top:28px;">
+        <div class="cw-notice"><strong>Limited data.</strong> We track only {{ stats.count }} development{{ stats.count|pluralize }} in {{ location_label }} so far, so the figures below are indicative and may change quickly as the data grows.</div>
+    </div>
+    {% endif %}
+
+    <!-- 1. Overview -->
+    <section class="cw-section" style="padding-top:64px;">
+        <div class="cw-container cw-narrow">
+            <div class="cw-label">Overview</div>
+            <h2 class="cw-h2">About {{ location_label }}</h2>
+            <div class="cw-prose">{{ overview|linebreaks }}</div>
+            {% if not overview_is_editorial %}<p class="cw-fine">This summary is generated from our tracked data.</p>{% endif %}
+        </div>
+    </section>
+
+    <!-- 2. Key figures -->
+    <section class="cw-section" style="padding-top:40px;">
+        <div class="cw-container">
+            <div class="cw-stat-strip" style="padding-top:0;">
+                <div>
+                    <div class="cw-stat-num">{{ stats.count }}</div>
+                    <div class="cw-stat-label">Tracked off-plan projects</div>
+                </div>
+                <div>
+                    <div class="cw-stat-num">{{ insights.available_units }}</div>
+                    <div class="cw-stat-label">Available units, of {{ insights.total_units }} tracked</div>
+                </div>
+                <div>
+                    <div class="cw-stat-num">{% if stats.avg_psqm_display %}{{ stats.avg_psqm_display }}{% else %}N/A{% endif %}</div>
+                    <div class="cw-stat-label">Avg per sqm{% if stats.sample_size %} · {{ stats.sample_size }} prices{% endif %}</div>
+                </div>
+                {% if insights.typical %}
+                <div>
+                    <div class="cw-stat-num">{{ insights.typical.median }}</div>
+                    <div class="cw-stat-label">Median unit price · {{ insights.typical.n }} units</div>
+                </div>
+                {% endif %}
+                {% if insights.avg_size %}
+                <div>
+                    <div class="cw-stat-num">{{ insights.avg_size.value }}<span class="cw-stat-unit"> sqm</span></div>
+                    <div class="cw-stat-label">Average unit size · {{ insights.avg_size.n }} units</div>
+                </div>
+                {% endif %}
+            </div>
+            <p class="cw-fine">Price per square metre is based on verified unit prices with recorded floor areas. Figures are estimates based on tracked listing data and may not reflect final transaction prices. "Available" reflects each unit's status in our records.</p>
+        </div>
+    </section>
+
+    <!-- 3. Typical prices, sizes and unit types -->
+    {% if insights.unit_mix %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-label">Prices and unit types</div>
+            <h2 class="cw-h2">What is on offer</h2>
+            {% if insights.typical %}<p class="cw-lede" style="margin-bottom:28px;">The middle half of priced units in {{ location_label }} cost between {{ insights.typical.low }} and {{ insights.typical.high }}.</p>{% endif %}
+            <div class="cw-table-wrap">
+                <table class="cw-table">
+                    <thead><tr><th>Unit type</th><th>Units</th><th>Share of units</th><th>Median price</th><th>Average size</th></tr></thead>
+                    <tbody>
+                    {% for r in insights.unit_mix %}
+                        <tr>
+                            <td data-label="Unit type">{{ r.label }}</td>
+                            <td data-label="Units">{{ r.units }}</td>
+                            <td data-label="Share of units"><div class="cw-share"><span class="cw-bar"><span style="width:{{ r.share }}%;"></span></span><em>{{ r.share }}%</em></div></td>
+                            <td data-label="Median price">{% if r.median_price %}{{ r.median_price }}<small> · {{ r.price_n }}</small>{% else %}<span class="cw-na">Too few prices</span>{% endif %}</td>
+                            <td data-label="Average size">{% if r.avg_size %}{{ r.avg_size }} sqm<small> · {{ r.size_n }}</small>{% else %}<span class="cw-na">Too few sizes</span>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="cw-fine">The small figure beside each price or size is how many units it is based on. Units without a recorded price or floor area are left out of that column.</p>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 4. Completion pipeline -->
+    {% if insights.pipeline or insights.stages %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-label">Completion pipeline</div>
+            <h2 class="cw-h2">When projects are expected</h2>
+            <div class="cw-two-col">
+                {% if insights.pipeline %}
+                <div>
+                    <div class="cw-mini-head">By stated completion year</div>
+                    <div class="cw-yearbars">
+                        {% for p in insights.pipeline %}
+                        <div class="cw-yearbar">
+                            <span class="cw-yearbar-year">{{ p.year }}</span>
+                            <span class="cw-bar"><span style="width:{% widthratio p.count insights.pipeline_max 100 %}%;"></span></span>
+                            <span class="cw-yearbar-n">{{ p.count }}{% if p.past %}<small> date passed</small>{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="cw-fine">{{ insights.dated_count }} project{{ insights.dated_count|pluralize }} with a stated date{% if insights.undated_count %}; {{ insights.undated_count }} with no date recorded{% endif %}. A year marked "date passed" means the stated completion date is behind us and the project is still listed as in progress.</p>
+                </div>
+                {% endif %}
+                {% if insights.stages %}
+                <div>
+                    <div class="cw-mini-head">By construction stage</div>
+                    <div class="cw-chips-wrap">
+                        {% for st in insights.stages %}<span class="cw-chip-static">{{ st.label }} <b>{{ st.count }}</b></span>{% endfor %}
+                    </div>
+                    <p class="cw-fine">Latest recorded stage for each project.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 5. Selected public projects -->
+    {% if selected %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-toolbar">
+                <div>
+                    <div class="cw-label">Selected projects</div>
+                    <h2 class="cw-h2" style="margin-bottom:0;">Projects to look at in {{ location_label }}</h2>
+                </div>
+                <a class="cw-inline-link" style="margin:0;" href="#listings">All {{ stats.count }} developments →</a>
+            </div>
+            <div class="cw-card-grid">
+                {% for r in selected %}
+                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                    <div class="cw-card-photo">
+                        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+                        <div class="cw-card-pills">
+                            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+                            {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="cw-card-body">
+                        <div class="cw-card-name">{{ r.property.name }}</div>
+                        <div class="cw-card-price">
+                            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+                            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 6. Comparison with nearby markets -->
+    {% if nearby %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-label">Nearby markets</div>
+            <h2 class="cw-h2">{{ location_label }} against its neighbours</h2>
+            <div class="cw-table-wrap">
+                <table class="cw-table">
+                    <thead><tr><th>Market</th><th>Projects</th><th>Avg per sqm</th><th>Against {{ location_label }}</th><th></th></tr></thead>
+                    <tbody>
+                    {% for n in nearby %}
+                        <tr>
+                            <td data-label="Market"><a href="{% url 'neighbourhood_detail' location_slug=n.market.slug %}">{{ n.market.label }}</a></td>
+                            <td data-label="Projects">{{ n.count }}</td>
+                            <td data-label="Avg per sqm">{% if n.avg %}{{ n.avg }}<small> · {{ n.sample }}</small>{% else %}<span class="cw-na">N/A</span>{% endif %}</td>
+                            <td data-label="Against {{ location_label }}">{% if n.delta is None %}<span class="cw-na">N/A</span>{% elif n.delta > 0 %}<span class="cw-delta up">{{ n.delta }}% higher</span>{% elif n.delta < 0 %}<span class="cw-delta down">{% widthratio n.delta 1 -1 %}% lower</span>{% else %}<span class="cw-delta">In line</span>{% endif %}</td>
+                            <td>{% if n.compare_slug %}<a class="cw-table-link" href="{% url 'compare_neighbourhoods' pair=n.compare_slug %}">Compare →</a>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="cw-fine">The small figure beside each average is the number of verified prices behind it. Sub-markets overlap the wider area they sit inside.</p>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 7. Market commentary -->
+    <section class="cw-section">
+        <div class="cw-container cw-narrow">
+            <div class="cw-label">Market commentary</div>
+            <h2 class="cw-h2">What the numbers say</h2>
+            {% if editorial_commentary %}<div class="cw-prose">{{ editorial_commentary|linebreaks }}</div>{% endif %}
+            {% if commentary_points %}
+            <ul class="cw-points">
+                {% for point in commentary_points %}<li>{{ point }}</li>{% endfor %}
+            </ul>
+            <p class="cw-fine">These points are calculated from tracked data and update as the data does.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- 8. FAQ -->
+    {% if faqs %}
+    <section class="cw-section">
+        <div class="cw-container cw-narrow">
+            <div class="cw-label">Questions</div>
+            <h2 class="cw-h2">Frequently asked questions</h2>
+            <div class="cw-faq">
+                {% for q, a in faqs %}
+                <details>
+                    <summary>{{ q }}</summary>
+                    <p>{{ a }}</p>
+                </details>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 9. Downloadable guide (only when a file has been uploaded) -->
+    {% if guide %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-guide" data-guide>
+                <div>
+                    <div class="cw-label cw-label-plain">Free guide</div>
+                    <h2 class="cw-h3">{{ guide.title }}</h2>
+                    <p class="cw-muted">Leave your details and we will unlock the download. An adviser may follow up with you about {{ location_label }}.</p>
+                </div>
+                <div>
+                    {% include "partials/lead_form.html" with intent="guide" submit_label="Get the guide" %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 10. Call to action: curated shortlist -->
+    <section class="cw-section" id="shortlist">
+        <div class="cw-container">
+            <div class="cw-cta-band cw-cta-form">
+                <div>
+                    <h2>Request a curated shortlist for {{ location_label }}</h2>
+                    <p>Tell us what you are looking for and an adviser will send projects matched to your brief, with current availability and pricing.</p>
+                </div>
+                <div class="cw-cta-formwrap">
+                    {% include "partials/lead_form.html" with intent="shortlist" submit_label="Request my shortlist" %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% if compare_links %}
+    <section class="cw-section" style="padding-top:64px;">
+        <div class="cw-container">
+            <div class="cw-label">Compare</div>
+            <div class="cw-sort" style="margin-top:20px;">
+                {% for c in compare_links %}<a class="cw-chip" href="{% url 'compare_neighbourhoods' pair=c.slug %}">{{ location_label }} vs {{ c.label }}</a>{% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 11. Every development -->
+    <section class="cw-section cw-section-last" id="listings">
+        <div class="cw-container">
+            <div class="cw-toolbar">
+                <div>
+                    <div class="cw-label">All developments</div>
+                    <h2 class="cw-h2" style="margin-bottom:0;">{% if user.is_authenticated %}Every tracked development in {{ location_label }}{% else %}More developments in {{ location_label }}{% endif %}</h2>
+                </div>
+                {% if user.is_authenticated %}
+                    <div class="cw-sort" role="group" aria-label="Sort">
+                        <a href="?sort=newest#listings" class="cw-chip {% if sort == 'newest' %}active{% endif %}">Newest</a>
+                        <a href="?sort=price_asc#listings" class="cw-chip {% if sort == 'price_asc' %}active{% endif %}">Price: low to high</a>
+                        <a href="?sort=price_desc#listings" class="cw-chip {% if sort == 'price_desc' %}active{% endif %}">Price: high to low</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if listings %}
+            <div class="cw-card-grid">
+                {% for r in listings %}
+                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                    <div class="cw-card-photo">
+                        {% if r.property.thumbnail %}
+                        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+                        {% else %}
+                        <div class="cw-card-img cw-district-fallback"></div>
+                        {% endif %}
+                        <div class="cw-card-pills">
+                            {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="cw-card-body">
+                        <div class="cw-card-name">{{ r.property.name }}</div>
+                        <div class="cw-card-price">
+                            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+                            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+
+            {% if not user.is_authenticated and gated_remaining %}
+            <div class="cw-notice" style="margin-top:32px;">
+                <strong>{{ gated_remaining }} more development{{ gated_remaining|pluralize }} in {{ location_label }}.</strong>
+                Sign up to browse the full inventory, sort by price and see unit-level detail.
+                <div style="margin-top:14px;"><a href="{% url 'request_access' %}" class="cw-btn cw-btn-navy cw-btn-sm">Request private access</a></div>
+            </div>
+            {% endif %}
+
+            {% if page_obj and page_obj.paginator.num_pages > 1 %}
+            <div class="cw-pager">
+                {% if page_obj.has_previous %}<a class="cw-chip" href="?sort={{ sort }}&page={{ page_obj.previous_page_number }}#listings">← Previous</a>{% endif %}
+                <span class="cw-pager-current">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}<a class="cw-chip" href="?sort={{ sort }}&page={{ page_obj.next_page_number }}#listings">Next →</a>{% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <p class="cw-muted" style="margin-top:32px;">No tracked developments with photos in {{ location_label }} yet.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+</body>
+</html>

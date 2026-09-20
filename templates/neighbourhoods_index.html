@@ -1,0 +1,83 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lagos Off-Plan Neighbourhoods | CW Intelligence</title>
+    <meta name="description" content="Every Lagos off-plan neighbourhood we track: number of projects, average price per square metre, and a full market page for each.">
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-pagehead">
+        <div class="cw-container">
+            <div class="cw-crumbs cw-crumbs-dark"><a href="{% url 'home' %}">Market</a><span>/</span>Neighbourhoods</div>
+            <h1 class="cw-pagehead-title">Neighbourhoods</h1>
+            <p class="cw-lede" style="margin-bottom:0;">Every Lagos off-plan market we track, with the numbers behind it. Open one for prices, unit types, the completion pipeline and the projects themselves.</p>
+        </div>
+    </section>
+
+    <section class="cw-section" style="padding-top:48px;">
+        <div class="cw-container">
+            <div class="cw-label">Areas</div>
+            <div class="cw-district-grid" style="margin-top:24px;">
+                {% for item in areas %}
+                <a href="{% url 'neighbourhood_detail' location_slug=item.market.slug %}" class="cw-district">
+                    {% if item.image_url %}<div class="cw-district-img" style="background-image:url('{{ item.image_url }}');"></div>{% else %}<div class="cw-district-img cw-district-fallback"></div>{% endif %}
+                    <div class="cw-district-scrim"></div>
+                    <div class="cw-district-info">
+                        <div class="cw-district-name">{{ item.market.label }}</div>
+                        <div class="cw-district-count">{{ item.stats.count }} development{{ item.stats.count|pluralize }}</div>
+                        {% if item.stats.avg_psqm_display %}<span class="cw-tag">{{ item.stats.avg_psqm_display }}<span class="cw-tag-unit"> /sqm</span></span>{% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    {% if subs %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-label">Sub-markets</div>
+            <p class="cw-lede" style="margin:0 0 8px;">Smaller markets inside the areas above. They overlap the wider area they sit in.</p>
+            <div class="cw-district-grid" style="margin-top:24px;">
+                {% for item in subs %}
+                <a href="{% url 'neighbourhood_detail' location_slug=item.market.slug %}" class="cw-district">
+                    {% if item.image_url %}<div class="cw-district-img" style="background-image:url('{{ item.image_url }}');"></div>{% else %}<div class="cw-district-img cw-district-fallback"></div>{% endif %}
+                    <div class="cw-district-scrim"></div>
+                    <div class="cw-district-info">
+                        <div class="cw-district-name">{{ item.market.label }}</div>
+                        <div class="cw-district-count">{{ item.stats.count }} development{{ item.stats.count|pluralize }} · in {{ item.parent_label }}</div>
+                        {% if item.stats.avg_psqm_display %}<span class="cw-tag">{{ item.stats.avg_psqm_display }}<span class="cw-tag-unit"> /sqm</span></span>{% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="cw-section cw-section-last">
+        <div class="cw-container">
+            <a href="{% url 'compare_neighbourhoods_index' %}" class="cw-inline-link" style="margin-top:0;">Compare any two neighbourhoods →</a>
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+    <footer class="cw-footer">
+        <div class="cw-container">
+            <div class="cw-footer-top">
+                <div class="cw-footer-brand">
+                    <div class="cw-footer-logo">CW</div>
+                    <p>Off-plan market intelligence for Lagos real estate.</p>
+                </div>
+                <div class="cw-footer-cols">
+                    <div>
+                        <div class="cw-footer-head">Explore</div>
+                        <a href="{% url 'home' %}#market">Market</a>
+                        <a href="{% url 'neighbourhood_index' %}">Neighbourhoods</a>
+                        <a href="{% url 'compare_neighbourhoods_index' %}">Compare neighbourhoods</a>
+                        <a href="{% url 'home' %}#recent">Projects</a>
+                    </div>
+                    <div>
+                        <div class="cw-footer-head">Get in touch</div>
+                        <a href="mailto:cwresocial@gmail.com">cwresocial@gmail.com</a>
+                        <a href="{% url 'request_access' %}">Request private access</a>
+                    </div>
+                </div>
+            </div>
+            <div class="cw-footer-legal">
+                © {{ data_updated_at|date:"Y" }} CW Intelligence. Figures shown are estimates based on tracked listing data and may not reflect final transaction prices. All rights reserved.
+            </div>
+        </div>
+    </footer>

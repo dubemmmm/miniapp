@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-pagehead">
+        <div class="cw-container">
+            {% if chooser %}
+            <div class="cw-crumbs cw-crumbs-dark"><a href="{% url 'home' %}">Market</a><span>/</span>Compare</div>
+            <h1 class="cw-pagehead-title">Compare Neighbourhoods</h1>
+            <p class="cw-lede" style="margin-bottom:32px;">Pick any two Lagos neighbourhoods to see price per square metre, supply and new launches side by side.</p>
+            <form method="get" action="{% url 'compare_neighbourhoods_index' %}" class="cw-chooser">
+                <label>
+                    <span>First neighbourhood</span>
+                    <select name="a" required>
+                        <option value="" disabled selected>Choose…</option>
+                        {% for o in options %}<option value="{{ o.slug }}">{{ o.label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Second neighbourhood</span>
+                    <select name="b" required>
+                        <option value="" disabled selected>Choose…</option>
+                        {% for o in options %}<option value="{{ o.slug }}">{{ o.label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="cw-btn cw-btn-navy">Compare</button>
+            </form>
+            {% else %}
+            <div class="cw-crumbs cw-crumbs-dark"><a href="{% url 'home' %}">Market</a><span>/</span><a href="{% url 'compare_neighbourhoods_index' %}">Compare</a><span>/</span>{{ a.label }} vs {{ b.label }}</div>
+            <h1 class="cw-pagehead-title">{{ a.label }} <em>vs</em> {{ b.label }}</h1>
+            {% if takeaways %}
+            <p class="cw-statement" style="margin-top:8px;">{{ takeaways.0 }}</p>
+            {% for t in takeaways|slice:"1:" %}<p class="cw-muted" style="font-size:18px;margin:14px 0 0;">{{ t }}</p>{% endfor %}
+            {% endif %}
+            {% endif %}
+        </div>
+    </section>
+
+    {% if chooser %}
+    <section class="cw-section" style="padding-top:40px;">
+        <div class="cw-container">
+            <div class="cw-label cw-label-plain">Every comparison</div>
+            <div class="cw-pair-grid" style="margin-top:24px;">
+                {% for p in pairs %}
+                <a href="{% url 'compare_neighbourhoods' pair=p.slug %}" class="cw-pair">
+                    <div class="cw-pair-names">{{ p.a.label }} <span>vs</span> {{ p.b.label }}</div>
+                    <div class="cw-pair-figs">
+                        <span>{% if p.a_psqm %}{{ p.a_psqm }}<small>/sqm</small>{% else %}N/A{% endif %}</span>
+                        <span>{% if p.b_psqm %}{{ p.b_psqm }}<small>/sqm</small>{% else %}N/A{% endif %}</span>
+                    </div>
+                    <span class="cw-pair-go">Compare →</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% else %}
+    <section class="cw-section" style="padding-top:40px;">
+        <div class="cw-container">
+            <div class="cw-compare">
+                <div class="cw-compare-head">
+                    <div></div>
+                    {% for side in sides %}
+                    <a class="cw-compare-side" href="{% url 'neighbourhood_detail' location_slug=side.slug %}">
+                        <div class="cw-compare-photo" {% if side.image_url %}style="background-image:url('{{ side.image_url }}');"{% endif %}></div>
+                        <div class="cw-compare-name">{{ side.label }}</div>
+                        <div class="cw-compare-go">View all developments →</div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% for r in rows %}
+                <div class="cw-compare-row">
+                    <div class="cw-compare-metric">{{ r.label }}</div>
+                    <div class="cw-compare-val">{{ r.a }}{% if r.bars and a.stats.avg_psqm and max_psqm %}<div class="cw-bar"><span style="width:{% widthratio a.stats.avg_psqm max_psqm 100 %}%;"></span></div>{% endif %}</div>
+                    <div class="cw-compare-val">{{ r.b }}{% if r.bars and b.stats.avg_psqm and max_psqm %}<div class="cw-bar"><span style="width:{% widthratio b.stats.avg_psqm max_psqm 100 %}%;"></span></div>{% endif %}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if caveat %}<p class="cw-fine">{{ caveat }}</p>{% endif %}
+            <p class="cw-fine">Price per square metre is based on verified unit prices with recorded floor areas. Figures are estimates based on tracked listing data and may not reflect final transaction prices.</p>
+        </div>
+    </section>
+
+    {% for side in sides %}
+    {% if side.latest %}
+    <section class="cw-section" style="padding-top:64px;">
+        <div class="cw-container">
+            <div class="cw-toolbar">
+                <div>
+                    <div class="cw-label cw-label-plain">Latest in {{ side.label }}</div>
+                </div>
+                <a class="cw-inline-link" style="margin:0;" href="{% url 'neighbourhood_detail' location_slug=side.slug %}">All {{ side.stats.count }} developments →</a>
+            </div>
+            <div class="cw-card-grid" style="margin-top:20px;">
+                {% for r in side.latest %}
+                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                    <div class="cw-card-photo">
+                        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+                        <div class="cw-card-pills">
+                            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+                            {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="cw-card-body">
+                        <div class="cw-card-name">{{ r.property.name }}</div>
+                        <div class="cw-card-price">
+                            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+                            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+    {% endfor %}
+
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-label cw-label-plain">Compare others</div>
+            <div class="cw-sort" style="margin-top:20px;">
+                {% for o in other_pairs %}<a class="cw-chip" href="{% url 'compare_neighbourhoods' pair=o.slug %}">{{ o.label }}</a>{% endfor %}
+                <a class="cw-chip" href="{% url 'compare_neighbourhoods_index' %}">Choose another pair</a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="cw-section cw-section-last">
+        <div class="cw-container">
+            <div class="cw-cta-band">
+                <div>
+                    <h2>Want more than the averages?</h2>
+                    <p>Request private access for curated shortlists, negotiated pricing, and a dedicated advisor.</p>
+                </div>
+                <a href="{% url 'request_access' %}" class="cw-btn cw-btn-white">Request private access</a>
+            </div>
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+</body>
+</html>

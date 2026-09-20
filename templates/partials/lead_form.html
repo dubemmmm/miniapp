@@ -1,0 +1,46 @@
+{# Public lead form for neighbourhood pages. Expects: intent ('shortlist', 'guide' or 'access'), submit_label, and market (shortlist/guide) or markets (access). Posted by homepage.js. #}
+<form class="cw-form" data-lead-form data-intent="{{ intent }}" action="{% url 'crm:request_shortlist' %}" method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="intent" value="{{ intent }}">
+    {% if intent != 'access' %}<input type="hidden" name="market" value="{{ market.slug }}">{% endif %}
+    <div class="cw-hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+    <div class="cw-form-grid">
+        <label>First name<input type="text" name="first_name" autocomplete="given-name" required></label>
+        <label>Last name<input type="text" name="last_name" autocomplete="family-name" required></label>
+        <label>Email<input type="email" name="email" autocomplete="email" required></label>
+        <label>Phone (optional)<input type="tel" name="phone" autocomplete="tel" inputmode="tel"></label>
+        {% if intent == 'access' %}
+        <label class="cw-form-wide">Area of interest (optional)
+            <select name="market">
+                <option value="">Anywhere in Lagos</option>
+                {% for m in markets %}<option value="{{ m.slug }}">{{ m.label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label class="cw-form-wide">Tell us what you are looking for (optional)
+            <textarea name="message" rows="3" maxlength="2000" placeholder="Budget, unit type, timeline, investing or living"></textarea>
+        </label>
+        {% elif intent == 'shortlist' %}
+        <label>Budget (optional)
+            <select name="budget">
+                <option value="">Choose a range</option>
+                <option>Under ₦500M</option>
+                <option>₦500M to ₦1B</option>
+                <option>₦1B to ₦3B</option>
+                <option>Above ₦3B</option>
+            </select>
+        </label>
+        <label>Bedrooms (optional)
+            <select name="bedrooms">
+                <option value="">Any</option>
+                <option>1</option><option>2</option><option>3</option><option>4</option><option value="5+">5 or more</option>
+            </select>
+        </label>
+        <label class="cw-form-wide">Anything we should know (optional)
+            <textarea name="message" rows="3" maxlength="2000" placeholder="Timeline, unit type, must-haves"></textarea>
+        </label>
+        {% endif %}
+    </div>
+    <label class="cw-consent"><input type="checkbox" name="consent" value="on" required> I agree to be contacted about this request.</label>
+    <button type="submit" class="cw-btn cw-btn-navy">{{ submit_label }}</button>
+    <p class="cw-form-msg" role="status" aria-live="polite" hidden></p>
+</form>

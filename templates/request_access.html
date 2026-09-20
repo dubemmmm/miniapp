@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'request_access' %}">
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-pagehead">
+        <div class="cw-container">
+            <div class="cw-crumbs cw-crumbs-dark"><a href="{% url 'home' %}">Market</a><span>/</span>Private access</div>
+            <h1 class="cw-pagehead-title">Request Private Access</h1>
+            <p class="cw-lede">Client accounts are approved by an adviser. Tell us a little about what you are looking for and we will be in touch within 2 business days.</p>
+        </div>
+    </section>
+
+    <section class="cw-section cw-section-last">
+        <div class="cw-container cw-narrow">
+            <div class="cw-two-col">
+                <div>
+                    {% include "partials/lead_form.html" with intent="access" submit_label="Request access" %}
+                </div>
+                <div>
+                    <div class="cw-label cw-label-plain">With an account</div>
+                    <ul class="cw-checklist">
+                        <li>The full inventory, sorted and filtered your way</li>
+                        <li>Unit-level detail and pricing</li>
+                        <li>Direct contact with a dedicated adviser</li>
+                        <li>Curated shortlists for your budget</li>
+                    </ul>
+                    <p class="cw-muted" style="margin-top:28px;">Already have an invitation code? <a href="{% url 'register' %}">Create your account</a>. Already registered? <a href="{% url 'login' %}">Sign in</a>.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+</body>
+</html>
