@@ -481,7 +481,7 @@ const createPropertyCard = (property, opts = {}) => {
     const isSelected = selectedForComparison.has(property.id);
 
     const compareCheckbox = `
-        <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison — click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--navy)' : 'rgba(255,255,255,0.92)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(28,35,80,0.30), 0 2px 8px rgba(20,24,46,0.12)' : '0 2px 8px rgba(20,24,46,0.12)'};" data-property-id="${property.id}">
+        <div class="compare-checkbox" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Remove from comparison' : 'Add to comparison'}" title="${isSelected ? 'In comparison. Click to remove' : 'Compare'}" style="width:32px;height:32px;border-radius:50%;background:${isSelected ? 'var(--navy)' : 'rgba(255,255,255,0.92)'};display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:${isSelected ? '0 0 0 3px rgba(28,35,80,0.30), 0 2px 8px rgba(20,24,46,0.12)' : '0 2px 8px rgba(20,24,46,0.12)'};" data-property-id="${property.id}">
             ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1C2350" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>'}
         </div>`;
     const topControls = `<div style="display:flex;gap:8px;align-items:center;">${favoriteButtonTemplate(property)}${compareCheckbox}</div>`;
@@ -633,7 +633,7 @@ const renderCards = () => {
 
 // Compact naira for stat displays (₦200M, ₦2.2B).
 const compactNaira = (v) => {
-    if (!v) return '—';
+    if (!v) return 'N/A';
     if (v >= 1e12) return '₦' + (v / 1e12).toFixed(1).replace(/\.0$/, '') + 'T';
     if (v >= 1e9) return '₦' + (v / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
     if (v >= 1e6) return '₦' + Math.round(v / 1e6) + 'M';
@@ -661,7 +661,7 @@ const renderViewAllBanner = (location, properties) => {
     const minP = prices.length ? Math.min(...prices) : 0;
     const maxP = prices.length ? Math.max(...prices) : 0;
     const beds = bedroomValues(allConfigs);
-    const bedsLabel = !beds.length ? '—'
+    const bedsLabel = !beds.length ? 'N/A'
         : Math.min(...beds) === Math.max(...beds) ? `${Math.min(...beds)}`
         : `${Math.min(...beds)}–${Math.max(...beds)}`;
     const sep = '<div class="banner-sep" style="width:1px; height:30px; background:rgba(255,255,255,0.25);"></div>';
@@ -1403,7 +1403,7 @@ const createShare = async () => {
         }
 
         document.getElementById('shareModalContent').innerHTML = `
-            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready — anyone with it can view these properties without an account.</p>
+            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready. Anyone with it can view these properties without an account.</p>
             <div class="flex items-center gap-2 mb-4 p-2" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); background: var(--slate-100);">
                 <input id="shareLinkInput" type="text" readonly value="${result.share_url}" class="flex-1 bg-transparent text-sm px-1" style="border: none; outline: none; color: var(--ink);">
             </div>

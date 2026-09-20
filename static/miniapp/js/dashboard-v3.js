@@ -430,7 +430,7 @@ function createModalHTML(property) {
                         </div>
                         <div id="dashEnquiryForm" class="price-card-v2" style="background:#fff; border:1px solid var(--slate-200);">
                             <div class="eyebrow" style="margin-bottom:4px;">Register your interest</div>
-                            <p style="font-size:12px; color:var(--slate-400); margin-bottom:14px;">An agent will contact you within 2 business hours.</p>
+                            <p style="font-size:12px; color:var(--slate-400); margin-bottom:14px;">An agent will contact you within 2 business days.</p>
                             <input type="text" name="website" id="dashHoneypot" style="display:none;" autocomplete="off" tabindex="-1">
                             <div id="dashEnquiryError" style="display:none; padding:10px; background:#fef2f2; border-radius:var(--r-sm); color:#991b1b; font-size:13px; margin-bottom:10px;"></div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -1266,7 +1266,7 @@ function openDashboardShareModal() {
                 <option value="720">30 days</option>
             </select>
         </div>
-        <p class="text-xs mb-4" style="color: var(--slate-500);"><span id="dashboardShareSelectedCount">${count}</span> selected. Anyone with the link can view them — no account needed.</p>
+        <p class="text-xs mb-4" style="color: var(--slate-500);"><span id="dashboardShareSelectedCount">${count}</span> selected. Anyone with the link can view them. No account needed.</p>
         <button id="dashboardCreateShareBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
             <i class="fas fa-link"></i> Create shareable link
         </button>
@@ -1315,7 +1315,7 @@ async function createDashboardSharedList() {
         }
 
         document.getElementById('dashboardShareModalContent').innerHTML = `
-            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready — anyone with it can view these properties without an account.</p>
+            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready. Anyone with it can view these properties without an account.</p>
             <div class="flex items-center gap-2 mb-4 p-2" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); background: var(--slate-100);">
                 <input id="dashboardShareLinkInput" type="text" readonly value="${result.share_url}" class="flex-1 bg-transparent text-sm px-1" style="border: none; outline: none; color: var(--ink);">
             </div>

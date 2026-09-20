@@ -680,7 +680,7 @@ function toggleCompareSelection(propertyId) {
         const isSelected = selectedForComparison.has(propertyId);
         control.classList.toggle('selected', isSelected);
         control.setAttribute('aria-pressed', isSelected);
-        control.title = isSelected ? 'In comparison — click to remove' : 'Compare';
+        control.title = isSelected ? 'In comparison. Click to remove' : 'Compare';
     }
 
     updateCompareButton();

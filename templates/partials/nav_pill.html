@@ -4,7 +4,7 @@ Active state is derived from the current URL name (temp / dashboard / favorites)
 Include with `map=True` on the map so it floats over the Leaflet canvas.
 {% endcomment %}
 <header class="cw-topbar" style="{% if map %}position:absolute; top:0; left:0; right:0; z-index:700; {% endif %}display:flex; align-items:center; justify-content:space-between; padding:22px 24px 0;{% if map %} pointer-events:none;{% endif %}">
-    <a href="{% url 'temp' %}" class="brand-logo" aria-label="CW Real Estate — home">CW</a>
+    <a href="{% url 'temp' %}" class="brand-logo" aria-label="CW Real Estate home">CW</a>
     <div class="nav-pill"{% if map %} style="pointer-events:auto;"{% endif %}>
         <a href="{% url 'temp' %}" class="{% if request.resolver_match.url_name == 'temp' or request.resolver_match.url_name == 'temp2' %}active{% endif %}">Portfolio</a>
         <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Map view</a>

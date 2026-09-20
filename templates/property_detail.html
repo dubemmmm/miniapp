@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ property.name }} — CW Real Estate{% endblock %}
+{% block title %}{{ property.name }} | CW Real Estate{% endblock %}
 
 {% block extra_css %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,12 +16,24 @@
 
   <!-- Nav -->
   <nav class="chrome-header" style="padding-bottom: 16px;">
+    {% if user.is_authenticated %}
     <a href="{% url 'temp' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--coral); font-size: 14px; font-weight: 500; text-decoration: none;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
       Back to portfolio
     </a>
+    {% else %}
+    <a href="{% url 'home' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--coral); font-size: 14px; font-weight: 500; text-decoration: none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      Back to market
+    </a>
+    {% endif %}
     <div class="flex items-center gap-2.5">
+      {% if user.is_authenticated %}
       {% include "partials/profile_menu.html" %}
+      {% else %}
+      <a href="{% url 'login' %}" style="font-size: 14px; font-weight: 500; color: var(--ink); text-decoration: none; margin-right: 8px;">Sign in</a>
+      <a href="{% url 'request_access' %}" class="btn-v2 btn-coral" style="text-decoration: none;">Request private access</a>
+      {% endif %}
     </div>
   </nav>
 
@@ -95,7 +107,7 @@
                 </div>
               </div>
               {% endif %}
-              {% if property.contact_phone %}
+              {% if property.contact_phone and user.is_authenticated %}
               <div style="margin-left: auto; display: flex; gap: 8px;">
                 <a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="btn-v2" style="background: #25D366; color: white; border: none; padding: 8px 14px; font-size: 13px;">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.8c2.17 0 4.21.85 5.75 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.48-3.65 8.12-8.13 8.12a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.07.8.82-3-.19-.31a8.06 8.06 0 0 1-1.24-4.3c0-4.48 3.65-8.12 8.12-8.12zm4.7 10.18c-.26-.13-1.52-.75-1.75-.83-.24-.09-.41-.13-.58.13-.17.26-.67.83-.82 1-.15.17-.3.19-.56.06-.26-.13-1.08-.4-2.06-1.27-.76-.68-1.28-1.52-1.43-1.78-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.46.13-.15.17-.26.26-.43.09-.17.04-.32-.02-.45-.06-.13-.58-1.4-.8-1.92-.21-.5-.42-.43-.58-.44l-.5-.01c-.17 0-.45.06-.68.32-.24.26-.9.88-.9 2.15s.92 2.5 1.05 2.66c.13.17 1.8 2.76 4.38 3.87.61.26 1.09.42 1.46.54.61.2 1.17.17 1.61.1.49-.07 1.52-.62 1.73-1.22.21-.6.21-1.11.15-1.22-.06-.11-.24-.17-.5-.3z"/></svg>
@@ -167,7 +179,7 @@
               <div>
                 <div style="font-weight: 600; font-size: 14.5px;">{{ config.type }}</div>
                 <div style="font-size: 12.5px; color: var(--slate-500); font-family: var(--font-mono); margin-top: 2px;">
-                  {{ config.bedrooms }} bd · {{ config.bathrooms }} ba · {{ config.square_footage|default:"—" }} sqm
+                  {{ config.bedrooms }} bd · {{ config.bathrooms }} ba · {{ config.square_footage|default:"N/A" }} sqm
                 </div>
               </div>
               <div style="text-align: right;">
@@ -224,7 +236,7 @@
         <!-- ENQUIRY FORM -->
         <div id="enquire" class="price-card-v2" style="scroll-margin-top: 24px;">
           <div class="eyebrow" style="margin-bottom: 4px;">Register your interest</div>
-          <p style="font-size: 12px; color: var(--slate-400); margin-bottom: 16px;">An agent will contact you within 2 business hours.</p>
+          <p style="font-size: 12px; color: var(--slate-400); margin-bottom: 16px;">An agent will contact you within 2 business days.</p>
 
           <!-- Success state -->
           <div id="enquirySuccess" class="hidden text-center py-6">
