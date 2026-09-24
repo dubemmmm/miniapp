@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CW Intelligence | Lagos Off-Plan Market Data</title>
-    <meta name="description" content="Track every off-plan development in Lagos and compare price per square metre by neighbourhood, before you register or speak to anyone.">
+{% include "partials/seo_head.html" with seo_title="CW Real Estate | Lagos Off-Plan Property Prices and Market Data" seo_description="Track every off-plan development in Lagos and compare price per square metre by neighbourhood, before you register or speak to anyone." seo_path="/" %}
+    <script type="application/ld+json">{{ organization_jsonld|safe }}</script>
 
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
 
@@ -71,7 +71,7 @@
                 </div>
             </div>
             {% if hero_property %}
-            <a href="{% url 'property_detail' property_pk=hero_property.id %}" class="cw-feature">
+            <a href="{{ hero_property.get_absolute_url }}" class="cw-feature">
                 {% if hero_property.thumbnail %}<div class="cw-feature-img" style="background-image:url('{{ hero_property.thumbnail.url }}');"></div>{% endif %}
                 <div class="cw-glass-bar">
                     <div>
@@ -154,7 +154,7 @@
             <p class="cw-lede" style="margin-bottom:0;">{{ launch_count }} development{{ launch_count|pluralize }} at foundation stage, the earliest point at which we track construction.</p>
             <div class="cw-card-grid">
                 {% for r in launches %}
-                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                <a href="{{ r.property.get_absolute_url }}" class="cw-card">
                     <div class="cw-card-photo">
                         <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
                         <div class="cw-card-pills">
@@ -184,7 +184,7 @@
             {% if recent %}
             <div class="cw-card-grid">
                 {% for r in recent %}
-                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                <a href="{{ r.property.get_absolute_url }}" class="cw-card">
                     <div class="cw-card-photo">
                         {% if r.property.thumbnail %}
                         <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>

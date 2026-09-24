@@ -134,7 +134,7 @@ def enquiry_submit(request, property_pk):
     with transaction.atomic():
         # Build property URL snapshot
         try:
-            prop_url = request.build_absolute_uri(f'/property/{prop.pk}/')
+            prop_url = request.build_absolute_uri(prop.get_absolute_url())
         except Exception:
             prop_url = ''
 

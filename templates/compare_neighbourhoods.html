@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ meta_title }}</title>
-    <meta name="description" content="{{ meta_description }}">
+{% if chooser %}{% include "partials/seo_head.html" with seo_title=meta_title seo_description=meta_description %}{% else %}{% include "partials/seo_head.html" with seo_title=meta_title seo_description=meta_description seo_image=a.image_url|default:b.image_url %}{% endif %}
 
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
 
@@ -112,7 +111,7 @@
             </div>
             <div class="cw-card-grid" style="margin-top:20px;">
                 {% for r in side.latest %}
-                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+                <a href="{{ r.property.get_absolute_url }}" class="cw-card">
                     <div class="cw-card-photo">
                         <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
                         <div class="cw-card-pills">

@@ -22,6 +22,8 @@ urlpatterns = [
     path('api/validate-invitation/', views.validate_invitation_code, name='validate_invitation'),
     path('google-oauth-signup/', views.google_oauth_with_invitation, name='google_oauth_signup'),
     path('shared/<str:token>/', views.shared_properties_view, name='shared_properties'),
+    path('property/<int:property_pk>/<slug:slug>/', views.property_detail_view, name='property_detail'),
+    # Legacy id-only URL (older links, WhatsApp shares): 301s to the slug URL above.
     path('property/<int:property_pk>/', views.property_detail_view, name='property_detail'),
     path('neighbourhoods/', views.neighbourhood_index_view, name='neighbourhood_index'),
     path('neighbourhoods/<slug:location_slug>/', views.neighbourhood_detail_view, name='neighbourhood_detail'),

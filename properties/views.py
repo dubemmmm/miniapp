@@ -27,6 +27,7 @@ from .location_utils import (
 from .markets import (
     MARKETS, MARKET_MIN_PROJECTS, market_from_slug, market_properties, qualifying_markets,
 )
+from .seo import absolute_url, breadcrumb_jsonld, dump_jsonld, organization_jsonld
 from django.utils import timezone
 from django.db.models.functions import ExtractMonth, ExtractYear
 from datetime import timedelta
@@ -1903,6 +1904,8 @@ def public_homepage_view(request):
         'comparison_pairs': comparison_pairs,
         'hero_property': hero_property,
         'data_updated_at': timezone.now(),
+        'organization_jsonld': organization_jsonld(),
+        'seo_image': hero_property.thumbnail.url if hero_property and hero_property.thumbnail else None,
     }
     return render(request, 'public_home.html', context)
 
@@ -1917,7 +1920,7 @@ def _faq_jsonld(faqs):
             for q, a in faqs
         ],
     }
-    return json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
+    return dump_jsonld(data)
 
 
 def neighbourhood_detail_view(request, location_slug):
@@ -2003,6 +2006,11 @@ def neighbourhood_detail_view(request, location_slug):
         'commentary_points': _default_commentary(label, stats, ins, citywide, citywide['count']),
         'faqs': faqs,
         'faq_jsonld': _faq_jsonld(faqs),
+        'breadcrumb_jsonld': breadcrumb_jsonld([
+            ('Market', reverse('home')),
+            ('Neighbourhoods', reverse('neighbourhood_index')),
+            (label, reverse('neighbourhood_detail', kwargs={'location_slug': market.slug})),
+        ]),
         'guide': guide,
         'selected': selected,
         'nearby': _nearby_rows(market, stats['avg_psqm']),
@@ -2018,7 +2026,7 @@ def neighbourhood_detail_view(request, location_slug):
         'image_url': rep_property.thumbnail.url if rep_property and rep_property.thumbnail else None,
         'meta_title': f"{label} Off-Plan Property Market: {_plural(stats['count'], 'development')}"
                       + (f", {stats['avg_psqm_display']} avg/sqm" if stats['avg_psqm_display'] else "")
-                      + " | CW Intelligence",
+                      + " | CW Real Estate",
         'meta_description': f"Track {_plural(stats['count'], 'active off-plan development')} in {label}, Lagos: "
                              f"average price per square metre, typical unit prices, completion pipeline and verified listing data.",
     }
@@ -2032,7 +2040,7 @@ def request_access_view(request):
         return redirect('dashboard')
     return render(request, 'request_access.html', {
         'markets': qualifying_markets(),
-        'meta_title': 'Request Private Access | CW Intelligence',
+        'meta_title': 'Request Private Access | CW Real Estate',
         'meta_description': 'Ask for a CW Real Estate client account to browse the full off-plan inventory, unit-level pricing and curated shortlists.',
     })
 
@@ -2096,7 +2104,7 @@ def compare_neighbourhoods_view(request, pair=None):
             'options': options,
             'pairs': pairs,
             'data_updated_at': timezone.now(),
-            'meta_title': 'Compare Lagos Off-Plan Neighbourhoods | CW Intelligence',
+            'meta_title': 'Compare Lagos Off-Plan Neighbourhoods | CW Real Estate',
             'meta_description': 'Compare off-plan price per square metre, supply and new launches between Lagos neighbourhoods, side by side.',
         })
 
@@ -2161,7 +2169,7 @@ def compare_neighbourhoods_view(request, pair=None):
             for o in TRACKED_LOCATION_SLUGS if o not in (slug_a, slug_b)
         ],
         'data_updated_at': timezone.now(),
-        'meta_title': f"{a['label']} vs {b['label']}: Lagos Off-Plan Prices Compared | CW Intelligence",
+        'meta_title': f"{a['label']} vs {b['label']}: Lagos Off-Plan Prices Compared | CW Real Estate",
         'meta_description': verdict,
     })
 
@@ -2414,7 +2422,7 @@ def google_oauth_with_invitation(request):
     return oauth2_login(request)
 
 
-def property_detail_view(request, property_pk):
+def property_detail_view(request, property_pk, slug=None):
     """
     HTML property detail page with enquiry form.
     Public — no login required (visitors need to be able to submit enquiries).
@@ -2422,6 +2430,13 @@ def property_detail_view(request, property_pk):
     from crm.forms import EnquiryForm
 
     prop = get_object_or_404(Property, pk=property_pk, is_active=True)
+
+    # One URL per property: id-only or stale-slug links 301 to the current slug URL.
+    canonical_path = prop.get_absolute_url()
+    if request.path != canonical_path:
+        query = request.META.get('QUERY_STRING')
+        return redirect(f"{canonical_path}?{query}" if query else canonical_path, permanent=True)
+
     images = prop.images.order_by('order')
     configurations = prop.configurations.filter(is_available=True)
     amenities = prop.amenities.all()
@@ -2464,7 +2479,118 @@ def property_detail_view(request, property_pk):
             user=request.user, property=prop
         ).exists() if request.user.is_authenticated else False,
     }
+    context.update(_property_seo(prop, images, configurations, min_price, is_completed))
     return render(request, 'property_detail.html', context)
+
+
+def _property_market(prop):
+    """The most specific public market a property belongs to (a sub-market
+    like Banana Island before its area), or None."""
+    haystack = f"{prop.address or ''} {prop.name or ''}".lower()
+    for m in MARKETS:
+        if m.kind == 'sub' and any(kw in haystack for kw in m.keywords):
+            return m
+    for m in MARKETS:
+        if m.kind == 'area' and m.location == prop.location:
+            return m
+    return None
+
+
+def _bedroom_range(configurations):
+    beds = sorted({c.bedrooms for c in configurations if c.bedrooms})
+    if not beds:
+        return ''
+    if beds[0] == beds[-1]:
+        return f"{beds[0]}-Bed"
+    return f"{beds[0]} to {beds[-1]}-Bed"
+
+
+def _property_seo(prop, images, configurations, min_price, is_completed):
+    """Title, description, share image and JSON-LD for a property page."""
+    from django.utils.text import Truncator
+
+    brand = settings.SEO_BRAND_NAME
+    market = _property_market(prop)
+    area = market.label if market else (prop.address or '').split(',')[0].strip()
+    beds = _bedroom_range(configurations)
+    stage = 'Completed' if is_completed else 'Off-Plan'
+    kind = f"{beds} {stage} Homes" if beds else f"{stage} Homes"
+
+    title = f"{prop.name}, {area}: {kind} | {brand}" if area else f"{prop.name}: {kind} in Lagos | {brand}"
+
+    facts = [f"{prop.name} is {'a completed' if is_completed else 'an off-plan'} development"
+             + (f" in {area}, Lagos." if area else " in Lagos.")]
+    if beds or min_price:
+        facts.append(
+            (f"{beds} units" if beds else "Units")
+            + (f" from {_format_naira_compact(min_price)}." if min_price else ".")
+        )
+    completion = format_date_as_quarter(prop.completion_date)
+    if completion and not is_completed:
+        facts.append(f"Expected completion {completion}.")
+    facts.append("See unit types, prices, amenities and construction progress.")
+    description = Truncator(' '.join(facts)).chars(160)
+
+    image_urls = []
+    if prop.thumbnail:
+        image_urls.append(absolute_url(prop.thumbnail.url))
+    for img in images[:5]:
+        if img.image:
+            image_urls.append(absolute_url(img.image.url))
+    image_urls = list(dict.fromkeys(image_urls))
+
+    place = {
+        "@type": "Place",
+        "name": area or prop.name,
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": prop.address,
+            "addressLocality": "Lagos",
+            "addressCountry": "NG",
+        },
+    }
+    if prop.latitude is not None and prop.longitude is not None:
+        place["geo"] = {"@type": "GeoCoordinates",
+                        "latitude": float(prop.latitude), "longitude": float(prop.longitude)}
+
+    listing = {
+        "@context": "https://schema.org",
+        "@type": "RealEstateListing",
+        "name": prop.name,
+        "description": description,
+        "url": absolute_url(prop.get_absolute_url()),
+        "datePosted": prop.created_at.date().isoformat() if prop.created_at else None,
+        "contentLocation": place,
+        "provider": {"@type": "RealEstateAgent", "name": brand, "url": absolute_url('/')},
+    }
+    if image_urls:
+        listing["image"] = image_urls
+    prices = [c.price for c in configurations if c.price]
+    if prices:
+        listing["offers"] = {
+            "@type": "AggregateOffer",
+            "priceCurrency": "NGN",
+            "lowPrice": str(min(prices)),
+            "highPrice": str(max(prices)),
+            "offerCount": len(prices),
+            "availability": "https://schema.org/InStock",
+        }
+    listing = {k: v for k, v in listing.items() if v is not None}
+
+    crumbs = [('Market', reverse('home'))]
+    if market:
+        crumbs.append(('Neighbourhoods', reverse('neighbourhood_index')))
+        crumbs.append((market.label, reverse('neighbourhood_detail', kwargs={'location_slug': market.slug})))
+    crumbs.append((prop.name, prop.get_absolute_url()))
+
+    return {
+        'seo_title': title,
+        'seo_description': description,
+        'seo_image': image_urls[0] if image_urls else None,
+        'property_market': market,
+        'listing_jsonld': dump_jsonld(listing),
+        'breadcrumb_jsonld': breadcrumb_jsonld(crumbs),
+    }
 
 
 @require_POST

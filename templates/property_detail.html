@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ property.name }} | CW Real Estate{% endblock %}
+{% block seo %}
+{% include "partials/seo_head.html" with seo_type="article" %}
+    <script type="application/ld+json">{{ listing_jsonld|safe }}</script>
+    <script type="application/ld+json">{{ breadcrumb_jsonld|safe }}</script>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="preconnect" href="https://fonts.googleapis.com">

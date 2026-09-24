@@ -19,10 +19,17 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from django.contrib.sitemaps.views import sitemap
+from django.views.decorators.cache import cache_page
 from properties.views import custom_logout_view
+from properties.sitemaps import SITEMAPS
+from miniapp.views import robots_txt
 
 
 urlpatterns = [
+    path('robots.txt', robots_txt, name='robots_txt'),
+    path('sitemap.xml', cache_page(60 * 60)(sitemap), {'sitemaps': SITEMAPS},
+         name='django.contrib.sitemaps.views.sitemap'),
     path('admin/', admin.site.urls),
     path('', include('properties.urls')),
     path('crm/', include('crm.urls')),

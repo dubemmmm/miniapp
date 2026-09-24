@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.sites',  # Required for allauth
+    'django.contrib.sitemaps',
 
     # Third-party apps
     'allauth',
@@ -93,6 +94,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',  # Required for allauth
+                'properties.seo.seo_context',
             ],
         },
     },
@@ -327,6 +329,11 @@ CARTO_API_KEY = config('CARTO_API_KEY', default='')
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='cwresocial@gmail.com')
 SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
+# SEO: the one public address search engines should index (used for canonical
+# tags, Open Graph URLs and sitemap.xml), whatever host a request arrived on.
+SEO_SITE_URL = config('SEO_SITE_URL', default='https://offplan.cwlagos.com').rstrip('/')
+SEO_BRAND_NAME = 'CW Real Estate'
 
 # CRM SLA defaults (overridable via SLAConfig model)
 CRM_SLA_HOURS = 2

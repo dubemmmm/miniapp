@@ -1,0 +1,23 @@
+{% load static seo_tags %}{% comment %}
+Shared SEO <head> tags for public pages. Include with:
+  seo_title, seo_description        required
+  seo_path    canonical path (defaults to request.path, so query strings drop)
+  seo_image   share image URL or path (defaults to the logo)
+  seo_robots  e.g. "noindex, follow" (omitted = indexable)
+  seo_type    Open Graph type (defaults to "website")
+{% endcomment %}{% firstof seo_path request.path as canonical_path %}{% static 'logo/CW-logo.jpeg' as default_image %}{% firstof seo_image default_image as share_image %}
+    <title>{{ seo_title }}</title>
+    <meta name="description" content="{{ seo_description }}">
+    <link rel="canonical" href="{{ canonical_path|absolute }}">
+    {% if seo_robots %}<meta name="robots" content="{{ seo_robots }}">{% endif %}
+    <meta property="og:site_name" content="{{ SEO_BRAND_NAME }}">
+    <meta property="og:type" content="{{ seo_type|default:'website' }}">
+    <meta property="og:locale" content="en_NG">
+    <meta property="og:title" content="{{ seo_title }}">
+    <meta property="og:description" content="{{ seo_description }}">
+    <meta property="og:url" content="{{ canonical_path|absolute }}">
+    <meta property="og:image" content="{{ share_image|absolute }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ seo_title }}">
+    <meta name="twitter:description" content="{{ seo_description }}">
+    <meta name="twitter:image" content="{{ share_image|absolute }}">

@@ -103,6 +103,20 @@ class Property(models.Model):
             self.location = extract_location(self.address)
         super().save(*args, **kwargs)
 
+    @property
+    def url_slug(self):
+        """Slug shown in the public URL; falls back to the name if none is stored."""
+        from django.utils.text import slugify
+        return self.slug or slugify(self.name or '')
+
+    def get_absolute_url(self):
+        """Public detail page. The slug is for readability and search; the pk
+        does the lookup, so a renamed project keeps working and old links 301."""
+        from django.urls import reverse
+        if self.url_slug:
+            return reverse('property_detail', kwargs={'property_pk': self.pk, 'slug': self.url_slug})
+        return reverse('property_detail', kwargs={'property_pk': self.pk})
+
     def get_min_price(self):
         """Get minimum price from configurations"""
         configs = self.configurations.filter(price__isnull=False)
