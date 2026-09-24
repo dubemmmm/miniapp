@@ -2018,7 +2018,7 @@ def neighbourhood_detail_view(request, location_slug):
         'image_url': rep_property.thumbnail.url if rep_property and rep_property.thumbnail else None,
         'meta_title': f"{label} Off-Plan Property Market: {_plural(stats['count'], 'development')}"
                       + (f", {stats['avg_psqm_display']} avg/sqm" if stats['avg_psqm_display'] else "")
-                      + " | CW Intelligence",
+                      + " | CW Offplan Real Estate",
         'meta_description': f"Track {_plural(stats['count'], 'active off-plan development')} in {label}, Lagos: "
                              f"average price per square metre, typical unit prices, completion pipeline and verified listing data.",
     }
@@ -2032,8 +2032,8 @@ def request_access_view(request):
         return redirect('dashboard')
     return render(request, 'request_access.html', {
         'markets': qualifying_markets(),
-        'meta_title': 'Request Private Access | CW Intelligence',
-        'meta_description': 'Ask for a CW Real Estate client account to browse the full off-plan inventory, unit-level pricing and curated shortlists.',
+        'meta_title': 'Request Private Access | CW Offplan Real Estate',
+        'meta_description': 'Ask for a CW Offplan Real Estate client account to browse the full off-plan inventory, unit-level pricing and curated shortlists.',
     })
 
 
@@ -2096,7 +2096,7 @@ def compare_neighbourhoods_view(request, pair=None):
             'options': options,
             'pairs': pairs,
             'data_updated_at': timezone.now(),
-            'meta_title': 'Compare Lagos Off-Plan Neighbourhoods | CW Intelligence',
+            'meta_title': 'Compare Lagos Off-Plan Neighbourhoods | CW Offplan Real Estate',
             'meta_description': 'Compare off-plan price per square metre, supply and new launches between Lagos neighbourhoods, side by side.',
         })
 
@@ -2161,7 +2161,7 @@ def compare_neighbourhoods_view(request, pair=None):
             for o in TRACKED_LOCATION_SLUGS if o not in (slug_a, slug_b)
         ],
         'data_updated_at': timezone.now(),
-        'meta_title': f"{a['label']} vs {b['label']}: Lagos Off-Plan Prices Compared | CW Intelligence",
+        'meta_title': f"{a['label']} vs {b['label']}: Lagos Off-Plan Prices Compared | CW Offplan Real Estate",
         'meta_description': verdict,
     })
 

@@ -15,4 +15,4 @@ Overdue Since:  ${overdue_since}
 Please review and reassign if necessary:
 ${crm_lead_url}
 
-— CW Real Estate CRM (Automated Alert)
+— CW Offplan Real Estate CRM (Automated Alert)

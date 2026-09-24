@@ -21,4 +21,4 @@ ${crm_lead_url}
 
 Please log your first contact in the CRM dashboard after reaching out to the visitor.
 
-— CW Real Estate CRM
+— CW Offplan Real Estate CRM

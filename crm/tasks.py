@@ -65,7 +65,7 @@ def send_visitor_confirmation(self, lead_id):
             'recipient_email': lead.email,
             'recipient_type': EmailLog.RecipientType.VISITOR,
             'template_name': template_name,
-            'subject': ("We've received your request for access to CW Real Estate" if is_access
+            'subject': ("We've received your request for access to CW Offplan Real Estate" if is_access
                         else f"Your enquiry for {lead.property_title_snapshot} has been received"),
             'status': EmailLog.Status.PENDING,
         }
