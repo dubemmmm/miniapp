@@ -256,10 +256,15 @@ const toggleFilterBar = () => {
     if (filtersVisible) {
         content.style.maxHeight = content.scrollHeight + 'px';
         content.style.opacity = '1';
+        content.style.pointerEvents = 'auto';
         if (icon) icon.style.transform = 'rotate(0deg)';
     } else {
         content.style.maxHeight = '0';
         content.style.opacity = '0';
+        // opacity alone doesn't stop clicks, and the panel's own padding keeps
+        // it a few pixels tall even at max-height:0, leaving an invisible but
+        // clickable strip under the search bar with the real <select>s in it.
+        content.style.pointerEvents = 'none';
         if (icon) icon.style.transform = 'rotate(180deg)';
     }
 };
@@ -449,7 +454,7 @@ const WA_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentCo
 
 const agentRowTemplate = (property) => {
     if (!property.contact_name && !property.contact_phone) return '';
-    const name = property.contact_name || 'CW Real Estate';
+    const name = property.contact_name || 'CW Offplan Real Estate';
     const phone = property.contact_phone || '';
     const actions = phone ? `
         <a href="${waLink(property)}" target="_blank" rel="noopener" class="act wa agent-action" title="WhatsApp ${name}" onclick="event.stopPropagation();">${WA_ICON}</a>` : '';

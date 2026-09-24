@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CW Real Estate · Premium Real Estate</title>
+    <title>CW Offplan Real Estate · Premium Listings</title>
     <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -249,6 +249,8 @@
 
             </main>
         </div>
+
+        {% include "partials/app_footer.html" %}
     </div>
 
     <!-- Floating Compare Button -->
@@ -419,7 +421,7 @@
                             <div class="flex items-start gap-2">
                                 <input type="checkbox" name="consent" id="enqConsent" class="mt-0.5 rounded" style="accent-color: var(--coral);">
                                 <label for="enqConsent" class="text-xs leading-relaxed" style="color: var(--slate-500);">
-                                    I agree to be contacted by CW Real Estate about this property.
+                                    I agree to be contacted by CW Offplan Real Estate about this property.
                                 </label>
                             </div>
                             <p class="text-xs hidden enq-error" data-field="consent" style="color: var(--coral);"></p>

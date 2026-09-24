@@ -1,0 +1,38 @@
+{% comment %}
+Footer for the signed-in app shell (portfolio, favorites, reports).
+Not used on the map view (dashboard.html), which is a full-height fixed canvas.
+{% endcomment %}
+<footer class="app-footer">
+    <div class="app-footer-inner">
+        <div class="app-footer-top">
+            <div class="app-footer-brand-col">
+                <div class="app-footer-brand">CW <span>Offplan Real Estate</span></div>
+                <p class="app-footer-tag">Curated off-plan listings and market intelligence for Lagos real estate.</p>
+                <a href="mailto:cwresocial@gmail.com" class="app-footer-email">cwresocial@gmail.com</a>
+            </div>
+            <div class="app-footer-cols">
+                <div>
+                    <div class="app-footer-head">Browse</div>
+                    <a href="{% url 'temp' %}">Portfolio</a>
+                    <a href="{% url 'dashboard' %}">Map view</a>
+                    <a href="{% url 'favorites' %}">Saved</a>
+                    <a href="{% url 'reports' %}">Reports</a>
+                </div>
+                <div>
+                    <div class="app-footer-head">Market intelligence</div>
+                    <a href="{% url 'home' %}">Lagos off-plan market</a>
+                    <a href="{% url 'neighbourhood_index' %}">Neighbourhoods</a>
+                    <a href="{% url 'compare_neighbourhoods_index' %}">Compare neighbourhoods</a>
+                </div>
+                <div>
+                    <div class="app-footer-head">Account</div>
+                    <a href="{% url 'logout' %}">Sign out</a>
+                    <a href="{% url 'request_access' %}">Refer a colleague</a>
+                </div>
+            </div>
+        </div>
+        <div class="app-footer-legal">
+            © {% now "Y" %} CW Offplan Real Estate. Prices and availability shown are drawn from tracked listing data and may change without notice.
+        </div>
+    </div>
+</footer>
