@@ -373,28 +373,32 @@ function changePropertyImage(propertyId, direction) {
 let currentModalImageIndex = 0;
 let currentModalImages = [];
         
-async function showPropertyModal(propertyId) {
+function showPropertyModal(propertyId) {
     closeMapModal();
     const modal = document.getElementById('propertyModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalContent = document.getElementById('modalContent');
     if (!modal || !modalTitle || !modalContent) return;
-            
-    modalContent.innerHTML = `
-        <div class="flex items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2" style="border-color: var(--ink);"></div>
-            <span class="ml-3" style="color: var(--slate-500);">Loading property details...</span>
-        </div>
-    `;
-            
+
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-            
+
+    // Shared-list pages are viewed by people who may not have an account, so
+    // this reads from `sharedProperties` (embedded server-side, see
+    // shared_properties.html) instead of /api/properties/<id>/, which
+    // requires login and would otherwise fail for anonymous viewers.
     try {
-        const response = await fetch(`/api/properties/${propertyId}/`);
-        if (!response.ok) throw new Error('Failed to fetch property details');
-        const property = await response.json();
-                
+        const source = (typeof sharedProperties !== 'undefined' ? sharedProperties : [])
+            .find(p => p.id === propertyId);
+        if (!source) throw new Error('Property not found in this shared list');
+
+        const property = {
+            ...source,
+            images: (source.images || []).map(img => img.image),
+            amenities: (source.amenities || []).map(a => a.name),
+            contact_phone: source.contact_phone || '',
+        };
+
         currentModalImages = property.images || [];
         currentModalImageIndex = 0;
                 
@@ -454,7 +458,11 @@ async function showPropertyModal(propertyId) {
                         </div>
                         <div class="info-tile">
                             <div class="info-label">Completion Date</div>
-                            <div class="info-value">${property.completion_date || 'Not specified'}</div>
+                            <div class="info-value">${(() => {
+                                if (!property.completion_date) return 'Not specified';
+                                const d = new Date(property.completion_date);
+                                return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
+                            })()}</div>
                         </div>
                     </div>
                 </div>
@@ -480,19 +488,15 @@ async function showPropertyModal(propertyId) {
                         <div class="space-y-2">
                             ${property.configurations.map(config => {
                                 let priceDisplay = 'Price on request';
-                                if (config.price && config.price !== 'TBD') {
-                                    // Clean the price string by removing '₦' and commas
-                                    const cleanPrice = parseFloat(config.price.replace('₦', '').replace(/,/g, ''));
-                                    if (!isNaN(cleanPrice)) {
-                                        const nairaPrice = cleanPrice;
-                                        if (currencyConverter && currencyConverter.currentCurrency === 'USD') {
-                                            const usdPrice = nairaPrice / currencyConverter.exchangeRate;
-                                            priceDisplay = usdPrice < 1000 ?
-                                                `$${usdPrice.toLocaleString('en-US', {maximumFractionDigits: 0})}` :
-                                                `$${(usdPrice/1000).toFixed(1)}K`;
-                                        } else {
-                                            priceDisplay = `₦${nairaPrice.toLocaleString()}`;
-                                        }
+                                const nairaPrice = parseFloat(config.price);
+                                if (nairaPrice > 0) {
+                                    if (currencyConverter && currencyConverter.currentCurrency === 'USD') {
+                                        const usdPrice = nairaPrice / currencyConverter.exchangeRate;
+                                        priceDisplay = usdPrice < 1000 ?
+                                            `$${usdPrice.toLocaleString('en-US', {maximumFractionDigits: 0})}` :
+                                            `$${(usdPrice/1000).toFixed(1)}K`;
+                                    } else {
+                                        priceDisplay = `₦${nairaPrice.toLocaleString()}`;
                                     }
                                 }
                                 return `
@@ -541,7 +545,11 @@ async function showPropertyModal(propertyId) {
                     </h3>
                     <div class="info-tile" style="text-align: center;">
                         <p style="color: var(--slate-600); margin-bottom: 14px;">Interested in this property? Get in touch with us!</p>
-                        <a href="https://wa.me/${property.contact?.split(' - ')[1] || '2348000000000'}?text=${encodeURIComponent(`Hi! I'm interested in ${property.name} from the shared property list: ${listName}`)}"
+                        <a href="https://wa.me/${(() => {
+                                let digits = (property.contact_phone || '').replace(/\D/g, '');
+                                if (digits.startsWith('0')) digits = '234' + digits.slice(1);
+                                return digits || '2348000000000';
+                            })()}?text=${encodeURIComponent(`Hi! I'm interested in ${property.name} from the shared property list: ${listName}`)}"
                            class="whatsapp-button"
                            target="_blank" rel="noopener">
                             <i class="fab fa-whatsapp"></i>
@@ -557,7 +565,7 @@ async function showPropertyModal(propertyId) {
         `;
                 
     } catch (error) {
-        console.error('Error fetching property details:', error);
+        console.error('Error loading property details:', error);
         modalContent.innerHTML = `
             <div class="text-center py-12">
                 <div class="bg-red-50 border border-red-200 p-6" style="border-radius: var(--r-md);">

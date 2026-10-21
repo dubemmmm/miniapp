@@ -496,6 +496,12 @@ const createPropertyCard = (property, opts = {}) => {
     const completionBadge = property.completion_date
         ? `<span class="status-v2 ${isCompleted ? 'available' : 'progress'}"><span class="dot"></span>${isCompleted ? 'Completed' : 'In Progress'}</span>`
         : `<span class="status-v2 tba"><span class="dot"></span>Timeline TBA</span>`;
+    // Staff-only: needs_review only ever arrives in the payload for employee
+    // viewers (see build_property_payload), so window.isInternalUser is a
+    // belt-and-suspenders check, not the only gate.
+    const reviewBadge = (window.isInternalUser && property.needs_review)
+        ? `<span class="review-flag" title="Needs review · last reviewed: ${property.last_reviewed_at || 'never'}"><i class="fas fa-flag"></i></span>`
+        : '';
 
     if (rail) { card.style.width = width + "px"; card.style.flex = "0 0 " + width + "px"; }
 
@@ -506,7 +512,10 @@ const createPropertyCard = (property, opts = {}) => {
         <div class="card-img-wrap">
             <img src="${property.thumbnail}" alt="${property.name}" class="card-img" loading="lazy" />
             <div class="card-top">
-                ${completionBadge}
+                <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+                    ${completionBadge}
+                    ${reviewBadge}
+                </div>
                 ${topControls}
             </div>
         </div>
@@ -584,6 +593,14 @@ const renderCards = () => {
         return ra !== rb ? ra - rb : a.localeCompare(b);
     }).forEach(location => {
         const locationProps = byLocation[location];
+        // Each location's rail only ever renders its first 10 (see the
+        // slice below) with the rest behind "View all" — so a property
+        // needing review can go unseen for weeks if it isn't naturally among
+        // the newest 10. Float it to the front instead, staff-only, so the
+        // card badge actually gets seen without an extra click.
+        if (window.isInternalUser) {
+            locationProps.sort((a, b) => (a.needs_review === b.needs_review) ? 0 : (a.needs_review ? -1 : 1));
+        }
         const section = document.createElement("div");
         section.className = "space-y-4";
 
@@ -787,6 +804,38 @@ const renderActiveLocationView = () => {
     showLocationViewAll(locationViewState.location, activeProperties);
 };
 
+const handleMarkReviewed = async (propertyId) => {
+    const btn = document.getElementById('markReviewedBtn');
+    const notice = document.getElementById('modalReviewNotice');
+    if (btn) { btn.disabled = true; btn.textContent = 'Marking…'; }
+
+    try {
+        const response = await fetch(`/api/properties/${propertyId}/mark-reviewed/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({}),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Failed to mark as reviewed');
+
+        // Patch local state so the badge disappears immediately, on the card
+        // grid and the hero, without needing a page reload.
+        [properties.find(p => p.id === propertyId), selectedProperty?.id === propertyId ? selectedProperty : null]
+            .forEach(p => { if (p) { p.needs_review = false; p.last_reviewed_at = data.last_reviewed_at; } });
+
+        if (notice) notice.classList.add('hidden');
+        renderCards();
+        populateHero();
+    } catch (error) {
+        console.error('Error marking property reviewed:', error);
+        alert(error.message || 'Error marking property reviewed. Please try again.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Mark reviewed'; }
+    }
+};
+
 const handleFavoriteToggle = async (propertyId) => {
     const previousState = favoritePropertyIds.has(propertyId);
     const upcomingState = !previousState;
@@ -880,6 +929,26 @@ const openModal = (property) => {
     const statusClass = isCompleted ? statusStyles.completed : statusStyles.in_progress;
     document.getElementById("modalStatusBadge").className = `status-v2 ${isCompleted ? 'available' : 'progress'}`;
     document.getElementById("modalStatusBadge").innerHTML = `<span class="dot"></span>${isCompleted ? 'Completed' : 'In Progress'}`;
+
+    // Staff-only review reminder — needs_review only ever arrives truthy for
+    // an employee viewer's own payload (see build_property_payload), so this
+    // can't surface for a client even if window.isInternalUser were spoofed.
+    const reviewNotice = document.getElementById('modalReviewNotice');
+    if (reviewNotice) {
+        if (window.isInternalUser && property.needs_review) {
+            reviewNotice.classList.remove('hidden');
+            const text = document.getElementById('modalReviewText');
+            if (text) text.textContent = `Needs review · last reviewed: ${property.last_reviewed_at || 'never'}`;
+            const reviewBtn = document.getElementById('markReviewedBtn');
+            if (reviewBtn) {
+                reviewBtn.disabled = false;
+                reviewBtn.textContent = 'Mark reviewed';
+                reviewBtn.onclick = () => handleMarkReviewed(property.id);
+            }
+        } else {
+            reviewNotice.classList.add('hidden');
+        }
+    }
 
     const metaParts = [
         `<span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,0.85)" stroke="none"><path d="M12 22s7-6.13 7-12a7 7 0 1 0-14 0c0 5.87 7 12 7 12z"/><circle cx="12" cy="10" r="2.5" fill="white"/></svg> <span style="font-size:13px;">${property.address}</span></span>`
@@ -1312,6 +1381,7 @@ const updateCompareButton = () => {
 
     if (n === 0) {
         wrapper.classList.add('hidden');
+        updateShareButton();
         return;
     }
     wrapper.classList.remove('hidden');
@@ -1363,7 +1433,16 @@ const openShareModal = () => {
     if (selectedForComparison.size === 0) return;
     document.getElementById('shareSelectedCount').textContent = selectedForComparison.size;
     document.getElementById('shareListName').value = '';
+    document.getElementById('shareComments').value = '';
     document.getElementById('shareDuration').value = '72';
+    // Always reopen on the form, even if the last visit ended on the success
+    // screen (creating a link doesn't close the modal).
+    document.getElementById('shareFormView').classList.remove('hidden');
+    document.getElementById('shareSuccessView').classList.add('hidden');
+    const createBtn = document.getElementById('createShareBtn');
+    createBtn.disabled = false;
+    createBtn.style.opacity = '1';
+    createBtn.innerHTML = '<i class="fas fa-link"></i> Create shareable link';
     const modal = document.getElementById('shareModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -1380,6 +1459,7 @@ const closeShareModal = () => {
 const createShare = async () => {
     const propertyIds = Array.from(selectedForComparison);
     const name = document.getElementById('shareListName').value.trim() || 'Shared Properties';
+    const comments = document.getElementById('shareComments').value.trim();
     const duration = document.getElementById('shareDuration').value;
     const btn = document.getElementById('createShareBtn');
 
@@ -1397,6 +1477,7 @@ const createShare = async () => {
             },
             body: JSON.stringify({
                 name,
+                comments,
                 property_ids: propertyIds,
                 duration_hours: parseInt(duration, 10)
             })
@@ -1407,34 +1488,20 @@ const createShare = async () => {
             throw new Error(result.error || 'Failed to create share link');
         }
 
-        document.getElementById('shareModalContent').innerHTML = `
-            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready. Anyone with it can view these properties without an account.</p>
-            <div class="flex items-center gap-2 mb-4 p-2" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); background: var(--slate-100);">
-                <input id="shareLinkInput" type="text" readonly value="${result.share_url}" class="flex-1 bg-transparent text-sm px-1" style="border: none; outline: none; color: var(--ink);">
-            </div>
-            <button id="copyShareLinkBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
-                <i class="fas fa-copy"></i> Copy link
-            </button>
-        `;
-        document.getElementById('copyShareLinkBtn').addEventListener('click', () => {
-            const input = document.getElementById('shareLinkInput');
-            input.select();
-            input.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
-            const copyBtn = document.getElementById('copyShareLinkBtn');
-            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-            setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link'; }, 2000);
-        });
+        document.getElementById('shareLinkInput').value = result.share_url;
+        document.getElementById('shareFormView').classList.add('hidden');
+        document.getElementById('shareSuccessView').classList.remove('hidden');
 
         selectedForComparison.clear();
         updateCompareButton();
         renderCards();
     } catch (error) {
         console.error('Error creating share link:', error);
+        alert(error.message || 'Error creating share link. Please try again.');
+    } finally {
         btn.disabled = false;
         btn.style.opacity = '1';
         btn.innerHTML = originalHTML;
-        alert(error.message || 'Error creating share link. Please try again.');
     }
 };
 
@@ -1580,6 +1647,15 @@ if (window.canShareProperties) {
         if (e.target.id === 'shareModal') closeShareModal();
     });
     document.getElementById('createShareBtn').addEventListener('click', createShare);
+    document.getElementById('copyShareLinkBtn').addEventListener('click', () => {
+        const input = document.getElementById('shareLinkInput');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
+        const copyBtn = document.getElementById('copyShareLinkBtn');
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link'; }, 2000);
+    });
 }
 
 // Account dropdown toggle now lives in partials/profile_menu.html (shared by all pages).
@@ -1613,11 +1689,13 @@ const populateHero = () => {
         }
     }
 
-    // Featured card — pick luxury or first property
+    // Featured card — an admin-pinned property wins if it's in this set
+    // (so Favorites only shows the pin when it's actually a favourite);
+    // otherwise fall back to a luxury listing, then the newest one.
     // Only consider properties that have at least one configuration — a synced
     // property with none would otherwise crash the reduce() below.
     const featurable = properties.filter(p => p.configurations && p.configurations.length);
-    const featured = featurable.find(p => p.luxury_status === 'luxurious') || featurable[0];
+    const featured = featurable.find(p => p.is_featured) || featurable.find(p => p.luxury_status === 'luxurious') || featurable[0];
     const card = document.getElementById('heroFeaturedCard');
     if (!card || !featured) return;
 
@@ -1627,7 +1705,7 @@ const populateHero = () => {
     card.innerHTML = `
         <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(20,24,46,0.10) 0%, rgba(20,24,46,0) 30%, rgba(20,24,46,0.86) 100%);"></div>
         <div style="position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:flex-start;z-index:2;">
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">${badgePills(featured)}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">${badgePills(featured)}${(window.isInternalUser && featured.needs_review) ? '<span class="review-flag" title="Needs review"><i class="fas fa-flag"></i></span>' : ''}</div>
             ${favoriteButtonTemplate(featured)}
         </div>
         <div style="position:absolute;left:24px;right:24px;bottom:22px;color:white;z-index:2;">

@@ -284,23 +284,41 @@
                 </button>
             </div>
             <div id="shareModalContent" class="p-4 sm:p-6">
-                <div class="mb-4">
-                    <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">List name</label>
-                    <input id="shareListName" type="text" placeholder="e.g. Lekki shortlist for the Adewale family" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
+                <!-- Form view and success view are both always in the DOM (never
+                     innerHTML-replaced) and just toggled with .hidden, so the form
+                     and its listeners survive creating more than one link per visit. -->
+                <div id="shareFormView">
+                    <div class="mb-4">
+                        <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">List name</label>
+                        <input id="shareListName" type="text" placeholder="e.g. Lekki shortlist for the Adewale family" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">Comments (optional)</label>
+                        <textarea id="shareComments" rows="3" placeholder="A note for whoever opens this link, e.g. these three best fit your budget." class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none; resize: vertical;"></textarea>
+                    </div>
+                    <div class="mb-5">
+                        <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">Link expires after</label>
+                        <select id="shareDuration" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
+                            <option value="24">1 day</option>
+                            <option value="72" selected>3 days</option>
+                            <option value="168">7 days</option>
+                            <option value="720">30 days</option>
+                        </select>
+                    </div>
+                    <p class="text-xs mb-4" style="color: var(--slate-500);"><span id="shareSelectedCount">0</span> selected. Anyone with the link can view them. No account needed.</p>
+                    <button id="createShareBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
+                        <i class="fas fa-link"></i> Create shareable link
+                    </button>
                 </div>
-                <div class="mb-5">
-                    <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">Link expires after</label>
-                    <select id="shareDuration" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
-                        <option value="24">1 day</option>
-                        <option value="72" selected>3 days</option>
-                        <option value="168">7 days</option>
-                        <option value="720">30 days</option>
-                    </select>
+                <div id="shareSuccessView" class="hidden">
+                    <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready. Anyone with it can view these properties without an account.</p>
+                    <div class="flex items-center gap-2 mb-4 p-2" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); background: var(--slate-100);">
+                        <input id="shareLinkInput" type="text" readonly class="flex-1 bg-transparent text-sm px-1" style="border: none; outline: none; color: var(--ink);">
+                    </div>
+                    <button id="copyShareLinkBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
+                        <i class="fas fa-copy"></i> Copy link
+                    </button>
                 </div>
-                <p class="text-xs mb-4" style="color: var(--slate-500);"><span id="shareSelectedCount">0</span> selected. Anyone with the link can view them. No account needed.</p>
-                <button id="createShareBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
-                    <i class="fas fa-link"></i> Create shareable link
-                </button>
             </div>
         </div>
     </div>
@@ -375,6 +393,17 @@
                                 <i class="fas fa-file-pdf"></i> Brochure
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Staff-only review reminder. Hidden unless window.isInternalUser
+                         and the property is overdue (see openModal in temp-v3.js);
+                         never populated at all for a client, since the JSON a client's
+                         browser receives never includes needs_review in the first place. -->
+                    <div id="modalReviewNotice" class="hidden mb-4" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 14px; border-radius: var(--r-md); background:#FDECEC; border:1px solid #F6D2D2;">
+                        <span style="font-size:13px; color:#B4232A;"><i class="fas fa-triangle-exclamation" style="margin-right:6px;"></i><span id="modalReviewText">Needs review</span></span>
+                        <button id="markReviewedBtn" type="button" style="font-size:12.5px; font-weight:600; color:#B4232A; background:#fff; border:1px solid #F6D2D2; border-radius:999px; padding:6px 12px; cursor:pointer;">
+                            Mark reviewed
+                        </button>
                     </div>
 
                     <!-- Enquiry Form Panel -->

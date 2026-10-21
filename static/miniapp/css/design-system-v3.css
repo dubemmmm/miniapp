@@ -195,6 +195,13 @@ body {
 .status-v2.new .dot     { background: var(--navy); }
 .status-v2.tba          { background: var(--slate-100); color: var(--slate-500); }
 .status-v2.tba .dot     { background: var(--slate-400); }
+/* Staff-only "needs review" flag — never shown to clients (see is_employee gate server-side) */
+.review-flag {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--gold); color: #fff; font-size: 11px;
+  box-shadow: var(--shadow-sm);
+}
 
 /* ——————————————— v3 NEW: listing badges ——————————————— */
 /* Translucent white pills with a colored dot. Adapted to our data:
@@ -1246,4 +1253,18 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   .app-footer-inner { padding: 32px 20px 20px; }
   .app-footer-top { gap: 28px; }
   .app-footer-brand-col { max-width: none; }
+}
+
+/* Floating WhatsApp contact button (public pages) */
+.cw-whatsapp-fab {
+  position: fixed; right: 24px; bottom: 24px; z-index: 80;
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--wa); color: #fff; font-size: 26px;
+  box-shadow: 0 14px 30px -10px rgba(37,211,102,0.55), var(--shadow-md);
+  text-decoration: none; transition: transform .15s ease;
+}
+.cw-whatsapp-fab:hover { transform: scale(1.07); color: #fff; }
+@media (max-width: 640px) {
+  .cw-whatsapp-fab { right: 16px; bottom: 16px; width: 50px; height: 50px; font-size: 23px; }
 }

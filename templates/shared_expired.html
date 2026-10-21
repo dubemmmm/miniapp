@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link No Longer Available | CW Offplan Real Estate</title>
+    <meta name="robots" content="noindex">
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-section cw-section-last" style="padding-top:150px;">
+        <div class="cw-container cw-narrow" style="text-align:center;">
+            <div class="cw-label cw-label-plain" style="justify-content:center;">Shared list</div>
+            <h1 class="cw-h2">This link is no longer available</h1>
+            <p class="cw-lede" style="margin-left:auto; margin-right:auto;">
+                {% if shared_list.name %}"{{ shared_list.name }}" is{% else %}This shared property list is{% endif %}
+                no longer active. It may have expired, or the agent who sent it may have taken it down.
+                Get in touch and we'll help you find what you're looking for.
+            </p>
+            <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
+                <a href="{% url 'home' %}" class="cw-btn cw-btn-navy">Back to CW Offplan Real Estate</a>
+                <a href="{% url 'request_access' %}" class="cw-btn cw-btn-outline">Request a new shortlist</a>
+            </div>
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+</body>
+</html>

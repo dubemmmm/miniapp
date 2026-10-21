@@ -70,13 +70,13 @@
                     <a href="#neighbourhoods" class="cw-btn cw-btn-outline">Explore districts</a>
                 </div>
             </div>
-            {% if hero_property %}
-            <a href="{% url 'property_detail' property_pk=hero_property.id %}" class="cw-feature">
-                {% if hero_property.thumbnail %}<div class="cw-feature-img" style="background-image:url('{{ hero_property.thumbnail.url }}');"></div>{% endif %}
+            {% if index_featured_property %}
+            <a href="{% url 'property_detail' property_pk=index_featured_property.id %}" class="cw-feature">
+                {% if index_featured_property.thumbnail %}<div class="cw-feature-img" style="background-image:url('{{ index_featured_property.thumbnail.url }}');"></div>{% endif %}
                 <div class="cw-glass-bar">
                     <div>
-                        <div class="cw-glass-loc">{{ hero_property.get_location_display }}</div>
-                        <div class="cw-glass-name">{{ hero_property.name }}</div>
+                        <div class="cw-glass-loc">{{ index_featured_property.get_location_display }}</div>
+                        <div class="cw-glass-name">{{ index_featured_property.name }}</div>
                     </div>
                     <span class="cw-arrow-btn" aria-hidden="true">↗</span>
                 </div>
@@ -247,6 +247,7 @@
     </section>
 
     {% include "partials/hp_footer.html" %}
+    {% include "partials/whatsapp_fab.html" %}
 
     <script src="{% static 'miniapp/js/homepage.js' %}"></script>
 </body>

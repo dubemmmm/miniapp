@@ -1251,27 +1251,16 @@ function openDashboardShareModal() {
 
     document.getElementById('dashboardShareSelectedCount').textContent = count;
     document.getElementById('dashboardShareListName').value = '';
+    document.getElementById('dashboardShareComments').value = '';
     document.getElementById('dashboardShareDuration').value = '72';
-    document.getElementById('dashboardShareModalContent').innerHTML = `
-        <div class="mb-4">
-            <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">List name</label>
-            <input id="dashboardShareListName" type="text" placeholder="e.g. Lekki shortlist for the Adewale family" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
-        </div>
-        <div class="mb-5">
-            <label class="block mb-1.5 text-sm font-semibold" style="color: var(--ink);">Link expires after</label>
-            <select id="dashboardShareDuration" class="w-full px-3 py-2 text-sm" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); outline: none;">
-                <option value="24">1 day</option>
-                <option value="72" selected>3 days</option>
-                <option value="168">7 days</option>
-                <option value="720">30 days</option>
-            </select>
-        </div>
-        <p class="text-xs mb-4" style="color: var(--slate-500);"><span id="dashboardShareSelectedCount">${count}</span> selected. Anyone with the link can view them. No account needed.</p>
-        <button id="dashboardCreateShareBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
-            <i class="fas fa-link"></i> Create shareable link
-        </button>
-    `;
-    document.getElementById('dashboardCreateShareBtn').addEventListener('click', createDashboardSharedList);
+    // Always reopen on the form, even if the last visit ended on the success
+    // screen (creating a link doesn't close the modal).
+    document.getElementById('dashboardShareFormView').classList.remove('hidden');
+    document.getElementById('dashboardShareSuccessView').classList.add('hidden');
+    const createBtn = document.getElementById('dashboardCreateShareBtn');
+    createBtn.disabled = false;
+    createBtn.style.opacity = '1';
+    createBtn.innerHTML = '<i class="fas fa-link"></i> Create shareable link';
 
     const modal = document.getElementById('dashboardShareModal');
     modal.style.display = 'flex';
@@ -1287,6 +1276,7 @@ function closeDashboardShareModal() {
 async function createDashboardSharedList() {
     const propertyIds = Array.from(selectedPropertyIds);
     const name = document.getElementById('dashboardShareListName').value.trim() || 'Shared Properties';
+    const comments = document.getElementById('dashboardShareComments').value.trim();
     const duration = document.getElementById('dashboardShareDuration').value;
     const btn = document.getElementById('dashboardCreateShareBtn');
 
@@ -1304,6 +1294,7 @@ async function createDashboardSharedList() {
             },
             body: JSON.stringify({
                 name,
+                comments,
                 property_ids: propertyIds,
                 duration_hours: parseInt(duration, 10)
             })
@@ -1314,40 +1305,43 @@ async function createDashboardSharedList() {
             throw new Error(result.error || 'Failed to create share link');
         }
 
-        document.getElementById('dashboardShareModalContent').innerHTML = `
-            <p class="text-sm mb-3" style="color: var(--slate-500);">Your shareable link is ready. Anyone with it can view these properties without an account.</p>
-            <div class="flex items-center gap-2 mb-4 p-2" style="border: 1px solid var(--slate-200); border-radius: var(--r-md); background: var(--slate-100);">
-                <input id="dashboardShareLinkInput" type="text" readonly value="${result.share_url}" class="flex-1 bg-transparent text-sm px-1" style="border: none; outline: none; color: var(--ink);">
-            </div>
-            <button id="dashboardCopyShareLinkBtn" class="w-full flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all" style="border-radius: var(--r-full); background: var(--coral); color: white; border: none; cursor: pointer; box-shadow: var(--shadow-coral);">
-                <i class="fas fa-copy"></i> Copy link
-            </button>
-        `;
-        document.getElementById('dashboardCopyShareLinkBtn').addEventListener('click', () => {
-            const input = document.getElementById('dashboardShareLinkInput');
-            input.select();
-            input.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
-            const copyBtn = document.getElementById('dashboardCopyShareLinkBtn');
-            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-            setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link'; }, 2000);
-        });
+        document.getElementById('dashboardShareLinkInput').value = result.share_url;
+        document.getElementById('dashboardShareFormView').classList.add('hidden');
+        document.getElementById('dashboardShareSuccessView').classList.remove('hidden');
 
         selectedPropertyIds.clear();
         updateDashboardCompareButton();
         document.querySelectorAll('.dashboard-property-checkbox').forEach(cb => { cb.checked = false; });
     } catch (error) {
         console.error('Error creating share link:', error);
+        showNotification(error.message || 'Error creating share link. Please try again.', 'error');
+    } finally {
         btn.disabled = false;
         btn.style.opacity = '1';
         btn.innerHTML = originalHTML;
-        showNotification(error.message || 'Error creating share link. Please try again.', 'error');
     }
 }
 
 const dashboardShareBtn = document.getElementById('dashboardShareBtn');
 if (dashboardShareBtn) {
     dashboardShareBtn.addEventListener('click', openDashboardShareModal);
+}
+
+const dashboardCreateShareBtn = document.getElementById('dashboardCreateShareBtn');
+if (dashboardCreateShareBtn) {
+    dashboardCreateShareBtn.addEventListener('click', createDashboardSharedList);
+}
+
+const dashboardCopyShareLinkBtn = document.getElementById('dashboardCopyShareLinkBtn');
+if (dashboardCopyShareLinkBtn) {
+    dashboardCopyShareLinkBtn.addEventListener('click', () => {
+        const input = document.getElementById('dashboardShareLinkInput');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
+        dashboardCopyShareLinkBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => { dashboardCopyShareLinkBtn.innerHTML = '<i class="fas fa-copy"></i> Copy link'; }, 2000);
+    });
 }
 
 const dashboardShareModal = document.getElementById('dashboardShareModal');
