@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/properties/', views.properties_api, name='properties_api'),
     path('api/properties/<int:property_id>/', views.property_detail_api, name='property_detail_api'),
     path('api/properties/<int:property_id>/favorite/', views.toggle_favorite, name='toggle_favorite'),
+    path('api/properties/<int:property_id>/mark-reviewed/', views.mark_property_reviewed, name='mark_property_reviewed'),
     path('favorites/', views.favorites_view, name='favorites'),
     path('api/create-shared-list/', views.create_shared_list, name='create_shared_list'),
     path('property/<int:property_id>/pdf/', views.download_property_pdf, name='property_pdf'),

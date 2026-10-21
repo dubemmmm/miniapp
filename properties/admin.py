@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from django.db.models import Q
 from .models import (
     Property, PropertyConfiguration, PropertyImage, PropertyAmenity,
     SharedPropertyList, UserProfile, AirtableSyncLog, EmployeeInvitation,
@@ -33,11 +34,36 @@ class PropertyAmenityInline(admin.TabularInline):
     extra = 0
     readonly_fields = ['airtable_id', 'last_synced_at']
 
+
+class NeedsReviewFilter(admin.SimpleListFilter):
+    """Can't filter on Property.needs_review directly — it's a computed
+    property, not a DB field — so this reimplements the same cutoff as a
+    queryset filter."""
+    title = 'due for review'
+    parameter_name = 'due_for_review'
+
+    def lookups(self, request, model_admin):
+        return (('yes', 'Due now'), ('no', 'Not due'))
+
+    def queryset(self, request, queryset):
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=Property.REVIEW_DUE_AFTER_DAYS)
+        # Due = never reviewed and created before the cutoff, or reviewed before it.
+        overdue = Q(last_reviewed_at__isnull=True, created_at__lt=cutoff) | Q(last_reviewed_at__lt=cutoff)
+        if self.value() == 'yes':
+            return queryset.filter(overdue)
+        if self.value() == 'no':
+            return queryset.exclude(overdue)
+        return queryset
+
+
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
     list_display = [
         'name',
         'location',
+        'is_featured',
+        'review_status',
         'luxury_status',
         'is_active',
         'get_configuration_count',
@@ -46,7 +72,9 @@ class PropertyAdmin(admin.ModelAdmin):
         'last_synced_at',
         'completion_date'
     ]
-    list_filter = ['location', 'luxury_status', 'is_active', 'last_synced_at', 'created_at']
+    list_editable = ['is_featured']
+    list_filter = ['is_featured', NeedsReviewFilter, 'location', 'luxury_status', 'is_active', 'last_synced_at', 'created_at']
+    actions = ['mark_reviewed']
     search_fields = ['name', 'address', 'airtable_id', 'slug']
     readonly_fields = [
         'airtable_id', 
@@ -75,11 +103,17 @@ class PropertyAdmin(admin.ModelAdmin):
             'fields': ('brochure', 'thumbnail', 'get_primary_image_preview')
         }),
         ('Status & Classification', {
-            'fields': ('is_active', 'luxury_status')
+            'fields': ('is_active', 'is_featured', 'luxury_status')
         }),
         ('Property Stats', {
             'fields': ('get_min_price', 'get_max_bedrooms'),
             'classes': ('collapse',)
+        }),
+        ('Detail Review', {
+            'fields': ('last_reviewed_at', 'reviewed_by'),
+            'description': "Reminds agents to double-check this listing's details every "
+                            f"{Property.REVIEW_DUE_AFTER_DAYS} days. Use the 'Mark reviewed' "
+                            "action below (from the property list) to update both fields at once."
         }),
         ('Sync Information', {
             'fields': ('airtable_id', 'last_synced_at'),
@@ -90,6 +124,18 @@ class PropertyAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+    def review_status(self, obj):
+        if obj.needs_review:
+            return format_html('<span style="color:#B4232A;font-weight:600;">⚠ Due</span>')
+        return 'OK'
+    review_status.short_description = 'Review'
+
+    def mark_reviewed(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(last_reviewed_at=now, reviewed_by=request.user)
+        self.message_user(request, f"Marked {count} propert{'y' if count == 1 else 'ies'} as reviewed.")
+    mark_reviewed.short_description = "Mark selected properties as reviewed"
 
     def get_configuration_count(self, obj):
         return obj.configurations.count()

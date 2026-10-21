@@ -481,6 +481,8 @@ def build_property_payload(
     favorite_ids = favorite_ids or set()
     properties_list = list(properties_queryset)
     property_ids = [prop.id for prop in properties_list]
+    profile = getattr(request.user, 'profile', None)
+    is_employee = bool(profile and profile.is_employee)
 
     if config_queryset is None:
         config_queryset = PropertyConfiguration.objects.filter(
@@ -595,6 +597,7 @@ def build_property_payload(
             'longitude': float(prop.longitude) if prop.longitude else 0,
             'contact_name': prop.contact_name or '',
             'contact_phone': prop.contact_phone or '',
+            'is_featured': prop.is_featured,
             'luxury_status': prop.luxury_status,
             'completion_date': prop.completion_date.strftime('%Y-%m-%d') if prop.completion_date else '',
             'is_active': prop.is_active,
@@ -604,6 +607,10 @@ def build_property_payload(
             'progress': progress,
             'is_favorite': prop.id in favorite_ids,
         })
+        # Staff-only — never sent to a client's browser, not just hidden client-side.
+        if is_employee:
+            properties_data[-1]['needs_review'] = prop.needs_review
+            properties_data[-1]['last_reviewed_at'] = prop.last_reviewed_at.strftime('%Y-%m-%d') if prop.last_reviewed_at else ''
 
     return properties_data, filter_ranges, filter_ranges_json
 
@@ -829,6 +836,7 @@ def create_shared_list(request):
         try:
             data = json.loads(request.body)
             name = data.get('name', 'Shared Properties').strip()
+            comments = data.get('comments', '').strip()
             property_ids = data.get('property_ids', [])
             duration_hours = int(data.get('duration_hours', 72))  # Default 3 days
             
@@ -849,6 +857,7 @@ def create_shared_list(request):
             expires_at = timezone.now() + timedelta(hours=duration_hours)
             shared_list = SharedPropertyList.objects.create(
                 name=name,
+                comments=comments,
                 created_by=request.user,
                 expires_at=expires_at,
                 airtable_ids=airtable_ids
@@ -1584,14 +1593,13 @@ def shared_properties_view(request, token):
     """View shared properties via temporary link"""
     shared_list = get_object_or_404(SharedPropertyList, token=token)
     
-    # if not shared_list.is_valid or shared_list.is_expired or not shared_list.is_active:
-    #     return render(request, 'shared_expired.html', {'shared_list': shared_list})
-    
+    # Covers both an expired link and one an agent deactivated early; the page
+    # doesn't distinguish the two; either way the link's no longer live.
     if not shared_list.is_valid():
-        if shared_list.is_expired or shared_list.is_active:
-            return render(request, 'shared_expired.html', {'shared_list': shared_list})
-        else:
-            raise Http404("Shared list not found or inactive")
+        return render(request, 'shared_expired.html', {
+            'shared_list': shared_list,
+            'data_updated_at': timezone.now(),
+        })
     
     # Increment view count
     shared_list.view_count += 1
@@ -1746,6 +1754,30 @@ def toggle_favorite(request, property_id):
 
 
 @login_required
+@require_POST
+def mark_property_reviewed(request, property_id):
+    """Staff-only: timestamp that an agent has just confirmed this listing's
+    details are current, resetting the 90-day review clock. Clients never see
+    this endpoint's effects — needs_review/last_reviewed_at are only included
+    in a property's JSON for employee viewers (see build_property_payload)."""
+    profile = getattr(request.user, 'profile', None)
+    if not profile or not profile.is_employee:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    property_obj = get_object_or_404(Property, pk=property_id, is_active=True)
+    property_obj.last_reviewed_at = timezone.now()
+    property_obj.reviewed_by = request.user
+    property_obj.save(update_fields=['last_reviewed_at', 'reviewed_by'])
+
+    return JsonResponse({
+        'success': True,
+        'property_id': property_id,
+        'last_reviewed_at': property_obj.last_reviewed_at.isoformat(),
+        'reviewed_by': request.user.get_full_name() or request.user.username,
+    })
+
+
+@login_required
 def favorites_view(request):
     """Display the current user's favourite properties."""
     favorite_entries = PropertyFavorite.objects.filter(user=request.user).select_related(
@@ -1792,19 +1824,17 @@ def favorites_view(request):
 
 
 def public_homepage_view(request):
-    """Public, unauthenticated market-intelligence homepage — now the site root.
+    """Public market-intelligence homepage — the site root.
 
-    Already-authenticated users (agents, clients) land on their portfolio
-    instead, so moving the gated view off "/" doesn't strand anyone who has
-    it bookmarked as their app entry point.
+    Signed-in users can view this too (it's how they get back to the public
+    site from the app shell, e.g. the CW icon in nav_pill.html); the header
+    partial already branches on auth state to show "My portfolio" instead of
+    "Sign in" for them. Nothing here depends on request.user.
 
     Every number here is computed from real data, not fixtures — see
     PUBLIC_PSQM_MIN/MAX above for the outlier guard applied to any
     price-per-square-metre figure before it's shown publicly.
     """
-    if request.user.is_authenticated:
-        return redirect('temp')
-
     active_properties = Property.objects.filter(is_active=True)
 
     valid_configs = PropertyConfiguration.objects.filter(
@@ -1857,12 +1887,29 @@ def public_homepage_view(request):
             key=lambda d: d['avg_psqm'],
         )
 
-    # A real property image for the hero. Prefer a hand-picked flagship listing
-    # (genuinely strong photography); fall back to the highest-value active
-    # listing with a thumbnail if that one's ever renamed or deactivated —
-    # excluding the same price outliers kept out of the public psqm figures.
+    # A real property image for the top hero banner. Prefer a hand-picked
+    # flagship listing (genuinely strong photography); fall back to the
+    # highest-value active listing with a thumbnail if that one's ever
+    # renamed or deactivated — excluding the same price outliers kept out
+    # of the public psqm figures.
     hero_property = (
         active_properties.filter(name__iexact="Metropolitan Towers")
+        .exclude(thumbnail='').exclude(thumbnail__isnull=True)
+        .first()
+        or active_properties
+        .exclude(thumbnail='').exclude(thumbnail__isnull=True)
+        .annotate(max_config_price=Max('configurations__price'))
+        .filter(max_config_price__isnull=False, max_config_price__lt=PUBLIC_PRICE_MAX)
+        .order_by('-max_config_price')
+        .first()
+    )
+
+    # The "Off-plan Index" feature card just under the hero — this is the one
+    # admins actually control via Property.is_featured (same pin as the
+    # portfolio hero). Falls back to the same highest-value listing as above
+    # if nothing's pinned, independent of whichever property is in hero_property.
+    index_featured_property = (
+        active_properties.filter(is_featured=True)
         .exclude(thumbnail='').exclude(thumbnail__isnull=True)
         .first()
         or active_properties
@@ -1902,6 +1949,7 @@ def public_homepage_view(request):
         'launch_count': launch_count,
         'comparison_pairs': comparison_pairs,
         'hero_property': hero_property,
+        'index_featured_property': index_featured_property,
         'data_updated_at': timezone.now(),
     }
     return render(request, 'public_home.html', context)

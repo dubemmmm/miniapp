@@ -67,6 +67,12 @@ class Property(models.Model):
 
     # Status fields
     is_active = models.BooleanField(default=True)
+    is_featured = models.BooleanField(
+        default=False,
+        help_text="Pin this as the featured/hero listing on the portfolio page and the "
+                   "public homepage. Checking it here unchecks it on every other property "
+                   "(only one is ever featured at a time)."
+    )
     luxury_status = models.CharField(
         max_length=20,
         choices=LUXURY_CHOICES,
@@ -79,6 +85,29 @@ class Property(models.Model):
     last_synced_at = models.DateTimeField(null=True, blank=True,
                                           help_text="Last time this was synced from Airtable")
     completion_date = models.DateField(null=True, blank=True, db_index=True)  # New field
+
+    # Periodic detail review (staff-only; never shown to clients)
+    REVIEW_DUE_AFTER_DAYS = 90
+    last_reviewed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When an agent last confirmed this listing's details are still current."
+    )
+    reviewed_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='reviewed_properties',
+        help_text="Agent who last marked this property reviewed."
+    )
+
+    @property
+    def needs_review(self):
+        """True once REVIEW_DUE_AFTER_DAYS have passed since the last review
+        (or since creation, if it's never been reviewed). Computed live rather
+        than stored, so it can't go stale."""
+        from datetime import timedelta
+        baseline = self.last_reviewed_at or self.created_at
+        if not baseline:
+            return False
+        return timezone.now() - baseline >= timedelta(days=self.REVIEW_DUE_AFTER_DAYS)
 
     class Meta:
         verbose_name_plural = "Properties"
@@ -102,6 +131,8 @@ class Property(models.Model):
         if not self.location:
             self.location = extract_location(self.address)
         super().save(*args, **kwargs)
+        if self.is_featured:
+            Property.objects.filter(is_featured=True).exclude(pk=self.pk).update(is_featured=False)
 
     def get_min_price(self):
         """Get minimum price from configurations"""
@@ -313,6 +344,7 @@ class SyncState(models.Model):
 class SharedPropertyList(models.Model):
     """Model for sharing selected properties with temporary links"""
     name = models.CharField(max_length=200, help_text="Name for this shared list")
+    comments = models.TextField(blank=True, help_text="Optional note from the agent, shown to whoever opens the link")
     token = models.CharField(max_length=50, unique=True, blank=True)
     properties = models.ManyToManyField(Property, related_name='shared_lists')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shared_lists')
