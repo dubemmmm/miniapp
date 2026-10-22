@@ -823,10 +823,22 @@ const handleMarkReviewed = async (propertyId) => {
 
         // Patch local state so the badge disappears immediately, on the card
         // grid and the hero, without needing a page reload.
+        const reviewedDate = data.last_reviewed_at ? data.last_reviewed_at.slice(0, 10) : '';
         [properties.find(p => p.id === propertyId), selectedProperty?.id === propertyId ? selectedProperty : null]
-            .forEach(p => { if (p) { p.needs_review = false; p.last_reviewed_at = data.last_reviewed_at; } });
+            .forEach(p => { if (p) { p.needs_review = false; p.last_reviewed_at = reviewedDate; } });
 
-        if (notice) notice.classList.add('hidden');
+        // Repaint the notice green as an immediate "done" confirmation,
+        // rather than just hiding it — the small persistent "Reviewed" badge
+        // (modalReviewedBadge) is what shows on a later visit, via openModal.
+        if (notice) {
+            notice.style.background = '#E7F6EF';
+            notice.style.borderColor = '#BFE8D3';
+            const icon = notice.querySelector('i');
+            if (icon) { icon.className = 'fas fa-check'; icon.style.color = '#1F7A4D'; }
+            const text = document.getElementById('modalReviewText');
+            if (text) { text.textContent = 'Marked as reviewed'; text.style.color = '#1F7A4D'; }
+            if (btn) btn.classList.add('hidden');
+        }
         renderCards();
         populateHero();
     } catch (error) {
@@ -930,23 +942,46 @@ const openModal = (property) => {
     document.getElementById("modalStatusBadge").className = `status-v2 ${isCompleted ? 'available' : 'progress'}`;
     document.getElementById("modalStatusBadge").innerHTML = `<span class="dot"></span>${isCompleted ? 'Completed' : 'In Progress'}`;
 
-    // Staff-only review reminder — needs_review only ever arrives truthy for
-    // an employee viewer's own payload (see build_property_payload), so this
-    // can't surface for a client even if window.isInternalUser were spoofed.
+    // Staff-only review reminder — needs_review/last_reviewed_at only ever
+    // arrive truthy for an employee viewer's own payload (see
+    // build_property_payload), so this can't surface for a client even if
+    // window.isInternalUser were spoofed.
     const reviewNotice = document.getElementById('modalReviewNotice');
+    const reviewedBadge = document.getElementById('modalReviewedBadge');
     if (reviewNotice) {
+        // A previous visit's "Mark reviewed" click repaints this box green
+        // in place (see handleMarkReviewed) — reset it to its default "due"
+        // look every time the modal opens, so a genuinely overdue property
+        // doesn't inherit stale green styling.
+        reviewNotice.style.background = '#FDECEC';
+        reviewNotice.style.borderColor = '#F6D2D2';
+        const icon = reviewNotice.querySelector('i');
+        if (icon) { icon.className = 'fas fa-triangle-exclamation'; icon.style.color = '#B4232A'; }
+        const textEl = document.getElementById('modalReviewText');
+        if (textEl) textEl.style.color = '#B4232A';
+        const reviewBtn = document.getElementById('markReviewedBtn');
+        if (reviewBtn) reviewBtn.classList.remove('hidden');
+
         if (window.isInternalUser && property.needs_review) {
             reviewNotice.classList.remove('hidden');
-            const text = document.getElementById('modalReviewText');
-            if (text) text.textContent = `Needs review · last reviewed: ${property.last_reviewed_at || 'never'}`;
-            const reviewBtn = document.getElementById('markReviewedBtn');
+            if (textEl) textEl.textContent = `Needs review · last reviewed: ${property.last_reviewed_at || 'never'}`;
             if (reviewBtn) {
                 reviewBtn.disabled = false;
                 reviewBtn.textContent = 'Mark reviewed';
                 reviewBtn.onclick = () => handleMarkReviewed(property.id);
             }
+            if (reviewedBadge) reviewedBadge.classList.add('hidden');
         } else {
             reviewNotice.classList.add('hidden');
+            if (reviewedBadge) {
+                if (window.isInternalUser && property.last_reviewed_at) {
+                    reviewedBadge.classList.remove('hidden');
+                    const reviewedText = document.getElementById('modalReviewedText');
+                    if (reviewedText) reviewedText.textContent = `Reviewed · ${property.last_reviewed_at}`;
+                } else {
+                    reviewedBadge.classList.add('hidden');
+                }
+            }
         }
     }
 
