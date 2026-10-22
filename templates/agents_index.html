@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Agents | CW Offplan Real Estate</title>
+    <meta name="description" content="Meet the CW Offplan Real Estate specialists: off-plan and commercial sales agents across Lagos.">
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-pagehead">
+        <div class="cw-container">
+            <div class="cw-crumbs cw-crumbs-dark"><a href="{% url 'home' %}">Market</a><span>/</span>Agents</div>
+            <h1 class="cw-pagehead-title">Our Agents</h1>
+            <p class="cw-lede" style="margin-bottom:0;">The specialists behind CW Offplan Real Estate. Open a profile for their background, areas covered, and the properties they currently represent.</p>
+        </div>
+    </section>
+
+    <section class="cw-section cw-section-last" style="padding-top:48px;">
+        <div class="cw-container">
+            {% if agents %}
+            <div class="cw-district-grid">
+                {% for item in agents %}
+                <a href="{% url 'agent_detail' agent_slug=item.profile.slug %}" class="cw-district">
+                    <div class="cw-district-img" style="background-image:url('{{ item.profile.photo.url }}');"></div>
+                    <div class="cw-district-scrim"></div>
+                    <div class="cw-district-info">
+                        <div class="cw-district-name">{{ item.display_name }}</div>
+                        <div class="cw-district-count">{{ item.profile.get_role_display|default:"Specialist" }}{% if item.property_count %} · {{ item.property_count }} listing{{ item.property_count|pluralize }}{% endif %}</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="cw-notice">No agent profiles are live yet.</div>
+            {% endif %}
+        </div>
+    </section>
+
+    {% include "partials/hp_footer.html" %}
+</body>
+</html>

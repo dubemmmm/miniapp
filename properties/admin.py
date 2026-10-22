@@ -68,6 +68,7 @@ class PropertyAdmin(admin.ModelAdmin):
         'is_active',
         'get_configuration_count',
         'get_image_count',
+        'agent',
         'airtable_id',
         'last_synced_at',
         'completion_date'
@@ -76,6 +77,7 @@ class PropertyAdmin(admin.ModelAdmin):
     list_filter = ['is_featured', NeedsReviewFilter, 'location', 'luxury_status', 'is_active', 'last_synced_at', 'created_at']
     actions = ['mark_reviewed']
     search_fields = ['name', 'address', 'airtable_id', 'slug']
+    autocomplete_fields = ['agent']
     readonly_fields = [
         'airtable_id', 
         'last_synced_at', 
@@ -97,7 +99,7 @@ class PropertyAdmin(admin.ModelAdmin):
             'classes': ('wide',)
         }),
         ('Contact Information', {
-            'fields': ('contact_name', 'contact_phone')
+            'fields': ('contact_name', 'contact_phone', 'agent')
         }),
         ('Media', {
             'fields': ('brochure', 'thumbnail', 'get_primary_image_preview')
@@ -374,9 +376,9 @@ class SharedPropertyListAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "phone", "is_employee", "can_share_properties", "created_at")
+    list_display = ("user", "role", "phone", "photo", "slug", "is_employee", "can_share_properties", "created_at")
     list_filter = ("role", "is_employee", "can_share_properties")
-    search_fields = ("user__username", "user__first_name", "user__last_name", "phone")
+    search_fields = ("user__username", "user__first_name", "user__last_name", "phone", "slug")
     readonly_fields = ("created_at",)
 
 

@@ -21,6 +21,11 @@ def property_thumbnail_path(instance, filename):
     """Generate upload path for Property thumbnail"""
     return f"property_thumbnails/{instance.slug}/{filename}"
 
+def agent_photo_path(instance, filename):
+    """Generate upload path for an agent/employee's profile photo"""
+    ext = filename.split('.')[-1]
+    return f"agent_photos/{instance.user_id}/{uuid.uuid4()}.{ext}"
+
 # Create your models here.
 class Property(models.Model):
     LUXURY_CHOICES = (
@@ -58,6 +63,13 @@ class Property(models.Model):
     )
     contact_name = models.CharField(max_length=100, blank=True)
     contact_phone = models.CharField(max_length=20, blank=True)
+    agent = models.ForeignKey(
+        'UserProfile', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='properties_as_agent',
+        help_text="Agent this listing is linked to on their public profile page. "
+                   "Separate from contact_name/contact_phone, which still drive the "
+                   "card agent row and are synced from Airtable."
+    )
     brochure = models.FileField(upload_to=brochure_path, blank=True, null=True)
     thumbnail = models.ImageField(upload_to=property_thumbnail_path, blank=True, null=True)
     brochure_url_hash = models.CharField(max_length=64, blank=True,
@@ -407,6 +419,9 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True)
+    photo = models.ImageField(upload_to=agent_photo_path, blank=True, null=True, help_text="Headshot shown on the agent's public profile card")
+    slug = models.SlugField(unique=True, blank=True, null=True, help_text="Public URL slug for this agent's profile page, e.g. /agents/<slug>/")
+    bio = models.TextField(blank=True, help_text="Shown on the agent's public profile page")
     is_employee = models.BooleanField(default=False)
     can_share_properties = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -455,6 +470,18 @@ class UserProfile(models.Model):
     )
     total_leads_assigned = models.PositiveIntegerField(default=0)
     total_leads_won = models.PositiveIntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            base = slugify(self.user.first_name or self.user.get_full_name() or self.user.username)
+            candidate = base
+            suffix = 2
+            while UserProfile.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"

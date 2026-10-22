@@ -221,6 +221,30 @@
     </section>
     {% endif %}
 
+    {% if featured_agents %}
+    <section class="cw-section" id="agents">
+        <div class="cw-container">
+            <div class="cw-label">Meet the team</div>
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                <h2 class="cw-h2" style="margin-bottom:0;">The specialists behind CW Offplan</h2>
+                <a href="{% url 'agents_index' %}" class="cw-inline-link" style="margin:0;">View all agents →</a>
+            </div>
+            <div class="cw-district-grid" style="margin-top:28px;">
+                {% for item in featured_agents %}
+                <a href="{% url 'agent_detail' agent_slug=item.profile.slug %}" class="cw-district">
+                    <div class="cw-district-img" style="background-image:url('{{ item.profile.photo.url }}');"></div>
+                    <div class="cw-district-scrim"></div>
+                    <div class="cw-district-info">
+                        <div class="cw-district-name">{{ item.display_name }}</div>
+                        <div class="cw-district-count">{{ item.profile.get_role_display|default:"Specialist" }}{% if item.property_count %} · {{ item.property_count }} listing{{ item.property_count|pluralize }}{% endif %}</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <section class="cw-section cw-section-last">
         <div class="cw-container cw-two">
             <div class="cw-panel">

@@ -1935,6 +1935,19 @@ def public_homepage_view(request):
         for a, b in combinations(districts[:4], 2)
     ][:6]
 
+    # A handful of agents for the homepage teaser (same "has a photo"
+    # requirement as the full /agents/ directory — see agents_index_view).
+    featured_agents = [
+        {
+            'profile': a,
+            'display_name': a.user.get_full_name() or a.user.username,
+            'property_count': a.properties_as_agent.filter(is_active=True).count(),
+        }
+        for a in UserProfile.objects.filter(is_employee=True)
+        .exclude(photo='').exclude(photo__isnull=True)
+        .select_related('user').order_by('user__first_name')[:4]
+    ]
+
     context = {
         'total_developments': active_properties.count(),
         'district_count': active_properties.exclude(location='').exclude(location='Others').values('location').distinct().count(),
@@ -1950,6 +1963,7 @@ def public_homepage_view(request):
         'comparison_pairs': comparison_pairs,
         'hero_property': hero_property,
         'index_featured_property': index_featured_property,
+        'featured_agents': featured_agents,
         'data_updated_at': timezone.now(),
     }
     return render(request, 'public_home.html', context)
@@ -2105,6 +2119,66 @@ def neighbourhood_index_view(request):
         'areas': areas,
         'subs': subs,
         'data_updated_at': timezone.now(),
+    })
+
+
+def agents_index_view(request):
+    """Public directory of agents/admins who have a profile photo uploaded.
+    Anyone without a photo isn't shown here and 404s if visited by slug
+    directly (see agent_detail_view) — there's nothing to show yet."""
+    agents = (
+        UserProfile.objects.filter(is_employee=True)
+        .exclude(photo='').exclude(photo__isnull=True)
+        .select_related('user')
+        .order_by('user__first_name')
+    )
+    agents = [
+        {
+            'profile': a,
+            'display_name': a.user.get_full_name() or a.user.username,
+            'property_count': a.properties_as_agent.filter(is_active=True).count(),
+        }
+        for a in agents
+    ]
+    return render(request, 'agents_index.html', {'agents': agents})
+
+
+def agent_detail_view(request, agent_slug):
+    """Public profile page for one agent: bio, contact, and the properties
+    linked to them via Property.agent (see Property.agent's help_text for why
+    this is separate from contact_name/contact_phone)."""
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        slug=agent_slug, is_employee=True,
+    )
+    if not profile.photo:
+        raise Http404("Agent has no public profile yet")
+
+    display_name = profile.user.get_full_name() or profile.user.username
+    coverage = [c.strip() for c in profile.coverage_locations.split(',') if c.strip()]
+    specialties = [s.strip() for s in profile.property_specialties.split(',') if s.strip()]
+
+    props = _card_queryset(Property.objects.filter(agent=profile, is_active=True))
+    listings = [_property_card_data(p) for p in props.order_by('-created_at')]
+
+    whatsapp_url = ''
+    raw_phone = profile.whatsapp_number or profile.phone
+    if raw_phone:
+        import urllib.parse
+        wa_digits = ''.join(c for c in raw_phone if c.isdigit())
+        if wa_digits.startswith('0'):
+            wa_digits = '234' + wa_digits[1:]
+        wa_msg = f"Hi {display_name}, I found your profile on CW Offplan Real Estate and would like to get in touch."
+        whatsapp_url = f"https://wa.me/{wa_digits}?text={urllib.parse.quote(wa_msg)}"
+
+    return render(request, 'agent_detail.html', {
+        'profile': profile,
+        'display_name': display_name,
+        'coverage': coverage,
+        'specialties': specialties,
+        'listings': listings,
+        'whatsapp_url': whatsapp_url,
+        'call_phone': raw_phone,
     })
 
 
