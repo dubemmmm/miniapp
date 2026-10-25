@@ -25,16 +25,22 @@ from properties.models import Property, UserProfile
 logger = logging.getLogger(__name__)
 
 
-def _safe_enqueue(task, *args):
+def _safe_enqueue(task, *args, countdown=None):
     """Best-effort Celery enqueue for fire-and-forget side effects.
 
     Email/notification tasks are dispatched from ``transaction.on_commit`` after
     the DB write is already committed. If the broker (Redis) is unreachable we
     must not let that turn a successful enquiry into a 500 — log a warning and
     move on. Run a Celery worker against a live broker to actually deliver these.
+
+    Pass countdown (seconds) to delay execution, e.g. for the invitation-code
+    email that should land a few minutes after the access-request confirmation.
     """
     try:
-        task.delay(*args)
+        if countdown:
+            task.apply_async(args=args, countdown=countdown)
+        else:
+            task.delay(*args)
     except Exception:
         logger.warning(
             "Could not enqueue Celery task %s (broker unavailable?); the DB "
@@ -340,6 +346,12 @@ def request_shortlist(request):
             lead_id = str(lead.id)
             transaction.on_commit(lambda: _safe_enqueue(send_visitor_confirmation, lead_id))
             transaction.on_commit(lambda: _safe_enqueue(send_agent_notification, lead_id))
+            if intent == 'access':
+                # Auto-issue an invitation code a few minutes after the
+                # initial confirmation, rather than waiting on an admin to
+                # hand one out manually (see crm.tasks.send_invitation_code).
+                from crm.tasks import send_invitation_code
+                transaction.on_commit(lambda: _safe_enqueue(send_invitation_code, lead_id, countdown=300))
     else:
         # Same person, same request, inside the dedup window: record it as a
         # duplicate and just re-send their confirmation.

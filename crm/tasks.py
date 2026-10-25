@@ -139,7 +139,107 @@ def send_visitor_confirmation(self, lead_id):
         email_log.last_error = error or 'Unknown error'
         email_log.save(update_fields=['status', 'retry_count', 'last_error', 'updated_at'])
         logger.error("Failed to send visitor confirmation for lead %s: %s", lead_id, error)
-        raise Exception(f"SendGrid error: {error}")
+        raise Exception(f"Email provider error: {error}")
+
+
+# ---------------------------------------------------------------------------
+# Invitation code email (private-access requests)
+# ---------------------------------------------------------------------------
+
+INVITATION_EXPIRY_DAYS = 14
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+)
+def send_invitation_code(self, lead_id):
+    """Issue a ClientInvitation and email it to a private-access lead, ~5
+    minutes after their request (see crm.views.request_shortlist's
+    countdown=300 scheduling). Automates what used to be a manual step —
+    generate_invitation_codes in properties/admin.py still exists for
+    issuing ad-hoc codes by hand, this is just the automated path for
+    this one source."""
+    from datetime import timedelta
+    from crm.models import EmailLog, ActivityLog
+    from crm.email_service import send_transactional_email, render_template
+    from properties.models import ClientInvitation
+
+    lead = _get_lead(lead_id)
+
+    idempotency_key = f"{lead_id}:invitation_code:{lead.email}"
+    email_log, created = EmailLog.objects.get_or_create(
+        idempotency_key=idempotency_key,
+        defaults={
+            'lead': lead,
+            'recipient_email': lead.email,
+            'recipient_type': EmailLog.RecipientType.VISITOR,
+            'template_name': 'invitation_code',
+            'subject': 'Your CW Offplan Real Estate invitation code',
+            'status': EmailLog.Status.PENDING,
+        }
+    )
+
+    # Idempotency guard — also protects against issuing a second code if
+    # this task somehow runs twice for the same lead.
+    if not created and email_log.status == EmailLog.Status.SENT:
+        logger.info("Invitation code already sent for lead %s — skipping", lead_id)
+        return
+
+    invitation = ClientInvitation.objects.create(
+        code=ClientInvitation.generate_code(),
+        max_uses=1,
+        expires_at=timezone.now() + timedelta(days=INVITATION_EXPIRY_DAYS),
+        notes=f"Auto-issued for private-access lead {lead_id} ({lead.email})",
+    )
+
+    context = {
+        'first_name': lead.first_name,
+        'invitation_code': invitation.code,
+        'register_url': f"{_site_url()}/register/",
+        'expiry_days': INVITATION_EXPIRY_DAYS,
+    }
+
+    body = render_template('invitation_code', context)
+    lines = body.splitlines()
+    subject = email_log.subject
+    body_lines = []
+    for i, line in enumerate(lines):
+        if line.startswith('Subject:'):
+            subject = line.replace('Subject:', '').strip()
+        elif i > 0 or not line.startswith('Subject:'):
+            body_lines.append(line)
+    body_text = '\n'.join(body_lines).strip()
+
+    success, provider_id, error = send_transactional_email(
+        recipient_email=lead.email,
+        subject=subject,
+        body_text=body_text,
+    )
+
+    if success:
+        email_log.status = EmailLog.Status.SENT
+        email_log.provider_message_id = provider_id or ''
+        email_log.sent_at = timezone.now()
+        email_log.save(update_fields=['status', 'provider_message_id', 'sent_at', 'updated_at'])
+
+        ActivityLog.objects.create(
+            lead=lead,
+            actor=None,
+            event_type=ActivityLog.EventType.EMAIL_SENT,
+            contact_method=ActivityLog.ContactMethod.EMAIL,
+            note=f"Invitation code {invitation.code} issued and emailed to {lead.email}",
+        )
+    else:
+        email_log.status = EmailLog.Status.FAILED
+        email_log.retry_count += 1
+        email_log.last_error = error or 'Unknown error'
+        email_log.save(update_fields=['status', 'retry_count', 'last_error', 'updated_at'])
+        logger.error("Failed to send invitation code for lead %s: %s", lead_id, error)
+        raise Exception(f"Email provider error: {error}")
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +334,7 @@ def send_agent_notification(self, lead_id):
             email_log.last_error = error or 'Unknown error'
             email_log.save(update_fields=['status', 'retry_count', 'last_error', 'updated_at'])
             logger.error("Failed to send agent notification for lead %s: %s", lead_id, error)
-            raise Exception(f"SendGrid error: {error}")
+            raise Exception(f"Email provider error: {error}")
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +409,7 @@ def send_admin_escalation_email(self, lead_id):
             email_log.retry_count += 1
             email_log.last_error = error or ''
             email_log.save(update_fields=['status', 'retry_count', 'last_error', 'updated_at'])
-            raise Exception(f"SendGrid error: {error}")
+            raise Exception(f"Email provider error: {error}")
 
 
 # ---------------------------------------------------------------------------

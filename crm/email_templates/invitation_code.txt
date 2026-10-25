@@ -1,0 +1,20 @@
+Subject: Your CW Offplan Real Estate invitation code
+
+Hi ${first_name},
+
+Thanks again for requesting access to CW Offplan Real Estate. Here's your invitation code to create your account:
+
+${invitation_code}
+
+HOW TO CREATE YOUR ACCOUNT
+1. Go to ${register_url}
+2. Fill in your name, email and a password.
+3. Enter the invitation code above when prompted.
+4. You're in — browse the full portfolio, including unit-level detail and pricing, and reach your adviser directly.
+
+This code is valid for ${expiry_days} days and can only be used once, so create your account whenever you're ready.
+
+If you have any trouble, just reply to this email and we'll help you out.
+
+Warm regards,
+The CW Offplan Real Estate Team

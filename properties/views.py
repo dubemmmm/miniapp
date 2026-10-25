@@ -1846,6 +1846,33 @@ def email_signup_view(request):
     request.session['email_signup_rate'] = request.session.get('email_signup_rate', 0) + 1
     request.session['email_signup_rate_window'] = window_start
 
+    # Best-effort confirmation — a failed send shouldn't fail the signup
+    # itself (the email is already saved either way), just gets logged.
+    from crm.email_service import send_transactional_email
+    import logging
+    logger = logging.getLogger(__name__)
+
+    body_text = (
+        "Hi there,\n\n"
+        "Thanks for signing up — we've got your email on file.\n\n"
+        "You'll be the first to hear about new off-plan listings, off-market "
+        "deals, and Lagos property market insights as they come in.\n\n"
+        "In the meantime, feel free to explore what's currently available:\n"
+        f"{settings.SITE_URL}\n\n"
+        "And if you have any questions in the meantime, feel free to reach "
+        "out — just reply to this email.\n\n"
+        "Talk soon,\n"
+        "The CW Offplan Real Estate team"
+    )
+    success, _, error = send_transactional_email(
+        recipient_email=email,
+        subject="You're on the list — CW Offplan Real Estate",
+        body_text=body_text,
+        from_email='offplan@cwlagos.com',
+    )
+    if not success:
+        logger.error(f"Failed to send email-signup confirmation to {email}: {error}")
+
     return JsonResponse({'success': True})
 
 

@@ -9,13 +9,13 @@ ${agent_name}
 Email: ${agent_email}
 
 WHAT HAPPENS NEXT
-1. Your adviser will review your request within 2 business days.
-2. They will contact you to understand what you are looking for.
-3. Once approved, you will receive an invitation code to create your account and browse the full portfolio, including unit-level detail and pricing.
+1. You'll receive a follow-up email shortly with your invitation code — look out for it in the next few minutes.
+2. Use the code to create your account and browse the full portfolio, including unit-level detail and pricing.
+3. Your adviser will also be in touch within 2 business days to understand what you're looking for.
 
 If you have urgent questions, contact your adviser directly using the details above.
 
-NOTE: If you are expecting further emails from us, please add cwresocial@gmail.com to your contacts or mark this email as "Not Spam" to ensure our messages reach your inbox.
+NOTE: If you are expecting further emails from us, please add noreply@offplan.cwlagos.com to your contacts or mark this email as "Not Spam" to ensure our messages reach your inbox.
 
 Warm regards,
 The CW Offplan Real Estate Team

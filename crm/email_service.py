@@ -28,14 +28,18 @@ def send_transactional_email(
     subject: str,
     body_text: str,
     body_html: str = None,
+    from_email: str = None,
+    reply_to: str = None,
 ) -> tuple[bool, str | None, str | None]:
     """
     Send a transactional email via Resend.
 
     Sends from DEFAULT_FROM_EMAIL (a verified sender on the Resend-verified
-    offplan.cwlagos.com domain) with Reply-To set to DEFAULT_REPLY_TO_EMAIL,
-    so replies land in a real monitored inbox even though the technical
-    sender has to stay on the authenticated domain.
+    offplan.cwlagos.com domain) by default, with Reply-To set to
+    DEFAULT_REPLY_TO_EMAIL, so replies land in a real monitored inbox even
+    though the technical sender has to stay on an authenticated domain.
+    Pass from_email/reply_to to override per call — e.g. a specific
+    verified address like offplan@cwlagos.com for a particular flow.
 
     Returns:
         (success: bool, provider_message_id: str | None, error: str | None)
@@ -43,8 +47,8 @@ def send_transactional_email(
     Never raises — returns the error string instead so callers can handle it.
     """
     api_key = settings.RESEND_API_KEY
-    from_email = settings.DEFAULT_FROM_EMAIL
-    reply_to = settings.DEFAULT_REPLY_TO_EMAIL
+    from_email = from_email or settings.DEFAULT_FROM_EMAIL
+    reply_to = reply_to or settings.DEFAULT_REPLY_TO_EMAIL
 
     if not api_key:
         return False, None, 'RESEND_API_KEY is not configured'

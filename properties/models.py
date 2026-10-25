@@ -659,7 +659,7 @@ class ClientInvitation(models.Model):
         """Generate a unique random invitation code"""
         while True:
             code = get_random_string(12, allowed_chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789').upper()
-            if not EmployeeInvitation.objects.filter(code=code).exists():
+            if not ClientInvitation.objects.filter(code=code).exists():
                 return code
 
 
