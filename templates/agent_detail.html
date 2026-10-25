@@ -17,6 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="cw-page">
 
@@ -31,12 +32,25 @@
                 <div class="cw-agent-info">
                     <div class="eyebrow coral" style="margin-bottom:10px;">{{ profile.get_role_display|default:"Specialist" }}</div>
                     <h1 class="cw-pagehead-title" style="font-size:clamp(30px,4.4vw,52px); margin-bottom:16px;">{{ display_name }}</h1>
-                    <p class="cw-lede" style="margin-bottom:24px;">{{ profile.bio|default:"Brings local market insight and a client-first approach to every property decision." }}</p>
+                    <div class="cw-agent-bio">{{ profile.bio|default:"Brings local market insight and a client-first approach to every property decision."|linebreaks }}</div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap;">
                         {% if call_phone %}<a href="tel:{{ call_phone }}" class="cw-btn cw-btn-navy">Call Agent</a>{% endif %}
                         {% if whatsapp_url %}<a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="cw-btn cw-btn-wa">Send WhatsApp Message</a>{% endif %}
                     </div>
                 </div>
+            </div>
+
+            <div class="cw-stat-strip">
+                <div>
+                    <div class="cw-stat-num">{{ listing_count }}</div>
+                    <div class="cw-stat-label">Listing{{ listing_count|pluralize }} represented</div>
+                </div>
+                {% if profile.years_at_cw %}
+                <div>
+                    <div class="cw-stat-num">{{ profile.years_at_cw }}+</div>
+                    <div class="cw-stat-label">Year{{ profile.years_at_cw|pluralize }} at CW</div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </section>
@@ -66,29 +80,82 @@
     </section>
     {% endif %}
 
-    <section class="cw-section cw-section-last" style="padding-top:48px;">
+    {% if locations_served %}
+    <section class="cw-section" style="padding-top:48px;">
+        <div class="cw-container">
+            <div class="cw-label">Locations served</div>
+            <div class="cw-district-grid">
+                {% for loc in locations_served %}
+                <button type="button" class="cw-district cw-location-trigger" data-location="{{ loc.location }}">
+                    {% if loc.image_url %}<div class="cw-district-img" style="background-image:url('{{ loc.image_url }}');"></div>{% else %}<div class="cw-district-img cw-district-fallback"></div>{% endif %}
+                    <div class="cw-district-scrim"></div>
+                    <div class="cw-district-info">
+                        <div class="cw-district-name">{{ loc.location }}</div>
+                        <div class="cw-district-count">{{ loc.count }} listing{{ loc.count|pluralize }}</div>
+                    </div>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="cw-section cw-section-last" id="listings" style="padding-top:48px; scroll-margin-top:24px;">
         <div class="cw-container">
             <div class="cw-label">Properties represented by {{ display_name }}</div>
             {% if listings %}
-            <div class="cw-card-grid">
+            <div class="cw-agent-filter-card">
+                <div class="cw-agent-filter-row">
+                    <label class="cw-agent-filter-field">
+                        <span class="cw-agent-filter-label">Smart search</span>
+                        <div class="cw-agent-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="agentPropertySearch" placeholder="Try: property name or area…" autocomplete="off">
+                        </div>
+                    </label>
+                    <button type="button" id="agentFilterReset" class="cw-agent-filter-reset">Reset</button>
+                </div>
+                <div class="cw-agent-filter-chips" id="agentPropertyLocationChips"></div>
+            </div>
+            <p id="agentPropertyEmptyState" class="cw-muted" style="margin-top:12px; display:none;">No properties match your search.</p>
+            <div class="cw-card-grid" id="agentPropertyGrid">
                 {% for r in listings %}
-                <a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
-                    <div class="cw-card-photo">
-                        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
-                        <div class="cw-card-pills">
-                            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
-                            {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                <div class="cw-card"
+                   data-search="{{ r.property.name|lower }} {{ r.property.address|lower }} {{ r.property.location|lower }}"
+                   data-location="{{ r.property.location }}">
+                    <a href="{% url 'property_detail' property_pk=r.property.id %}?from_agent={{ profile.slug }}" class="cw-card-link">
+                        <div class="cw-card-photo">
+                            <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+                            <div class="cw-card-pills">
+                                {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+                                {% if r.is_new %}<span class="cw-pill"><i class="dot amber"></i>Newly tracked</span>{% endif %}
+                            </div>
+                        </div>
+                        <div class="cw-card-body">
+                            <div class="cw-card-name">{{ r.property.name }}</div>
+                            <div class="cw-card-price">
+                                <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+                                {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% if call_phone or whatsapp_url %}
+                    <div class="cw-card-agent-row">
+                        <div class="cw-card-agent-identity">
+                            <div class="cw-card-agent-avatar" style="background-image:url('{{ profile.photo.url }}');"></div>
+                            <span>{{ display_name }}</span>
+                        </div>
+                        <div class="cw-card-agent-actions">
+                            {% if whatsapp_url %}<a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="wa" aria-label="WhatsApp {{ display_name }}"><i class="fab fa-whatsapp"></i></a>{% endif %}
+                            {% if call_phone %}<a href="tel:{{ call_phone }}" class="call" aria-label="Call {{ display_name }}"><i class="fas fa-phone"></i></a>{% endif %}
                         </div>
                     </div>
-                    <div class="cw-card-body">
-                        <div class="cw-card-name">{{ r.property.name }}</div>
-                        <div class="cw-card-price">
-                            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
-                            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
-                        </div>
-                    </div>
-                </a>
+                    {% endif %}
+                </div>
                 {% endfor %}
+            </div>
+            <div style="text-align:center; margin-top:28px;">
+                <button type="button" id="agentLoadMoreBtn" class="cw-chip" style="display:none; cursor:pointer; padding:10px 28px;">Load more</button>
             </div>
             {% else %}
             <p class="cw-muted" style="margin-top:12px;">No properties linked to {{ display_name }} yet.</p>
@@ -97,5 +164,102 @@
     </section>
 
     {% include "partials/hp_footer.html" %}
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+    {% if listings %}
+    <script>
+    (function () {
+        var grid = document.getElementById('agentPropertyGrid');
+        var cards = Array.prototype.slice.call(grid.querySelectorAll('.cw-card'));
+        var searchInput = document.getElementById('agentPropertySearch');
+        var chipsWrap = document.getElementById('agentPropertyLocationChips');
+        var resetBtn = document.getElementById('agentFilterReset');
+        var emptyState = document.getElementById('agentPropertyEmptyState');
+        var loadMoreBtn = document.getElementById('agentLoadMoreBtn');
+        var activeLocation = '';
+        var PAGE_SIZE = 12;
+        var revealCount = PAGE_SIZE;
+
+        // Build the location pills from whatever's actually on this agent's
+        // cards, rather than a fixed list — keeps it accurate as their
+        // linked properties change.
+        var locations = [];
+        cards.forEach(function (card) {
+            var loc = card.dataset.location;
+            if (loc && locations.indexOf(loc) === -1) locations.push(loc);
+        });
+        locations.sort();
+
+        function setActiveLocation(value) {
+            activeLocation = value;
+            chipsWrap.querySelectorAll('.cw-chip').forEach(function (c) {
+                c.classList.toggle('active', c.dataset.value === value);
+            });
+            applyFilters();
+        }
+
+        function makeChip(label, value) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cw-chip' + (value === '' ? ' active' : '');
+            btn.textContent = label;
+            btn.dataset.value = value;
+            btn.addEventListener('click', function () {
+                setActiveLocation(activeLocation === value ? '' : value);
+            });
+            return btn;
+        }
+
+        chipsWrap.appendChild(makeChip('All areas', ''));
+        locations.forEach(function (loc) { chipsWrap.appendChild(makeChip(loc, loc)); });
+
+        function applyFilters() {
+            var query = searchInput.value.trim().toLowerCase();
+            // Once the visitor is actually searching or filtering, show every
+            // match rather than respecting the unfiltered page-size cap — a
+            // narrowed result set is usually small enough to show in full.
+            var filtering = !!query || !!activeLocation;
+            var visibleCount = 0;
+            var matchIndex = 0;
+            cards.forEach(function (card) {
+                var matchesSearch = !query || card.dataset.search.indexOf(query) !== -1;
+                var matchesLocation = !activeLocation || card.dataset.location === activeLocation;
+                var isMatch = matchesSearch && matchesLocation;
+                var show = isMatch && (filtering || matchIndex < revealCount);
+                if (isMatch) matchIndex++;
+                card.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
+            });
+            emptyState.style.display = visibleCount === 0 ? '' : 'none';
+            if (loadMoreBtn) loadMoreBtn.style.display = (!filtering && matchIndex > revealCount) ? '' : 'none';
+        }
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function () {
+                revealCount += PAGE_SIZE;
+                applyFilters();
+            });
+        }
+
+        // "Locations served" cards above double as a shortcut into the grid's
+        // own location filter, instead of linking off to a separate page.
+        document.querySelectorAll('.cw-location-trigger').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                revealCount = PAGE_SIZE;
+                setActiveLocation(btn.dataset.location);
+                document.getElementById('listings').scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        searchInput.addEventListener('input', applyFilters);
+        resetBtn.addEventListener('click', function () {
+            searchInput.value = '';
+            revealCount = PAGE_SIZE;
+            setActiveLocation('');
+        });
+
+        applyFilters();
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

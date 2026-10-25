@@ -5,7 +5,7 @@ from django.db.models import Q
 from .models import (
     Property, PropertyConfiguration, PropertyImage, PropertyAmenity,
     SharedPropertyList, UserProfile, AirtableSyncLog, EmployeeInvitation,
-    ClientInvitation, PropertyProgress, PropertyProgressImage
+    ClientInvitation, PropertyProgress, PropertyProgressImage, EmailSignup
 )
 
 
@@ -376,10 +376,18 @@ class SharedPropertyListAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "phone", "photo", "slug", "is_employee", "can_share_properties", "created_at")
+    list_display = ("user", "role", "phone", "photo", "slug", "years_at_cw", "is_employee", "can_share_properties", "created_at")
     list_filter = ("role", "is_employee", "can_share_properties")
     search_fields = ("user__username", "user__first_name", "user__last_name", "phone", "slug")
     readonly_fields = ("created_at",)
+
+
+@admin.register(EmailSignup)
+class EmailSignupAdmin(admin.ModelAdmin):
+    list_display = ('email', 'source', 'created_at')
+    search_fields = ('email',)
+    list_filter = ('source',)
+    readonly_fields = ('created_at',)
 
 
 @admin.register(EmployeeInvitation)

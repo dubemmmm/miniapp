@@ -23,6 +23,82 @@
   });
 })();
 
+// Homepage email-capture popup — appears once per visitor after a short
+// delay, suppressed afterwards via localStorage. Posts to a dedicated
+// marketing-list endpoint, separate from the [data-lead-form] handler below
+// (which requires name/consent and feeds the CRM Lead pipeline).
+(function () {
+  var overlay = document.getElementById('emailPopupOverlay');
+  if (!overlay) return;
+
+  var STORAGE_KEY = 'cw_email_popup_seen';
+  var form = document.getElementById('emailPopupForm');
+  var closeBtn = document.getElementById('emailPopupClose');
+  var msg = form.querySelector('.cw-form-msg');
+  var button = form.querySelector('button[type=submit]');
+
+  function seen() {
+    try { return !!localStorage.getItem(STORAGE_KEY); } catch (e) { return false; }
+  }
+  function markSeen() {
+    try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
+  }
+
+  function open() { overlay.classList.add('open'); }
+  function close() { overlay.classList.remove('open'); markSeen(); }
+
+  if (!seen()) {
+    setTimeout(open, 2000);
+  }
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+  });
+
+  function say(text, kind) {
+    msg.hidden = false;
+    msg.className = 'cw-form-msg ' + kind;
+    msg.textContent = text;
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    msg.hidden = true;
+    if (!form.email.value) { say('Please enter your email address.', 'error'); return; }
+
+    button.disabled = true;
+    var original = button.textContent;
+    button.textContent = 'Sending...';
+
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (res.ok && res.data.success) {
+          say('Thank you — you\'re on the list.', 'ok');
+          button.textContent = 'Sent';
+          markSeen();
+          setTimeout(close, 1500);
+        } else {
+          say(res.data.error || 'Please check your email and try again.', 'error');
+          button.disabled = false; button.textContent = original;
+        }
+      })
+      .catch(function () {
+        say('Something went wrong. Please try again in a moment.', 'error');
+        button.disabled = false; button.textContent = original;
+      });
+  });
+})();
+
 // Neighbourhood pages: curated-shortlist and guide-download forms.
 (function () {
   document.querySelectorAll('[data-lead-form]').forEach(function (form) {

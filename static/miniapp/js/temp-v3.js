@@ -848,6 +848,66 @@ const handleMarkReviewed = async (propertyId) => {
     }
 };
 
+// These staff-only boxes set their own `display` inline (for flex layout),
+// which beats the `.hidden{display:none}` class on specificity no matter
+// which one is applied last — so toggling the class alone never actually
+// hides them. Set `.style.display` directly instead; the class stays too,
+// for semantics, but the inline style is what the browser actually obeys.
+const setBoxHidden = (el, hide, visibleDisplay) => {
+    if (!el) return;
+    el.classList.toggle('hidden', hide);
+    el.style.display = hide ? 'none' : visibleDisplay;
+};
+
+const wireFeaturedControl = (propertyId, isFeatured) => {
+    const text = document.getElementById('modalFeaturedText');
+    const btn = document.getElementById('toggleFeaturedBtn');
+    if (text) text.textContent = isFeatured ? 'Featured on homepage' : 'Not featured';
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = isFeatured ? 'Remove featured' : 'Set as featured';
+        btn.onclick = () => handleSetFeatured(propertyId, !isFeatured);
+    }
+};
+
+const handleSetFeatured = async (propertyId, featured) => {
+    const btn = document.getElementById('toggleFeaturedBtn');
+    if (btn) { btn.disabled = true; btn.textContent = featured ? 'Setting…' : 'Removing…'; }
+
+    try {
+        const response = await fetch(`/api/properties/${propertyId}/set-featured/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({ featured }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Failed to update featured status');
+
+        // Patch local state: this property's new status, plus whichever
+        // property previously held the flag and just lost it — the backend
+        // already unset it in the DB (Property.save() only allows one at a
+        // time), this just keeps in-page cards/hero from going stale until
+        // the next reload.
+        properties.forEach(p => {
+            if (p.id === propertyId) p.is_featured = data.is_featured;
+            else if (data.previous_featured_id && p.id === data.previous_featured_id) p.is_featured = false;
+        });
+        if (selectedProperty && selectedProperty.id === propertyId) selectedProperty.is_featured = data.is_featured;
+
+        wireFeaturedControl(propertyId, data.is_featured);
+        renderCards();
+        populateHero();
+    } catch (error) {
+        console.error('Error updating featured status:', error);
+        alert(error.message || 'Error updating featured status. Please try again.');
+        const current = properties.find(p => p.id === propertyId);
+        wireFeaturedControl(propertyId, current ? current.is_featured : !featured);
+    }
+};
+
 const handleFavoriteToggle = async (propertyId) => {
     const previousState = favoritePropertyIds.has(propertyId);
     const upcomingState = !previousState;
@@ -963,26 +1023,36 @@ const openModal = (property) => {
         if (reviewBtn) reviewBtn.classList.remove('hidden');
 
         if (window.isInternalUser && property.needs_review) {
-            reviewNotice.classList.remove('hidden');
+            setBoxHidden(reviewNotice, false, 'flex');
             if (textEl) textEl.textContent = `Needs review · last reviewed: ${property.last_reviewed_at || 'never'}`;
             if (reviewBtn) {
                 reviewBtn.disabled = false;
                 reviewBtn.textContent = 'Mark reviewed';
                 reviewBtn.onclick = () => handleMarkReviewed(property.id);
             }
-            if (reviewedBadge) reviewedBadge.classList.add('hidden');
+            setBoxHidden(reviewedBadge, true, 'inline-flex');
         } else {
-            reviewNotice.classList.add('hidden');
+            setBoxHidden(reviewNotice, true, 'flex');
             if (reviewedBadge) {
                 if (window.isInternalUser && property.last_reviewed_at) {
-                    reviewedBadge.classList.remove('hidden');
+                    setBoxHidden(reviewedBadge, false, 'inline-flex');
                     const reviewedText = document.getElementById('modalReviewedText');
                     if (reviewedText) reviewedText.textContent = `Reviewed · ${property.last_reviewed_at}`;
                 } else {
-                    reviewedBadge.classList.add('hidden');
+                    setBoxHidden(reviewedBadge, true, 'inline-flex');
                 }
             }
         }
+    }
+
+    // Staff-only: pin/unpin this property as the site's one featured
+    // listing. is_featured is already public data (every viewer's payload
+    // includes it — it's what drives the hero/index card already); only
+    // the ability to change it is gated here.
+    const featuredControl = document.getElementById('modalFeaturedControl');
+    if (featuredControl) {
+        setBoxHidden(featuredControl, !window.isInternalUser, 'flex');
+        if (window.isInternalUser) wireFeaturedControl(property.id, property.is_featured);
     }
 
     const metaParts = [

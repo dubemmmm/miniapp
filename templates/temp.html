@@ -413,6 +413,16 @@
                         <span id="modalReviewedText" style="font-size:12px; font-weight:600; color:#1F7A4D;">Reviewed</span>
                     </div>
 
+                    <!-- Staff-only: pin/unpin this property as the site's one
+                         featured listing (portfolio hero + homepage index card).
+                         Hidden unless window.isInternalUser (see openModal). -->
+                    <div id="modalFeaturedControl" class="hidden mb-4" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 14px; border-radius: var(--r-md); background:#FBF3E2; border:1px solid #EFD9A8;">
+                        <span style="font-size:13px; color:#8A6207;"><i class="fas fa-star" style="margin-right:6px;"></i><span id="modalFeaturedText">Not featured</span></span>
+                        <button id="toggleFeaturedBtn" type="button" style="font-size:12.5px; font-weight:600; color:#8A6207; background:#fff; border:1px solid #EFD9A8; border-radius:999px; padding:6px 12px; cursor:pointer;">
+                            Set as featured
+                        </button>
+                    </div>
+
                     <!-- Enquiry Form Panel -->
                     <div id="enquiryFormPanel" class="hidden mb-5" style="border-top: 1px solid var(--slate-100); padding-top: 16px;">
                         <p class="eyebrow" style="margin-bottom: 12px;">Send an Enquiry</p>

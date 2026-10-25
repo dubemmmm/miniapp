@@ -1,0 +1,28 @@
+{% comment %}
+Homepage email-capture popup. Appears ~2s after load (see homepage.js),
+suppressed afterwards via localStorage. Posts to a dedicated marketing-list
+endpoint (api/email-signup/), not the CRM lead pipeline — see EmailSignup's
+docstring in properties/models.py for why.
+{% endcomment %}
+<div id="emailPopupOverlay" class="cw-popup-overlay">
+    <div class="cw-popup">
+        {% if hero_property.thumbnail %}
+        <div class="cw-popup-image" style="background-image:url('{{ hero_property.thumbnail.url }}');"></div>
+        {% else %}
+        <div class="cw-popup-image cw-popup-image-fallback"></div>
+        {% endif %}
+        <div class="cw-popup-body">
+            <button type="button" id="emailPopupClose" class="cw-popup-close" aria-label="Close">&times;</button>
+            <h2 class="cw-popup-title">Be First to Lagos' Finest Properties</h2>
+            <p class="cw-popup-subtext">Join buyers and investors receiving exclusive listings, off-market deals, and Lagos market insights before anyone else.</p>
+            <form id="emailPopupForm" class="cw-form" action="{% url 'email_signup' %}" method="post" novalidate>
+                {% csrf_token %}
+                <div class="cw-hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+                <input type="email" name="email" placeholder="Enter your email address" autocomplete="email" required>
+                <button type="submit" class="cw-btn cw-btn-navy cw-popup-submit">Get Exclusive Listings</button>
+                <p class="cw-form-msg" role="status" aria-live="polite" hidden></p>
+            </form>
+            <p class="cw-popup-fineprint">No spam — unsubscribe anytime.</p>
+        </div>
+    </div>
+</div>

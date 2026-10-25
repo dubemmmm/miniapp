@@ -19,6 +19,7 @@ from .models import (
     PropertyAmenity,
     PropertyFavorite,
     PropertyProgress,
+    EmailSignup,
 )
 from .location_utils import (
     extract_location, LOCATION_CHOICES, TRACKED_LOCATION_SLUGS,
@@ -1778,6 +1779,77 @@ def mark_property_reviewed(request, property_id):
 
 
 @login_required
+@require_POST
+def set_property_featured(request, property_id):
+    """Staff-only: pin/unpin a property as the site's one featured listing
+    (portfolio hero card + homepage index card). is_featured itself is
+    already public data — every viewer's JSON includes it, since it drives
+    what they see on the hero/index card — only the ability to change it is
+    gated here. Property.save() unsets the flag on whichever property
+    previously held it, so we look that one up first to report it back and
+    let the frontend patch its own local state without a reload."""
+    profile = getattr(request.user, 'profile', None)
+    if not profile or not profile.is_employee:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    payload = json.loads(request.body or b'{}')
+    featured = bool(payload.get('featured', True))
+
+    property_obj = get_object_or_404(Property, pk=property_id, is_active=True)
+
+    previous_featured_id = None
+    if featured:
+        previous = Property.objects.filter(is_featured=True).exclude(pk=property_obj.pk).first()
+        previous_featured_id = previous.pk if previous else None
+
+    property_obj.is_featured = featured
+    property_obj.save(update_fields=['is_featured'])
+
+    return JsonResponse({
+        'success': True,
+        'property_id': property_id,
+        'is_featured': property_obj.is_featured,
+        'previous_featured_id': previous_featured_id,
+    })
+
+
+@require_POST
+def email_signup_view(request):
+    """Public endpoint for the homepage email-capture popup. Deliberately
+    separate from the CRM enquiry/shortlist pipeline (crm.request_shortlist) —
+    this just builds a marketing list (see EmailSignup's docstring), so it
+    takes an email address only, not a full Lead. Honeypot + rate-limit
+    mirror request_shortlist's anti-spam shape, with their own session keys
+    so this doesn't share a submission budget with the enquiry forms."""
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+
+    if request.POST.get('website'):
+        return JsonResponse({'success': True})
+
+    now_ts = timezone.now().timestamp()
+    window_start = request.session.get('email_signup_rate_window', now_ts)
+    if now_ts - window_start > 600:
+        request.session['email_signup_rate'] = 0
+        request.session['email_signup_rate_window'] = now_ts
+    if request.session.get('email_signup_rate', 0) >= 3:
+        return JsonResponse({'error': 'Too many submissions. Please wait a few minutes and try again.'}, status=429)
+
+    email = request.POST.get('email', '').strip()
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({'error': 'Enter a valid email address.'}, status=400)
+
+    EmailSignup.objects.get_or_create(email=email)
+
+    request.session['email_signup_rate'] = request.session.get('email_signup_rate', 0) + 1
+    request.session['email_signup_rate_window'] = window_start
+
+    return JsonResponse({'success': True})
+
+
+@login_required
 def favorites_view(request):
     """Display the current user's favourite properties."""
     favorite_entries = PropertyFavorite.objects.filter(user=request.user).select_related(
@@ -2161,6 +2233,18 @@ def agent_detail_view(request, agent_slug):
     props = _card_queryset(Property.objects.filter(agent=profile, is_active=True))
     listings = [_property_card_data(p) for p in props.order_by('-created_at')]
 
+    # One card per location this agent actually has active listings in, each
+    # backed by a real representative thumbnail and count — not stock imagery.
+    # Clicking one jumps to and pre-filters the grid below (see agent_detail.html).
+    locations_served = {}
+    for item in listings:
+        loc = item['property'].location or 'Other'
+        group = locations_served.setdefault(loc, {'location': loc, 'count': 0, 'image_url': None})
+        group['count'] += 1
+        if not group['image_url'] and item['property'].thumbnail:
+            group['image_url'] = item['property'].thumbnail.url
+    locations_served = sorted(locations_served.values(), key=lambda g: -g['count'])
+
     whatsapp_url = ''
     raw_phone = profile.whatsapp_number or profile.phone
     if raw_phone:
@@ -2177,6 +2261,8 @@ def agent_detail_view(request, agent_slug):
         'coverage': coverage,
         'specialties': specialties,
         'listings': listings,
+        'listing_count': len(listings),
+        'locations_served': locations_served,
         'whatsapp_url': whatsapp_url,
         'call_phone': raw_phone,
     })
@@ -2544,6 +2630,18 @@ def property_detail_view(request, property_pk):
     from crm.forms import EnquiryForm
 
     prop = get_object_or_404(Property, pk=property_pk, is_active=True)
+
+    # If we arrived here from an agent's profile page (see agent_detail.html's
+    # listing links), show a "back to their profile" link instead of the
+    # default portfolio/market one. Looked up fresh rather than trusted
+    # as-is, so a stale or tampered slug just falls back to the default link.
+    back_agent = None
+    from_agent_slug = request.GET.get('from_agent')
+    if from_agent_slug:
+        back_agent = UserProfile.objects.filter(
+            slug=from_agent_slug, is_employee=True,
+        ).exclude(photo='').exclude(photo__isnull=True).select_related('user').first()
+
     images = prop.images.order_by('order')
     configurations = prop.configurations.filter(is_available=True)
     amenities = prop.amenities.all()
@@ -2582,6 +2680,7 @@ def property_detail_view(request, property_pk):
         'min_price': min_price,
         'is_completed': is_completed,
         'whatsapp_url': whatsapp_url,
+        'back_agent': back_agent,
         'is_favorite': PropertyFavorite.objects.filter(
             user=request.user, property=prop
         ).exists() if request.user.is_authenticated else False,

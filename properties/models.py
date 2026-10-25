@@ -422,6 +422,10 @@ class UserProfile(models.Model):
     photo = models.ImageField(upload_to=agent_photo_path, blank=True, null=True, help_text="Headshot shown on the agent's public profile card")
     slug = models.SlugField(unique=True, blank=True, null=True, help_text="Public URL slug for this agent's profile page, e.g. /agents/<slug>/")
     bio = models.TextField(blank=True, help_text="Shown on the agent's public profile page")
+    years_at_cw = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="Shown as a stat on the agent's public profile page, e.g. '3+ years at CW'. Leave blank to hide this stat."
+    )
     is_employee = models.BooleanField(default=False)
     can_share_properties = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -511,6 +515,22 @@ class UserProfile(models.Model):
         if self.is_employee:
             return True
         return self.unlocked_properties.filter(id=property_obj.id).exists()
+
+
+class EmailSignup(models.Model):
+    """Marketing-list signup from the homepage popup (or future similar
+    funnels) — intentionally separate from crm.Lead, which carries full
+    contact details and feeds the sales-assignment pipeline. This is just
+    an email address someone handed over for listing updates."""
+    email = models.EmailField(unique=True)
+    source = models.CharField(max_length=50, default='homepage_popup')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.email
 
 
 class EmployeeInvitation(models.Model):
