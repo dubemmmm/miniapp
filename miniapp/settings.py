@@ -167,6 +167,11 @@ AUTHENTICATION_BACKENDS = [
 
 # Allauth settings - Modern configuration
 ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Set to 'mandatory' in production
+# Default prefixes every account email subject with "[{current_site.domain}]";
+# the Sites row here is still Django's unconfigured "example.com" placeholder,
+# so disable it rather than leak that into real emails (our subject templates
+# already state the brand explicitly).
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ''
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_ADAPTER = 'properties.adapters.CustomAccountAdapter'
 
@@ -323,9 +328,13 @@ N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')
 # CARTO Basemaps API key (dashboard map tiles)
 CARTO_API_KEY = config('CARTO_API_KEY', default='')
 
-# CRM / SendGrid Settings
+# CRM / transactional email settings (see crm/email_service.py — currently
+# backed by Resend; SENDGRID_API_KEY is unused but left configurable in case
+# of a future rollback).
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='cwresocial@gmail.com')
+RESEND_API_KEY = config('RESEND_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@offplan.cwlagos.com')
+DEFAULT_REPLY_TO_EMAIL = config('DEFAULT_REPLY_TO_EMAIL', default='offplan@cwlagos.com')
 SITE_URL = config('SITE_URL', default='http://localhost:8000')
 
 # CRM SLA defaults (overridable via SLAConfig model)

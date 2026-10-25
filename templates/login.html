@@ -32,6 +32,9 @@
         <label for="id_password" class="block text-sm" style="margin-bottom: 8px;">Password <span style="color:#E5484D;">*</span></label>
         <input type="password" id="id_password" name="password" required placeholder="••••••••••••">
     </div>
+    <div style="text-align: right; margin-top: 8px;">
+        <a href="{% url 'account_reset_password' %}" class="auth-link" style="font-size: 12.5px;">Forgot password?</a>
+    </div>
     <button type="submit" class="auth-btn" style="margin-top: 22px;">Login</button>
 </form>
 

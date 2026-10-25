@@ -23,6 +23,40 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         # Call parent for other messages
         super().add_message(request, level, message_template, message_context, extra_tags)
 
+    def send_mail(self, template_prefix, email, context):
+        """
+        Route every allauth account email (password reset, and any future
+        ones) through the app's single SendGrid integration
+        (crm.email_service.send_transactional_email) instead of Django's
+        default EMAIL_BACKEND, which isn't configured here. Reuses
+        render_mail() unchanged — only the final send step is swapped, same
+        pattern send_transactional_email's own docstring calls for
+        ("provider-agnostic... swap the implementation here without
+        touching callers").
+        """
+        from allauth.core import context as allauth_context
+        from django.contrib.sites.shortcuts import get_current_site
+        from crm.email_service import send_transactional_email
+        import logging
+        logger = logging.getLogger(__name__)
+
+        request = allauth_context.request
+        ctx = {'request': request, 'email': email, 'current_site': get_current_site(request)}
+        ctx.update(context)
+        msg = self.render_mail(template_prefix, email, ctx)
+
+        body_html = next((c for c, mt in msg.alternatives if mt == 'text/html'), None) if msg.alternatives else None
+        to_email = msg.to[0] if msg.to else email
+
+        success, _, error = send_transactional_email(
+            recipient_email=to_email,
+            subject=msg.subject,
+            body_text=msg.body,
+            body_html=body_html,
+        )
+        if not success:
+            logger.error(f"Failed to send '{template_prefix}' email to {to_email}: {error}")
+
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """Custom adapter for social account signup (Google OAuth)"""
