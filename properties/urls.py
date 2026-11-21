@@ -35,5 +35,6 @@ urlpatterns = [
     path('temp2/', views.temp_view, name='temp2'),
     path('portfolio/', views.temp_view, name='temp'),
     path('reports/', views.reports_view, name='reports'),
+    path('reports/<slug:slug>/download/', views.report_download_view, name='report_download'),
     path('', views.public_homepage_view, name='home'),
 ]

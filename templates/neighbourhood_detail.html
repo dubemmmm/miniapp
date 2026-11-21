@@ -19,6 +19,7 @@
 
     <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
     {% if not limited and faqs %}<script type="application/ld+json">{{ faq_jsonld|safe }}</script>{% endif %}
+    {% include "partials/tracking_head.html" %}
 </head>
 <body class="cw-page">
 

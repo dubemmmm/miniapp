@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
 
     {% block extra_css %}{% endblock %}
+    {% include "partials/tracking_head.html" %}
 </head>
 <body>
     {% block content %}{% endblock %}

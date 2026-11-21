@@ -5,7 +5,8 @@ from django.db.models import Q
 from .models import (
     Property, PropertyConfiguration, PropertyImage, PropertyAmenity,
     SharedPropertyList, UserProfile, AirtableSyncLog, EmployeeInvitation,
-    ClientInvitation, PropertyProgress, PropertyProgressImage, EmailSignup
+    ClientInvitation, PropertyProgress, PropertyProgressImage, EmailSignup,
+    DeveloperLogo, Report
 )
 
 
@@ -74,7 +75,7 @@ class PropertyAdmin(admin.ModelAdmin):
         'completion_date'
     ]
     list_editable = ['is_featured']
-    list_filter = ['is_featured', NeedsReviewFilter, 'location', 'luxury_status', 'is_active', 'last_synced_at', 'created_at']
+    list_filter = ['is_featured', 'is_top_pick', 'is_fast_selling', 'is_sold_out', NeedsReviewFilter, 'location', 'luxury_status', 'is_active', 'last_synced_at', 'created_at']
     actions = ['mark_reviewed']
     search_fields = ['name', 'address', 'airtable_id', 'slug']
     autocomplete_fields = ['agent']
@@ -106,6 +107,12 @@ class PropertyAdmin(admin.ModelAdmin):
         }),
         ('Status & Classification', {
             'fields': ('is_active', 'is_featured', 'luxury_status')
+        }),
+        ('Curated Sections', {
+            'fields': ('is_top_pick', 'top_pick_reason', 'is_fast_selling', 'is_sold_out'),
+            'description': "Synced from the Airtable checkboxes 'Top Pick', 'Fast Selling' and "
+                            "'Sold Out' (plus 'Top Pick Reason'). Change them in Airtable: an edit "
+                            "made here is overwritten the next time this property syncs."
         }),
         ('Property Stats', {
             'fields': ('get_min_price', 'get_max_bedrooms'),
@@ -376,7 +383,7 @@ class SharedPropertyListAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "phone", "photo", "slug", "years_at_cw", "is_employee", "can_share_properties", "created_at")
+    list_display = ("user", "role", "job_title", "phone", "photo", "slug", "years_at_cw", "is_employee", "can_share_properties", "created_at")
     list_filter = ("role", "is_employee", "can_share_properties")
     search_fields = ("user__username", "user__first_name", "user__last_name", "phone", "slug")
     readonly_fields = ("created_at",)
@@ -388,6 +395,23 @@ class EmailSignupAdmin(admin.ModelAdmin):
     search_fields = ('email',)
     list_filter = ('source',)
     readonly_fields = ('created_at',)
+
+
+@admin.register(DeveloperLogo)
+class DeveloperLogoAdmin(admin.ModelAdmin):
+    list_display = ('name', 'logo', 'website_url', 'display_order', 'is_active')
+    list_editable = ('display_order', 'is_active')
+    search_fields = ('name',)
+    list_filter = ('is_active',)
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ('title', 'published_at', 'display_order', 'is_published')
+    list_editable = ('display_order', 'is_published')
+    list_filter = ('is_published',)
+    search_fields = ('title', 'summary')
+    prepopulated_fields = {'slug': ('title',)}
 
 
 @admin.register(EmployeeInvitation)

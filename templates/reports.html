@@ -1,0 +1,126 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+
+    <link rel="icon" href="{% static 'logo/CW-logo.jpeg' %}">
+
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    {% include "partials/tracking_head.html" %}
+</head>
+<body class="cw-page">
+
+    {% include "partials/hp_header.html" %}
+
+    <section class="cw-pagehead">
+        <div class="cw-container">
+            <div class="cw-crumbs cw-crumbs-dark"><a href="{% url 'home' %}">Market</a><span>/</span>Reports</div>
+            <h1 class="cw-pagehead-title">Reports &amp; Insights</h1>
+            <p class="cw-lede" style="margin-bottom:0;">Our research on the Lagos off-plan market: pricing, supply and the developments we rate most highly.{% if not unlocked %} Tell us who you are once and every report is yours to download.{% endif %}</p>
+        </div>
+    </section>
+
+    <section class="cw-section" id="reports" style="padding-top:48px;">
+        <div class="cw-container">
+            {% if just_unlocked %}
+            <div class="cw-notice cw-report-ready" role="status">
+                Thank you. Your report is ready:
+                <a href="{% url 'report_download' slug=just_unlocked.slug %}" target="_blank" rel="noopener" data-report-download="{{ just_unlocked.slug }}">Download {{ just_unlocked.title }}</a>.
+                We have also emailed you the link.
+            </div>
+            {% endif %}
+
+            {% if reports %}
+            <div class="cw-report-grid">
+                {% for report in reports %}
+                <article class="cw-report">
+                    <div class="cw-report-cover{% if not report.cover %} cw-district-fallback{% endif %}"{% if report.cover %} style="background-image:url('{{ report.cover.url }}');"{% endif %}>
+                        {% if not report.cover %}<span>CW</span>{% endif %}
+                    </div>
+                    <div class="cw-report-body">
+                        <div class="cw-card-loc">{{ report.published_at|date:"F Y" }}</div>
+                        <h2 class="cw-report-title">{{ report.title }}</h2>
+                        {% if report.summary %}<p class="cw-muted cw-report-summary">{{ report.summary }}</p>{% endif %}
+                        {% if unlocked %}
+                        <a href="{% url 'report_download' slug=report.slug %}" target="_blank" rel="noopener" class="cw-btn cw-btn-navy cw-btn-sm" data-report-download="{{ report.slug }}">Download report</a>
+                        {% else %}
+                        <a href="#get-access" class="cw-btn cw-btn-navy cw-btn-sm" data-report-request="{{ report.slug }}" data-report-title="{{ report.title }}">Get this report</a>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="cw-notice">Our first reports are being prepared. Check back soon.</div>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if reports and not unlocked %}
+    <section class="cw-section" id="get-access">
+        <div class="cw-container">
+            <div class="cw-guide">
+                <div>
+                    <div class="cw-label cw-label-plain">Free download</div>
+                    <h2 class="cw-h3" data-report-heading>Get the report</h2>
+                    <p class="cw-muted">Leave your name and email and we will unlock the download and send you the link. An adviser may follow up with you.</p>
+                </div>
+                <div>
+                    {% include "partials/lead_form.html" with intent="report" submit_label="Unlock the report" report_slug=reports.0.slug %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if top_picks %}
+    <section class="cw-section">
+        <div class="cw-container">
+            <div class="cw-label cw-label-plain">Our selection</div>
+            <h2 class="cw-h2">CW Top Picks</h2>
+            <p class="cw-lede" style="margin-bottom:0;">Developments our advisers rate most highly, judged on location, amenities and sales velocity.</p>
+            <div class="cw-card-grid">
+                {% for r in top_picks %}{% include "partials/property_card.html" with show_reason=True %}{% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <div class="cw-section cw-section-last" style="padding-top:0;"></div>
+
+    {% include "partials/hp_footer.html" %}
+
+    <script src="{% static 'miniapp/js/homepage.js' %}"></script>
+    <script>
+    // "Get this report" picks which report the gate form is for. A report slug
+    // in ?report= (set when a direct download link was bounced here) does the same.
+    (function () {
+        var form = document.querySelector('[data-lead-form][data-intent="report"]');
+        if (!form) return;
+        var heading = document.querySelector('[data-report-heading]');
+        function choose(slug, title) {
+            form.elements.report.value = slug;
+            if (heading && title) heading.textContent = 'Get "' + title + '"';
+        }
+        document.querySelectorAll('[data-report-request]').forEach(function (link) {
+            link.addEventListener('click', function () {
+                choose(link.dataset.reportRequest, link.dataset.reportTitle);
+            });
+        });
+        var wanted = new URLSearchParams(window.location.search).get('report');
+        var match = wanted && document.querySelector('[data-report-request="' + CSS.escape(wanted) + '"]');
+        if (match) choose(match.dataset.reportRequest, match.dataset.reportTitle);
+    })();
+    </script>
+</body>
+</html>

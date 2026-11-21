@@ -430,7 +430,7 @@ function createModalHTML(property) {
                         </div>
                         <div id="dashEnquiryForm" class="price-card-v2" style="background:#fff; border:1px solid var(--slate-200);">
                             <div class="eyebrow" style="margin-bottom:4px;">Register your interest</div>
-                            <p style="font-size:12px; color:var(--slate-400); margin-bottom:14px;">An agent will contact you within 2 business days.</p>
+                            <p style="font-size:12px; color:var(--slate-400); margin-bottom:14px;">An agent will contact you within 2 business hours.</p>
                             <input type="text" name="website" id="dashHoneypot" style="display:none;" autocomplete="off" tabindex="-1">
                             <div id="dashEnquiryError" style="display:none; padding:10px; background:#fef2f2; border-radius:var(--r-sm); color:#991b1b; font-size:13px; margin-bottom:10px;"></div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -476,7 +476,13 @@ function createModalHTML(property) {
 }
 
 function showPropertyModal(property) {
-    console.log('Showing modal for property:', property.id);
+    // Tell the CRM a client opened this listing (the server ignores staff).
+    fetch('/crm/track/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') || '' },
+        body: JSON.stringify({ property_id: property.id }),
+        keepalive: true,
+    }).catch(() => {});
     currentImageIndex = 0;
     const modalContent = document.getElementById('modalContent');
     if (modalContent) {
@@ -562,6 +568,7 @@ function submitDashboardEnquiry(propertyId) {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
+            if (window.cwTrack) window.cwTrack('enquiry', { property_id: propertyId });
             const formDiv = document.getElementById('dashEnquiryForm');
             const successDiv = document.getElementById('dashEnquirySuccess');
             if (formDiv) formDiv.style.display = 'none';
@@ -661,14 +668,25 @@ function downloadBrochure(url) {
     }
 }
 
-function handleSearch() {
+// Words typed in either search box; every word must appear in the name or address.
+function getSearchTokens() {
     const searchInput = document.getElementById('searchInput');
     const searchInputSidebar = document.getElementById('searchInputSidebar');
     const term = (searchInput ? searchInput.value : '') || (searchInputSidebar ? searchInputSidebar.value : '');
-    filteredProperties = properties.filter(p => 
-        p.name.toLowerCase().includes(term.toLowerCase()) || 
-        p.address.toLowerCase().includes(term.toLowerCase())
-    );
+    return term.toLowerCase().split(/[\s,]+/).filter(Boolean);
+}
+
+function matchesSearch(property, tokens) {
+    if (!tokens.length) return true;
+    const haystack = `${property.name || ''} ${property.address || ''}`.toLowerCase();
+    return tokens.every(token => haystack.includes(token));
+}
+
+// Search and the filter panel used to each rebuild the list from scratch, so
+// whichever ran last silently discarded the other. Both now go through
+// computeFilteredProperties().
+function handleSearch() {
+    filteredProperties = computeFilteredProperties();
     updateMap();
     updatePropertyCount();
 }
@@ -747,7 +765,7 @@ function updatePriceDisplay() {
     }
 }
 
-function applyFilters() {
+function computeFilteredProperties() {
     const minPriceInput = parseFloat(document.getElementById('minPrice') ? document.getElementById('minPrice').value : 0) || 0;
     const maxPriceInput = parseFloat(document.getElementById('maxPrice') ? document.getElementById('maxPrice').value : 0) || Infinity;
     const minBedrooms = parseInt(document.getElementById('minBedrooms') ? document.getElementById('minBedrooms').value : 0) || null;
@@ -792,7 +810,10 @@ function applyFilters() {
         ? currencyConverter.convert(maxPriceInput, 'NGN')
         : maxPriceInput;
 
-    filteredProperties = properties.filter(p => {
+    const searchTokens = getSearchTokens();
+
+    return properties.filter(p => {
+        if (!matchesSearch(p, searchTokens)) return false;
         // ✅ Completion period check (quarter and year)
         let matchesCompletionDate = true;
         if (completionQuarter && completionYear) {
@@ -804,7 +825,11 @@ function applyFilters() {
             matchesLuxury = p.luxury_status && p.luxury_status.toLowerCase() === luxuryStatus.toLowerCase();
         }
 
-        const matchesConfig = p.configurations.some(c => {
+        // With no unit-level filter set, don't drop developments that simply
+        // have no units recorded yet (a plain search should still find them).
+        const hasUnitFilter = minPriceInput > 0 || maxPriceInput !== Infinity ||
+            minBedrooms !== null || maxBedrooms !== null || minBathrooms !== null || maxBathrooms !== null;
+        const matchesConfig = !hasUnitFilter || p.configurations.some(c => {
         const price = c.price === 'TBD' ? Infinity : parseFloat(c.price.replace(/[₦,]/g, '')) || 0;
         const matchesPrice = price >= minPriceNGN && price <= maxPriceNGN;
 
@@ -821,6 +846,10 @@ function applyFilters() {
 
     return matchesCompletionDate && matchesLuxury && matchesConfig;
 });
+}
+
+function applyFilters() {
+    filteredProperties = computeFilteredProperties();
     updateMap();
     updatePropertyCount();
     
@@ -853,8 +882,9 @@ function clearFilters() {
     if (searchInputSidebar) searchInputSidebar.value = '';
     if (completionQuarterEl) completionQuarterEl.value = '';
     if (completionYearEl) completionYearEl.value = '';
-    
-    filteredProperties = properties;
+
+    // Panel filters are cleared; a term still typed in the top search box keeps applying.
+    filteredProperties = computeFilteredProperties();
     updateMap();
     updatePropertyCount();
     
@@ -1509,7 +1539,8 @@ function sendChatMessage() {
         let botMessageDiv = document.createElement("div");
         botMessageDiv.className = "bot-message";
         let botMessage = document.createElement("p");
-        botMessage.innerHTML = data.output || "Sorry, I couldn't understand that. Please try again.";
+        botMessage.style.whiteSpace = "pre-wrap"; // replies are plain text with newlines
+        botMessage.innerHTML = data.output || "Sorry, I couldn't get an answer just now. Please try again in a moment.";
         botMessageDiv.appendChild(botMessage);
         chatBody.appendChild(botMessageDiv);
 

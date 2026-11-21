@@ -301,6 +301,39 @@ class EmailLog(models.Model):
         return f"{self.template_name} → {self.recipient_email} [{self.status}]"
 
 
+class ClientActivity(models.Model):
+    """What a signed-in client did on the site, for the staff activity page
+    (/crm/activity/). Complements GA4, which shows traffic in aggregate but
+    can't say which named client looked at what. Staff are never recorded.
+    Written through crm.activity.log_activity."""
+    class Event(models.TextChoices):
+        LOGIN = 'LOGIN', 'Signed in'
+        PROPERTY_VIEW = 'PROPERTY_VIEW', 'Viewed a property'
+        FAVORITE = 'FAVORITE', 'Saved a property'
+        ENQUIRY = 'ENQUIRY', 'Sent an enquiry'
+        REPORT_DOWNLOAD = 'REPORT_DOWNLOAD', 'Downloaded a report'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='client_activity')
+    event = models.CharField(max_length=20, choices=Event.choices)
+    related_property = models.ForeignKey(
+        'properties.Property', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='client_activity'
+    )
+    detail = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Client activity'
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['event', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} | {self.get_event_display()} at {self.created_at:%Y-%m-%d %H:%M}"
+
+
 class SLAConfig(models.Model):
     """Singleton model — only one row should exist."""
     first_contact_hours = models.PositiveSmallIntegerField(

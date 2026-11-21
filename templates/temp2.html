@@ -33,6 +33,7 @@
     <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
     <link rel="stylesheet" href="{% static 'miniapp/css/temp2.css' %}">
     <script src="{% static 'miniapp/js/chat-widget.js' %}"></script>
+    {% include "partials/tracking_head.html" %}
 </head>
 <body class="temp2-page antialiased" style="background: var(--bg-gradient); min-height: 100vh; font-family: var(--font-sans); color: var(--ink);">
 
@@ -387,7 +388,7 @@
                                 <i class="fas fa-check" style="color: var(--green);"></i>
                             </div>
                             <p class="font-semibold text-sm" style="color: var(--ink);">Enquiry sent!</p>
-                            <p class="text-xs mt-1" style="color: var(--slate-500);">An agent will contact you within 2 business days.</p>
+                            <p class="text-xs mt-1" style="color: var(--slate-500);">An agent will contact you within 2 business hours.</p>
                         </div>
 
                         <form id="enquiryForm" class="space-y-2.5" novalidate>

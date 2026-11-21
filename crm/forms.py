@@ -83,7 +83,12 @@ BEDROOM_CHOICES = [('', 'Bedrooms (optional)'), ('1', '1'), ('2', '2'), ('3', '3
 class ShortlistForm(forms.Form):
     """Public form on a neighbourhood page: request a curated shortlist, or
     leave details to download that neighbourhood's guide."""
-    intent = forms.ChoiceField(choices=[('shortlist', 'Curated shortlist'), ('guide', 'Guide download'), ('access', 'Private access')])
+    intent = forms.ChoiceField(choices=[
+        ('shortlist', 'Curated shortlist'), ('guide', 'Guide download'),
+        ('access', 'Private access'), ('report', 'Report download'),
+    ])
+    # Slug of the properties.Report being requested (intent='report' only).
+    report = forms.CharField(required=False, max_length=120)
     # Required for shortlist and guide; optional (area of interest) for access requests.
     market = forms.CharField(required=False, max_length=80)
     first_name = forms.CharField(max_length=100)
@@ -111,6 +116,11 @@ class ShortlistForm(forms.Form):
         cleaned = super().clean()
         if cleaned.get('intent') in ('shortlist', 'guide') and not cleaned.get('market'):
             self.add_error('market', 'Choose a neighbourhood.')
+        if cleaned.get('intent') == 'report':
+            from properties.models import Report
+            self.report_obj = Report.objects.filter(slug=cleaned.get('report') or '', is_published=True).first()
+            if self.report_obj is None:
+                self.add_error('report', 'Choose a report to download.')
         return cleaned
 
     def clean_phone(self):

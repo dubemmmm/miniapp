@@ -1,0 +1,25 @@
+{# Public property card. Expects `r` from properties.views._property_card_data; pass show_reason=True to print the Top Pick note. #}
+<a href="{% url 'property_detail' property_pk=r.property.id %}" class="cw-card">
+    <div class="cw-card-photo">
+        {% if r.property.thumbnail %}
+        <div class="cw-card-img" style="background-image:url('{{ r.property.thumbnail.url }}');"></div>
+        {% else %}
+        <div class="cw-card-img cw-district-fallback"></div>
+        {% endif %}
+        <div class="cw-card-pills">
+            {% if r.property.is_top_pick %}<span class="cw-pill"><i class="dot amber"></i>CW Top Pick</span>{% endif %}
+            {% if r.property.is_fast_selling %}<span class="cw-pill"><i class="dot amber"></i>Selling fast</span>{% endif %}
+            {% if r.property.is_sold_out %}<span class="cw-pill"><i class="dot navy"></i>Sold out</span>{% endif %}
+            {% if r.stage_label %}<span class="cw-pill"><i class="dot navy"></i>{{ r.stage_label }}</span>{% endif %}
+        </div>
+    </div>
+    <div class="cw-card-body">
+        <div class="cw-card-loc">{{ r.property.get_location_display }}</div>
+        <div class="cw-card-name">{{ r.property.name }}</div>
+        <div class="cw-card-price">
+            <span>{% if r.starting_price_display %}from {{ r.starting_price_display }}{% else %}Price on request{% endif %}</span>
+            {% if r.psqm_display %}<span class="cw-card-psqm">{{ r.psqm_display }}/sqm</span>{% endif %}
+        </div>
+        {% if show_reason and r.property.top_pick_reason %}<p class="cw-card-reason">{{ r.property.top_pick_reason }}</p>{% endif %}
+    </div>
+</a>

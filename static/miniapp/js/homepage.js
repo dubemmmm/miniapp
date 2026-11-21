@@ -83,6 +83,7 @@
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {
         if (res.ok && res.data.success) {
+          if (window.cwTrack) window.cwTrack('email_signup');
           say('Thank you — you\'re on the list.', 'ok');
           button.textContent = 'Sent';
           markSeen();
@@ -141,6 +142,15 @@
         .then(function (res) {
           if (res.ok && res.data.success) {
             var isGuide = form.dataset.intent === 'guide';
+            if (window.cwTrack) {
+              window.cwTrack({ access: 'access_request', guide: 'guide_download', report: 'report_download' }[form.dataset.intent] || 'shortlist_request');
+            }
+            if (res.data.redirect_url) {
+              // Report gate: reload the page unlocked, with the requested report highlighted.
+              say('Thank you. Unlocking your report...', 'ok');
+              window.location.href = res.data.redirect_url;
+              return;
+            }
             form.reset();
             if (isGuide && res.data.download_url) {
               var a = document.createElement('a');
@@ -149,7 +159,7 @@
               say('', 'ok', 'Thank you. ');
               msg.appendChild(a);
             } else if (form.dataset.intent === 'access') {
-              say('Thank you. An adviser will contact you within 2 business days about access.', 'ok');
+              say('Thank you. An adviser will contact you within 2 business hours about access.', 'ok');
             } else {
               say('Thank you. An adviser will be in touch shortly with your shortlist.', 'ok');
             }

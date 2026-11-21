@@ -11,7 +11,7 @@ Email: ${agent_email}
 WHAT HAPPENS NEXT
 1. You'll receive a follow-up email shortly with your invitation code — look out for it in the next few minutes.
 2. Use the code to create your account and browse the full portfolio, including unit-level detail and pricing.
-3. Your adviser will also be in touch within 2 business days to understand what you're looking for.
+3. Your adviser will also be in touch within ${response_window} to understand what you're looking for.
 
 If you have urgent questions, contact your adviser directly using the details above.
 

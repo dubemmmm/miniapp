@@ -1,0 +1,81 @@
+{% extends "crm/base_crm.html" %}
+
+{% block page_title %}Client Activity{% endblock %}
+{% block page_subtitle %}{{ active_clients }} of {{ total_clients }} client{{ total_clients|pluralize }} active in the last 30 days{% endblock %}
+
+{% block crm_content %}
+
+<p class="text-xs text-slate-400 mb-5">What signed-in clients have been doing on the site. Counts cover the last 30 days. Staff accounts are not recorded. For overall traffic and where visitors come from, use Google Analytics.</p>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+  <!-- Clients -->
+  <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900 text-sm">Clients</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100">
+            <th class="px-5 py-3 font-semibold">Client</th>
+            <th class="px-3 py-3 font-semibold">Last seen</th>
+            <th class="px-3 py-3 font-semibold text-right">Views</th>
+            <th class="px-3 py-3 font-semibold text-right">Saved</th>
+            <th class="px-3 py-3 font-semibold text-right">Enquiries</th>
+            <th class="px-5 py-3 font-semibold text-right">Reports</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50">
+          {% for client in clients %}
+          <tr class="hover:bg-slate-50 transition">
+            <td class="px-5 py-3">
+              <a href="{% url 'crm:client_activity_detail' user_id=client.pk %}" class="font-semibold text-slate-900 hover:text-rose-600">{{ client.get_full_name|default:client.username }}</a>
+              <div class="text-xs text-slate-400">{{ client.email }}</div>
+            </td>
+            <td class="px-3 py-3 text-slate-600 whitespace-nowrap">
+              {% if client.last_seen %}{{ client.last_seen|timesince }} ago{% else %}<span class="text-slate-300">No activity yet</span>{% endif %}
+            </td>
+            <td class="px-3 py-3 text-right tabular-nums {% if client.views %}text-slate-800 font-medium{% else %}text-slate-300{% endif %}">{{ client.views }}</td>
+            <td class="px-3 py-3 text-right tabular-nums {% if client.saves %}text-slate-800 font-medium{% else %}text-slate-300{% endif %}">{{ client.saves }}</td>
+            <td class="px-3 py-3 text-right tabular-nums {% if client.enquiries %}text-rose-600 font-semibold{% else %}text-slate-300{% endif %}">{{ client.enquiries }}</td>
+            <td class="px-5 py-3 text-right tabular-nums {% if client.reports %}text-slate-800 font-medium{% else %}text-slate-300{% endif %}">{{ client.reports }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="px-5 py-10 text-center text-slate-400">No client accounts yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if clients.has_other_pages %}
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+      <span>Page {{ clients.number }} of {{ clients.paginator.num_pages }}</span>
+      <span class="flex gap-3">
+        {% if clients.has_previous %}<a class="hover:text-slate-900" href="?page={{ clients.previous_page_number }}">Previous</a>{% endif %}
+        {% if clients.has_next %}<a class="hover:text-slate-900" href="?page={{ clients.next_page_number }}">Next</a>{% endif %}
+      </span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Most viewed -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden self-start">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900 text-sm">Most viewed by clients</h2>
+      <p class="text-xs text-slate-400 mt-0.5">Last 30 days</p>
+    </div>
+    <ul class="divide-y divide-slate-50">
+      {% for prop in top_properties %}
+      <li class="px-5 py-3 flex items-center gap-3">
+        <span class="text-xs font-semibold text-slate-300 w-4">{{ forloop.counter }}</span>
+        <a href="{% url 'property_detail' property_pk=prop.pk %}" class="flex-1 min-w-0 text-sm text-slate-800 hover:text-rose-600 truncate">{{ prop.name }}</a>
+        <span class="text-xs text-slate-500 whitespace-nowrap">{{ prop.view_count }} view{{ prop.view_count|pluralize }} · {{ prop.viewer_count }} client{{ prop.viewer_count|pluralize }}</span>
+      </li>
+      {% empty %}
+      <li class="px-5 py-10 text-center text-sm text-slate-400">No property views recorded yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

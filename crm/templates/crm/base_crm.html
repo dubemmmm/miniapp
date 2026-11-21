@@ -87,6 +87,13 @@
         <span>Agents</span>
       </a>
 
+      <a href="{% url 'crm:client_activity' %}"
+         class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all text-sm
+                {% if request.resolver_match.url_name == 'client_activity' or request.resolver_match.url_name == 'client_activity_detail' %}active{% endif %}">
+        <span class="nav-icon w-4 text-center"><i class="fas fa-chart-line text-sm"></i></span>
+        <span>Client activity</span>
+      </a>
+
       <a href="{% url 'crm:settings' %}"
          class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-all text-sm
                 {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">

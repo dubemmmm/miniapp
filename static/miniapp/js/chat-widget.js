@@ -87,7 +87,8 @@
             typingIndicator.remove();
             const botBubble = document.createElement('div');
             botBubble.className = 'chat-message bot';
-            botBubble.innerHTML = data.output || data.reply || 'Thanks! A member of our team will get back to you shortly.';
+            // The proxy always returns `output` (an answer, or an honest error line).
+            botBubble.innerHTML = data.output || "Sorry, I couldn't get an answer just now. Please try again in a moment.";
             chatBody.appendChild(botBubble);
             scrollChatToBottom();
         } catch (error) {

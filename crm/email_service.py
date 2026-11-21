@@ -30,6 +30,7 @@ def send_transactional_email(
     body_html: str = None,
     from_email: str = None,
     reply_to: str = None,
+    bcc: str = None,
 ) -> tuple[bool, str | None, str | None]:
     """
     Send a transactional email via Resend.
@@ -38,7 +39,8 @@ def send_transactional_email(
     offplan.cwlagos.com domain) by default, with Reply-To set to
     DEFAULT_REPLY_TO_EMAIL, so replies land in a real monitored inbox even
     though the technical sender has to stay on an authenticated domain.
-    Pass from_email/reply_to to override per call — e.g. a specific
+    Pass bcc to blind-copy one address (the lead emails pass
+    settings.EMAIL_BCC_ARCHIVE). Pass from_email/reply_to to override per call — e.g. a specific
     verified address like offplan@cwlagos.com for a particular flow.
 
     Returns:
@@ -67,6 +69,10 @@ def send_transactional_email(
         }
         if reply_to:
             params['reply_to'] = reply_to
+        # Never BCC an address that is already the recipient (e.g. the archive
+        # inbox belongs to an admin who is also being notified).
+        if bcc and bcc.strip().lower() != recipient_email.strip().lower():
+            params['bcc'] = [bcc.strip()]
         if body_html:
             params['html'] = body_html
 

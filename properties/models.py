@@ -13,18 +13,39 @@ def property_image_path(instance, filename):
     return f"property_images/{instance.property.slug}/{filename}"
 def brochure_path(instance, filename):
     """Generate upload path for brochures"""
+    # A fresh key per upload: media is cached for a year at CloudFront and in
+    # browsers, so overwriting one fixed key left the old file being served.
     ext = filename.split('.')[-1]
-    filename = f"brochure.{ext}"
+    filename = f"brochure-{uuid.uuid4().hex[:12]}.{ext}"
     return f"brochures/{instance.slug}/{filename}"
 
 def property_thumbnail_path(instance, filename):
-    """Generate upload path for Property thumbnail"""
-    return f"property_thumbnails/{instance.slug}/{filename}"
+    """Generate upload path for Property thumbnail (unique per upload — see brochure_path)"""
+    ext = filename.split('.')[-1]
+    return f"property_thumbnails/{instance.slug}/{uuid.uuid4().hex}.{ext}"
 
 def agent_photo_path(instance, filename):
     """Generate upload path for an agent/employee's profile photo"""
     ext = filename.split('.')[-1]
     return f"agent_photos/{instance.user_id}/{uuid.uuid4()}.{ext}"
+
+
+def developer_logo_path(instance, filename):
+    """Generate upload path for a developer partner's logo"""
+    ext = filename.split('.')[-1]
+    return f"developer_logos/{uuid.uuid4()}.{ext}"
+
+def report_file_path(instance, filename):
+    """Generate upload path for a market report document"""
+    ext = filename.split('.')[-1]
+    return f"reports/{uuid.uuid4().hex}.{ext}"
+
+
+def report_cover_path(instance, filename):
+    """Generate upload path for a market report's cover image"""
+    ext = filename.split('.')[-1]
+    return f"reports/covers/{uuid.uuid4().hex}.{ext}"
+
 
 # Create your models here.
 class Property(models.Model):
@@ -89,6 +110,27 @@ class Property(models.Model):
         max_length=20,
         choices=LUXURY_CHOICES,
         default='non_luxurious',
+    )
+
+    # Curated sections (homepage + portfolio). Synced from Airtable checkboxes
+    # ("Sold Out", "Top Pick", "Fast Selling", "Top Pick Reason"), which are the
+    # source of truth: an edit made here is overwritten by the next sync of
+    # that property.
+    is_sold_out = models.BooleanField(
+        default=False, db_index=True,
+        help_text="Sold out but still under construction (resale opportunities). Set in Airtable."
+    )
+    is_top_pick = models.BooleanField(
+        default=False, db_index=True,
+        help_text="Shown in the 'CW Top Picks' section. Set in Airtable."
+    )
+    is_fast_selling = models.BooleanField(
+        default=False, db_index=True,
+        help_text="Shown in the 'Fast-Selling' section. Set in Airtable."
+    )
+    top_pick_reason = models.TextField(
+        blank=True,
+        help_text="Short note on why this is a CW Top Pick, shown on its card. Set in Airtable."
     )
     
     # Timestamps
@@ -421,6 +463,11 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     photo = models.ImageField(upload_to=agent_photo_path, blank=True, null=True, help_text="Headshot shown on the agent's public profile card")
     slug = models.SlugField(unique=True, blank=True, null=True, help_text="Public URL slug for this agent's profile page, e.g. /agents/<slug>/")
+    job_title = models.CharField(
+        max_length=100, blank=True,
+        help_text="Title shown on the public agent card and profile, e.g. 'Commercial Director'. "
+                  "Leave blank to show 'Off-plan Specialist'."
+    )
     bio = models.TextField(blank=True, help_text="Shown on the agent's public profile page")
     years_at_cw = models.PositiveSmallIntegerField(
         null=True, blank=True,
@@ -531,6 +578,58 @@ class EmailSignup(models.Model):
 
     def __str__(self):
         return self.email
+
+
+class DeveloperLogo(models.Model):
+    """A developer partner's logo shown in the public site footer, as a
+    trust/credibility signal. Only rows with an uploaded logo are ever
+    rendered — see the developer_logos context processor — so adding a
+    row with no image yet just stages it without it going live."""
+    name = models.CharField(max_length=150, help_text="Shown as the logo's alt text, not displayed as a label")
+    logo = models.ImageField(upload_to=developer_logo_path, blank=True, null=True)
+    website_url = models.URLField(blank=True, help_text="Optional — logo links out to this if set")
+    display_order = models.PositiveIntegerField(default=0, help_text="Lower numbers show first")
+    is_active = models.BooleanField(default=True, help_text="Uncheck to temporarily hide without deleting")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class Report(models.Model):
+    """A market report / document on the public Reports page. The page is
+    public, but downloading is gated behind a name + email form that feeds
+    the CRM (see crm.views.request_shortlist, intent='report')."""
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True, blank=True, help_text="Leave blank to generate from the title.")
+    summary = models.TextField(blank=True, help_text="Short description shown on the report's card.")
+    cover = models.ImageField(upload_to=report_cover_path, blank=True, null=True,
+                              help_text="Optional cover image for the card.")
+    file = models.FileField(upload_to=report_file_path, help_text="The document visitors download (PDF).")
+    published_at = models.DateField(default=timezone.localdate, help_text="Date shown on the card.")
+    is_published = models.BooleanField(default=True, help_text="Uncheck to hide without deleting.")
+    display_order = models.PositiveIntegerField(default=0, help_text="Lower numbers show first.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['display_order', '-published_at', '-created_at']
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            base = slugify(self.title)[:45] or 'report'
+            candidate, suffix = base, 2
+            while Report.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
 
 
 class EmployeeInvitation(models.Model):

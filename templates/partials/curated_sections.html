@@ -1,0 +1,39 @@
+{# The three curated sections driven by Airtable checkboxes. Each hides itself when empty. Expects top_picks, fast_selling, sold_out. #}
+{% if top_picks %}
+<section class="cw-section" id="top-picks">
+    <div class="cw-container">
+        <div class="cw-label">Our selection</div>
+        <h2 class="cw-h2">CW Top Picks</h2>
+        <p class="cw-lede" style="margin-bottom:0;">Developments our advisers rate most highly, judged on location, amenities and sales velocity.</p>
+        <div class="cw-card-grid">
+            {% for r in top_picks %}{% include "partials/property_card.html" with show_reason=True %}{% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if fast_selling %}
+<section class="cw-section" id="fast-selling">
+    <div class="cw-container">
+        <div class="cw-label">In demand</div>
+        <h2 class="cw-h2">Fast-Selling Properties</h2>
+        <p class="cw-lede" style="margin-bottom:0;">Developments where units are being taken up quickly.</p>
+        <div class="cw-card-grid">
+            {% for r in fast_selling %}{% include "partials/property_card.html" %}{% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if sold_out %}
+<section class="cw-section" id="sold-out">
+    <div class="cw-container">
+        <div class="cw-label">Resale opportunities</div>
+        <h2 class="cw-h2">Sold Out, Still Under Construction</h2>
+        <p class="cw-lede" style="margin-bottom:0;">Fully sold by the developer but not yet delivered. Ask an adviser about secondary-market units.</p>
+        <div class="cw-card-grid">
+            {% for r in sold_out %}{% include "partials/property_card.html" %}{% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}

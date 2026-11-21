@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -16,8 +16,9 @@ from django.views.generic import DetailView, ListView, TemplateView
 from crm.assignment import assign_agent
 from crm.forms import EnquiryForm, ShortlistForm
 from crm.mixins import AdminOnlyMixin, CRMAccessMixin
+from crm.activity import log_activity
 from crm.models import (
-    ActivityLog, EmailLog, FollowUp, Lead, LeadAssignment, LeadSource, SLAConfig,
+    ActivityLog, ClientActivity, EmailLog, FollowUp, Lead, LeadAssignment, LeadSource, SLAConfig,
 )
 from crm.utils import compute_sla_deadline, get_client_ip
 from properties.models import Property, UserProfile
@@ -207,6 +208,7 @@ def enquiry_submit(request, property_pk):
         transaction.on_commit(lambda: _safe_enqueue(send_visitor_confirmation, lead_id))
         transaction.on_commit(lambda: _safe_enqueue(send_agent_notification, lead_id))
 
+    log_activity(request.user, ClientActivity.Event.ENQUIRY, related_property=prop)
     _increment_rate(request)
     return JsonResponse({'success': True})
 
@@ -215,6 +217,7 @@ SHORTLIST_SOURCES = {
     'shortlist': ('neighbourhood-shortlist', 'Neighbourhood page: curated shortlist'),
     'guide': ('guide-download', 'Neighbourhood page: guide download'),
     'access': ('access-request', 'Private access request'),
+    'report': ('report-download', 'Reports page: report download'),
 }
 
 
@@ -260,15 +263,26 @@ def request_shortlist(request):
         title = f"the {market.label} market guide"
     elif intent == 'access':
         title = 'private access'
+    elif intent == 'report':
+        report = form.report_obj
+        market = None  # a report isn't tied to one neighbourhood
+        title = f"the report: {report.title}"[:200]
     else:
         title = 'a curated shortlist'
     location = f"{market.label}, Lagos" if market else 'Lagos'
-    if market:
+    if intent == 'report':
+        # The confirmation email links straight to the document, so the visitor
+        # also has it in their inbox (snapshot is a URLField, max 200 chars).
+        file_url = request.build_absolute_uri(report.file.url)
+        page_url = file_url if len(file_url) <= 200 else request.build_absolute_uri('/reports/')
+    elif market:
         page_url = request.build_absolute_uri(f'/neighbourhoods/{market.slug}/')
     else:
         page_url = request.build_absolute_uri('/request-access/')
 
-    if intent == 'access':
+    if intent == 'report':
+        message_lines = [f"Report download: {report.title}"]
+    elif intent == 'access':
         message_lines = [
             'Private access request: wants a client account.',
             f"Area of interest: {market.label}" if market else 'Area of interest: not stated',
@@ -321,7 +335,8 @@ def request_shortlist(request):
             ActivityLog.objects.create(
                 lead=lead, actor=None,
                 event_type=ActivityLog.EventType.LEAD_CREATED,
-                note=(f"Lead created from the {market.label} neighbourhood page ({source_name})."
+                note=(f"Lead created from the reports page ({source_name})." if intent == 'report'
+                      else f"Lead created from the {market.label} neighbourhood page ({source_name})."
                       if market and intent != 'access' else f"Lead created from the access request page ({source_name})."),
             )
             agent_profile, score_snapshot, reason = assign_agent(lead)
@@ -373,6 +388,10 @@ def request_shortlist(request):
     if intent == 'guide':
         response['download_url'] = profile.guide_file.url
         response['title'] = profile.guide_title or f"{market.label} off-plan market guide"
+    elif intent == 'report':
+        # Unlock every report for the rest of this visit: one form, not one per document.
+        request.session['reports_unlocked'] = True
+        response['redirect_url'] = f"/reports/?unlocked={report.slug}#reports"
     return JsonResponse(response)
 
 
@@ -725,6 +744,87 @@ class AgentWorkloadView(AdminOnlyMixin, TemplateView):
         ).select_related('user').order_by('-current_open_leads')
 
         ctx['agents'] = agents
+        ctx['is_admin'] = True
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# Client activity: tracking endpoint + staff pages
+# ---------------------------------------------------------------------------
+
+def track_property_view(request):
+    """POST {property_id}. Called by the portfolio and map when a signed-in
+    client opens a property modal (those never hit property_detail_view, so
+    the view would otherwise go unrecorded). Always answers 204: the page has
+    nothing to do with the result."""
+    from django.http import HttpResponse
+
+    if request.method == 'POST' and request.user.is_authenticated:
+        try:
+            property_id = int(json.loads(request.body or b'{}').get('property_id'))
+        except (TypeError, ValueError):
+            property_id = None
+        prop = Property.objects.filter(pk=property_id, is_active=True).first() if property_id else None
+        if prop:
+            log_activity(request.user, ClientActivity.Event.PROPERTY_VIEW, related_property=prop)
+    return HttpResponse(status=204)
+
+
+class ClientActivityView(AdminOnlyMixin, TemplateView):
+    """Every client account with what they've been doing: last seen, and
+    counts of views, saves, enquiries and report downloads (30 days)."""
+    template_name = 'crm/client_activity.html'
+
+    def get_context_data(self, **kwargs):
+        from datetime import timedelta
+        from django.db.models import Count, Max
+
+        ctx = super().get_context_data(**kwargs)
+        since = timezone.now() - timedelta(days=30)
+        E = ClientActivity.Event
+        recent = Q(client_activity__created_at__gte=since)
+
+        clients = (
+            User.objects.filter(is_active=True, is_staff=False, profile__is_employee=False)
+            .annotate(
+                last_seen=Max('client_activity__created_at'),
+                views=Count('client_activity', filter=recent & Q(client_activity__event=E.PROPERTY_VIEW)),
+                saves=Count('client_activity', filter=recent & Q(client_activity__event=E.FAVORITE)),
+                enquiries=Count('client_activity', filter=recent & Q(client_activity__event=E.ENQUIRY)),
+                reports=Count('client_activity', filter=recent & Q(client_activity__event=E.REPORT_DOWNLOAD)),
+            )
+            .order_by(F('last_seen').desc(nulls_last=True), '-date_joined')
+        )
+        paginator = Paginator(clients, 50)
+        ctx['clients'] = paginator.get_page(self.request.GET.get('page'))
+        ctx['total_clients'] = paginator.count
+        ctx['active_clients'] = ClientActivity.objects.filter(created_at__gte=since).values('user').distinct().count()
+
+        # Which listings clients are actually looking at.
+        ctx['top_properties'] = (
+            Property.objects.filter(client_activity__created_at__gte=since,
+                                    client_activity__event=E.PROPERTY_VIEW)
+            .annotate(view_count=Count('client_activity'),
+                      viewer_count=Count('client_activity__user', distinct=True))
+            .order_by('-view_count')[:10]
+        )
+        ctx['is_admin'] = True
+        return ctx
+
+
+class ClientActivityDetailView(AdminOnlyMixin, TemplateView):
+    """One client's timeline."""
+    template_name = 'crm/client_activity_detail.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        client = get_object_or_404(User, pk=kwargs['user_id'], is_staff=False, profile__is_employee=False)
+        events = ClientActivity.objects.filter(user=client).select_related('related_property')
+        paginator = Paginator(events, 100)
+        ctx['client'] = client
+        ctx['events'] = paginator.get_page(self.request.GET.get('page'))
+        ctx['total_events'] = paginator.count
+        ctx['leads'] = Lead.objects.filter(email__iexact=client.email).order_by('-created_at')[:10] if client.email else []
         ctx['is_admin'] = True
         return ctx
 

@@ -12,6 +12,7 @@
                         <a href="{% url 'neighbourhood_index' %}">Neighbourhoods</a>
                         <a href="{% url 'compare_neighbourhoods_index' %}">Compare neighbourhoods</a>
                         <a href="{% url 'home' %}#recent">Projects</a>
+                        <a href="{% url 'reports' %}">Reports</a>
                     </div>
                     <div>
                         <div class="cw-footer-head">Get in touch</div>
@@ -20,6 +21,24 @@
                     </div>
                 </div>
             </div>
+            {% if developer_logos %}
+            <div class="cw-footer-developers">
+                <div class="cw-footer-head">Developers we work with</div>
+                <div class="cw-footer-developers-row">
+                    {% for dev in developer_logos %}
+                    {% if dev.website_url %}
+                    <a href="{{ dev.website_url }}" target="_blank" rel="noopener" class="cw-footer-dev-logo">
+                        <img src="{{ dev.logo.url }}" alt="{{ dev.name }}" loading="lazy">
+                    </a>
+                    {% else %}
+                    <span class="cw-footer-dev-logo">
+                        <img src="{{ dev.logo.url }}" alt="{{ dev.name }}" loading="lazy">
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             <div class="cw-footer-legal">
                 © {{ data_updated_at|date:"Y" }} CW Offplan Real Estate. Figures shown are estimates based on tracked listing data and may not reflect final transaction prices. All rights reserved.
             </div>

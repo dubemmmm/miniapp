@@ -229,6 +229,36 @@ def _card_queryset(qs):
     )
 
 
+CURATED_SECTION_LIMIT = 8
+
+
+def _curated_sections():
+    """Card lists for the three curated sections (CW Top Picks, Fast-Selling,
+    Sold-Out), driven by the Airtable-synced flags on Property. Shared by the
+    public homepage and the reports page. Unlike the other card rows these are
+    hand-picked, so they are never trimmed to fill whole rows and a listing
+    without a photo still shows (on the fallback tile)."""
+    base = Property.objects.filter(is_active=True).prefetch_related(
+        'configurations',
+        Prefetch('progress_updates', queryset=PropertyProgress.objects.filter(is_latest=True)),
+    )
+
+    def cards(qs):
+        return [_property_card_data(p) for p in qs.order_by('-created_at')[:CURATED_SECTION_LIMIT]]
+
+    # "Sold out but still under construction": drop anything already delivered.
+    under_construction_sold_out = (
+        base.filter(is_sold_out=True)
+        .exclude(completion_date__lte=timezone.localdate())
+        .exclude(progress_updates__is_latest=True, progress_updates__stage='completed')
+    )
+    return {
+        'top_picks': cards(base.filter(is_top_pick=True)),
+        'fast_selling': cards(base.filter(is_fast_selling=True)),
+        'sold_out': cards(under_construction_sold_out),
+    }
+
+
 BED_ORDER = ['1', '2', '3', '4', '5+']
 
 
@@ -599,6 +629,10 @@ def build_property_payload(
             'contact_name': prop.contact_name or '',
             'contact_phone': prop.contact_phone or '',
             'is_featured': prop.is_featured,
+            'is_sold_out': prop.is_sold_out,
+            'is_top_pick': prop.is_top_pick,
+            'is_fast_selling': prop.is_fast_selling,
+            'top_pick_reason': prop.top_pick_reason,
             'luxury_status': prop.luxury_status,
             'completion_date': prop.completion_date.strftime('%Y-%m-%d') if prop.completion_date else '',
             'is_active': prop.is_active,
@@ -1743,6 +1777,9 @@ def toggle_favorite(request, property_id):
 
     if created:
         is_favorite = True
+        from crm.activity import log_activity
+        from crm.models import ClientActivity
+        log_activity(request.user, ClientActivity.Event.FAVORITE, related_property=property_obj)
     else:
         favorite.delete()
         is_favorite = False
@@ -2064,6 +2101,7 @@ def public_homepage_view(request):
         'index_featured_property': index_featured_property,
         'featured_agents': featured_agents,
         'data_updated_at': timezone.now(),
+        **_curated_sections(),
     }
     return render(request, 'public_home.html', context)
 
@@ -2566,10 +2604,42 @@ def temp_view(request):
     return render(request, template_name, context)
 
 
-@login_required
+def _reports_unlocked(request):
+    """Signed-in users, and visitors who have already left their details this
+    visit (see crm.views.request_shortlist, intent='report'), download freely."""
+    return request.user.is_authenticated or bool(request.session.get('reports_unlocked'))
+
+
 def reports_view(request):
-    """Reports / Blog section — placeholder 'coming soon' page for now."""
-    return render(request, 'coming_soon.html', {'page_title': 'Reports'})
+    """Public reports page. Anyone can see what's available; downloading asks
+    for a name and email once, which creates a CRM lead (lead-capture page)."""
+    from .models import Report
+
+    reports = list(Report.objects.filter(is_published=True))
+    unlocked = _reports_unlocked(request)
+    just_unlocked = next((r for r in reports if r.slug == request.GET.get('unlocked')), None) if unlocked else None
+    return render(request, 'reports.html', {
+        'reports': reports,
+        'unlocked': unlocked,
+        'just_unlocked': just_unlocked,
+        'top_picks': _curated_sections()['top_picks'],
+        'data_updated_at': timezone.now(),
+        'meta_title': 'Lagos Off-Plan Market Reports | CW Offplan Real Estate',
+        'meta_description': 'Download CW Offplan Real Estate research on the Lagos off-plan property market: pricing, supply and our top-pick developments.',
+    })
+
+
+def report_download_view(request, slug):
+    """Gate in front of a report file: bounce to the form unless unlocked."""
+    from .models import Report
+
+    report = get_object_or_404(Report, slug=slug, is_published=True)
+    if not _reports_unlocked(request):
+        return redirect(f"{reverse('reports')}?report={report.slug}#get-access")
+    from crm.activity import log_activity
+    from crm.models import ClientActivity
+    log_activity(request.user, ClientActivity.Event.REPORT_DOWNLOAD, detail=report.title)
+    return redirect(report.file.url)
 
 
 @require_POST
@@ -2696,6 +2766,10 @@ def property_detail_view(request, property_pk):
             wa_digits = '234' + wa_digits[1:]
         whatsapp_url = f"https://wa.me/{wa_digits}?text={urllib.parse.quote(wa_msg)}"
 
+    from crm.activity import log_activity
+    from crm.models import ClientActivity
+    log_activity(request.user, ClientActivity.Event.PROPERTY_VIEW, related_property=prop)
+
     context = {
         'property': prop,
         'images': images,
@@ -2739,6 +2813,8 @@ def chat_proxy(request):
             status=503,
         )
 
+    import time
+    started = time.monotonic()
     try:
         resp = requests.post(
             webhook_url,
@@ -2747,8 +2823,11 @@ def chat_proxy(request):
                 'message': message,
                 'route': payload.get('route') or 'general',
             },
-            timeout=25,
+            # Property questions measured 13-21s on the live workflow, so 25s
+            # cut off the slower ones. Stay under nginx's default 60s read timeout.
+            timeout=50,
         )
+        elapsed = time.monotonic() - started
         resp.raise_for_status()
         try:
             data = resp.json()
@@ -2757,10 +2836,47 @@ def chat_proxy(request):
         # n8n's "Respond to Webhook" often wraps the reply in a single-item list.
         if isinstance(data, list):
             data = data[0] if data else {}
-        return JsonResponse(data, safe=False)
+        reply = _chat_reply_text(data)
+        if not reply:
+            # A 200 with nothing usable in it (workflow has no "Respond to
+            # Webhook" node, replied before the answer was ready, or uses a
+            # key we don't know). Report it as a failure instead of letting
+            # the widget show a canned line that looks like the bot ignored
+            # the question.
+            logger.error(
+                'Chat webhook returned no reply text (status %s, %.1fs): %.300s',
+                resp.status_code, elapsed, resp.text,
+            )
+            return JsonResponse(
+                {'error': 'no_reply', 'output': "Sorry, I couldn't get an answer just now. Please try again in a moment."},
+                status=502,
+            )
+        logger.info('Chat webhook replied in %.1fs', elapsed)
+        return JsonResponse({'output': reply})
     except requests.RequestException as exc:
-        logger.error('Chat webhook proxy failed: %s', exc)
+        logger.error('Chat webhook proxy failed after %.1fs: %s', time.monotonic() - started, exc)
         return JsonResponse(
-            {'output': 'Sorry, something went wrong. Please try again later.'},
+            {'error': 'unavailable', 'output': 'Sorry, something went wrong. Please try again later.'},
             status=502,
         )
+
+
+# Keys an n8n workflow commonly puts the assistant's answer under, in priority order.
+_CHAT_REPLY_KEYS = ('output', 'reply', 'text', 'response', 'answer', 'message')
+
+
+def _chat_reply_text(data):
+    """Pull the assistant's answer out of whatever shape the n8n workflow returned."""
+    if isinstance(data, str):
+        return data.strip()
+    if not isinstance(data, dict):
+        return ''
+    for key in _CHAT_REPLY_KEYS:
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, dict):
+            nested = _chat_reply_text(value)
+            if nested:
+                return nested
+    return ''

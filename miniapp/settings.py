@@ -93,6 +93,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',  # Required for allauth
+                'properties.context_processors.developer_logos',
+                'properties.context_processors.tracking',
             ],
         },
     },
@@ -328,6 +330,15 @@ N8N_CHAT_WEBHOOK_URL = config('N8N_CHAT_WEBHOOK_URL')
 # CARTO Basemaps API key (dashboard map tiles)
 CARTO_API_KEY = config('CARTO_API_KEY', default='')
 
+# Analytics tags (templates/partials/tracking_head.html). Leave unset to disable.
+# NB: the CSP_* lists above are the pre-4.0 django-csp format; the installed
+# 4.x ignores them, so no Content-Security-Policy header is sent today. If a
+# policy is ever switched on, it must allow googletagmanager.com,
+# google-analytics.com, connect.facebook.net and facebook.com or these tags
+# will be blocked.
+GA4_MEASUREMENT_ID = config('GA4_MEASUREMENT_ID', default='')
+META_PIXEL_ID = config('META_PIXEL_ID', default='')
+
 # CRM / transactional email settings (see crm/email_service.py — currently
 # backed by Resend; SENDGRID_API_KEY is unused but left configurable in case
 # of a future rollback).
@@ -335,6 +346,10 @@ SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 RESEND_API_KEY = config('RESEND_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@offplan.cwlagos.com')
 DEFAULT_REPLY_TO_EMAIL = config('DEFAULT_REPLY_TO_EMAIL', default='offplan@cwlagos.com')
+# Optional monitored inbox that gets a blind copy of every automated lead email
+# (visitor confirmation, agent notification, invitation code), so the team can
+# see exactly what was sent. Leave unset to disable.
+EMAIL_BCC_ARCHIVE = config('EMAIL_BCC_ARCHIVE', default='')
 SITE_URL = config('SITE_URL', default='http://localhost:8000')
 
 # CRM SLA defaults (overridable via SLAConfig model)

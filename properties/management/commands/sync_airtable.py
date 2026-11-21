@@ -68,6 +68,17 @@ def first_attachment(attachments: Any) -> Optional[Dict[str, Any]]:
     return attachments[0] if isinstance(attachments, list) else None
 
 
+def attachment_key(att: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Stable identity for an Airtable attachment, used for change detection.
+
+    Prefer the attachment's own id: the download URL is signed and rotates, so
+    hashing the URL made every file look "changed" on every sync. Falls back to
+    the URL when no id is present."""
+    if not att:
+        return None
+    return att.get("id") or att.get("url")
+
+
 def iter_records(table: Table, *, max_records=None, **options):
     out, count = [], 0
     try:
@@ -261,7 +272,10 @@ class Command(BaseCommand):
                 self._sync_configurations(cfg_data, dry_run=dry_run)
 
             if "images" in only:
-                self._sync_images(img_data, dry_run=dry_run, no_files=no_files)
+                self._sync_images(
+                    img_data, dry_run=dry_run, no_files=no_files,
+                    fetched_record_ids={r["id"] for r in img_records if r.get("id")},
+                )
 
             if "amenities" in only:
                 self._sync_amenities(amen_data, dry_run=dry_run)
@@ -314,8 +328,10 @@ class Command(BaseCommand):
             thumbnail_att = first_attachment(f.get("Thumbnail") or f.get("Thumbnails"))
             brochure_url = brochure_att.get("url") if brochure_att else None
             thumbnail_url = thumbnail_att.get("url") if thumbnail_att else None
-            brochure_url_hash = hashlib.sha256(brochure_url.encode()).hexdigest() if brochure_url else ""
-            thumbnail_url_hash = hashlib.sha256(thumbnail_url.encode()).hexdigest() if thumbnail_url else ""
+            brochure_key = attachment_key(brochure_att)
+            thumbnail_key = attachment_key(thumbnail_att)
+            brochure_url_hash = hashlib.sha256(brochure_key.encode()).hexdigest() if brochure_key else ""
+            thumbnail_url_hash = hashlib.sha256(thumbnail_key.encode()).hexdigest() if thumbnail_key else ""
 
             out[rid] = {
                 "airtable_id": rid,
@@ -331,6 +347,12 @@ class Command(BaseCommand):
                 "luxury_status": (f.get("Luxury Status") or "non_luxurious").strip(),
                 "is_active": bool(f.get("Is Active")),
                 "completion_date": to_date(f.get("Completion Date")),
+                # Curated homepage/portfolio sections — Airtable checkboxes, so
+                # ticking one there updates the site on the next sync.
+                "is_sold_out": bool(f.get("Sold Out")),
+                "is_top_pick": bool(f.get("Top Pick")),
+                "is_fast_selling": bool(f.get("Fast Selling")),
+                "top_pick_reason": (f.get("Top Pick Reason") or "").strip(),
                 "brochure_url": brochure_url,
                 "thumbnail_url": thumbnail_url,
                 "brochure_url_hash": brochure_url_hash,
@@ -385,6 +407,7 @@ class Command(BaseCommand):
                             "airtable_id": unique_id,
                             "property_id": prop_id,
                             "image_url": att.get("url"),
+                            "image_key": attachment_key(att),
                             "alt_text": f"{alt_text} (Image {idx+1})" if alt_text and len(attachments) > 1 else alt_text,
                             "order": base_order + idx,
                             "attachment_index": idx,
@@ -475,6 +498,7 @@ class Command(BaseCommand):
                 for img in images:
                     if isinstance(img, dict) and img.get("url"):
                         images_data.append({
+                            "id": img.get("id", ""),
                             "url": img.get("url"),
                             "filename": img.get("filename", ""),
                             "size": img.get("size", 0),
@@ -529,6 +553,10 @@ class Command(BaseCommand):
                 "is_active": p["is_active"],
                 "luxury_status": p["luxury_status"] if p["luxury_status"] in {c[0] for c in Property.LUXURY_CHOICES} else "non_luxurious",
                 "completion_date": p["completion_date"],
+                "is_sold_out": p["is_sold_out"],
+                "is_top_pick": p["is_top_pick"],
+                "is_fast_selling": p["is_fast_selling"],
+                "top_pick_reason": p["top_pick_reason"],
                 "brochure_url_hash": p["brochure_url_hash"],
                 "thumbnail_url_hash": p["thumbnail_url_hash"],
             }
@@ -538,64 +566,65 @@ class Command(BaseCommand):
                 continue
 
             try:
-                obj, created = Property.objects.get_or_create(airtable_id=rid, defaults=fields)
-                # Capture the hashes as they were BEFORE the diff loop below can overwrite
-                # them, so the file-download decision compares old vs. new correctly.
-                prior_brochure_hash = "" if created else obj.brochure_url_hash
-                prior_thumbnail_hash = "" if created else obj.thumbnail_url_hash
+                with transaction.atomic():  # savepoint: one bad record must not abort the whole sync
+                    obj, created = Property.objects.get_or_create(airtable_id=rid, defaults=fields)
+                    # Capture the hashes as they were BEFORE the diff loop below can overwrite
+                    # them, so the file-download decision compares old vs. new correctly.
+                    prior_brochure_hash = "" if created else obj.brochure_url_hash
+                    prior_thumbnail_hash = "" if created else obj.thumbnail_url_hash
 
-                if not created:
-                    changed = False
-                    for k, v in fields.items():
-                        if getattr(obj, k) != v:
-                            setattr(obj, k, v)
-                            changed = True
-                    if changed:
+                    if not created:
+                        changed = False
+                        for k, v in fields.items():
+                            if getattr(obj, k) != v:
+                                setattr(obj, k, v)
+                                changed = True
+                        if changed:
+                            obj.last_synced_at = timezone.now()
+                            obj.save()
+                            self.stdout.write(f"🔄 Updated property: {obj.name}")
+                        else:
+                            self.stdout.write(f"✅ No changes: {obj.name}")
+                    else:
                         obj.last_synced_at = timezone.now()
                         obj.save()
-                        self.stdout.write(f"🔄 Updated property: {obj.name}")
-                    else:
-                        self.stdout.write(f"✅ No changes: {obj.name}")
-                else:
-                    obj.last_synced_at = timezone.now()
-                    obj.save()
-                    self.stdout.write(f"✅ Created property: {obj.name}")
+                        self.stdout.write(f"✅ Created property: {obj.name}")
 
-                if not no_files:
-                    needs_brochure = created or not obj.brochure or prior_brochure_hash != p["brochure_url_hash"]
-                    needs_thumbnail = created or not obj.thumbnail or prior_thumbnail_hash != p["thumbnail_url_hash"]
+                    if not no_files:
+                        needs_brochure = created or not obj.brochure or prior_brochure_hash != p["brochure_url_hash"]
+                        needs_thumbnail = created or not obj.thumbnail or prior_thumbnail_hash != p["thumbnail_url_hash"]
 
-                    try:
-                        if needs_brochure and p.get("brochure_url"):
-                            r = sess.get(p["brochure_url"], timeout=60, headers=headers)
-                            if r.status_code == 200 and r.content and len(r.content) > 100:
-                                fname = f"brochure_{obj.slug}.pdf"
-                                if obj.brochure:
-                                    obj.brochure.delete(save=False)
-                                obj.brochure.save(fname, ContentFile(r.content), save=False)
-                                self.stdout.write(f"  📎 Downloaded + saved brochure for {obj.name} ({len(r.content)} bytes)")
-                            else:
-                                self.stderr.write(f"  ⚠️ Brochure download issue for {obj.name}: status={r.status_code}")
-                        elif not no_files and obj.brochure:
-                            self.stdout.write(f"  ✅ Brochure unchanged for {obj.name} — skipping download")
+                        try:
+                            if needs_brochure and p.get("brochure_url"):
+                                r = sess.get(p["brochure_url"], timeout=60, headers=headers)
+                                if r.status_code == 200 and r.content and len(r.content) > 100:
+                                    fname = f"brochure_{obj.slug}.pdf"
+                                    if obj.brochure:
+                                        obj.brochure.delete(save=False)
+                                    obj.brochure.save(fname, ContentFile(r.content), save=False)
+                                    self.stdout.write(f"  📎 Downloaded + saved brochure for {obj.name} ({len(r.content)} bytes)")
+                                else:
+                                    self.stderr.write(f"  ⚠️ Brochure download issue for {obj.name}: status={r.status_code}")
+                            elif not no_files and obj.brochure:
+                                self.stdout.write(f"  ✅ Brochure unchanged for {obj.name} — skipping download")
 
-                        if needs_thumbnail and p.get("thumbnail_url"):
-                            r = sess.get(p["thumbnail_url"], timeout=60, headers=headers)
-                            if r.status_code == 200 and r.content and len(r.content) > 100:
-                                fname = f"thumbnail_{obj.slug}.jpg"
-                                if obj.thumbnail:
-                                    obj.thumbnail.delete(save=False)
-                                obj.thumbnail.save(fname, ContentFile(r.content), save=False)
-                                self.stdout.write(f"  🖼️ Downloaded + saved thumbnail for {obj.name} ({len(r.content)} bytes)")
-                            else:
-                                self.stderr.write(f"  ⚠️ Thumbnail download issue for {obj.name}: status={r.status_code}")
-                        elif not no_files and obj.thumbnail:
-                            self.stdout.write(f"  ✅ Thumbnail unchanged for {obj.name} — skipping download")
+                            if needs_thumbnail and p.get("thumbnail_url"):
+                                r = sess.get(p["thumbnail_url"], timeout=60, headers=headers)
+                                if r.status_code == 200 and r.content and len(r.content) > 100:
+                                    fname = f"thumbnail_{obj.slug}.jpg"
+                                    if obj.thumbnail:
+                                        obj.thumbnail.delete(save=False)
+                                    obj.thumbnail.save(fname, ContentFile(r.content), save=False)
+                                    self.stdout.write(f"  🖼️ Downloaded + saved thumbnail for {obj.name} ({len(r.content)} bytes)")
+                                else:
+                                    self.stderr.write(f"  ⚠️ Thumbnail download issue for {obj.name}: status={r.status_code}")
+                            elif not no_files and obj.thumbnail:
+                                self.stdout.write(f"  ✅ Thumbnail unchanged for {obj.name} — skipping download")
 
-                        if needs_brochure or needs_thumbnail:
-                            obj.save()
-                    except Exception as file_err:
-                        self.stderr.write(f"  ⚠️ File save error for {obj.name}: {file_err}")
+                            if needs_brochure or needs_thumbnail:
+                                obj.save()
+                        except Exception as file_err:
+                            self.stderr.write(f"  ⚠️ File save error for {obj.name}: {file_err}")
 
             except Exception as e:
                 self.stderr.write(f"❌ Property sync error ({p.get('name')}): {e}")
@@ -620,33 +649,34 @@ class Command(BaseCommand):
                 self.stdout.write(f"🔍 Would upsert config: {prop.name} - {c['type']}")
                 continue
             try:
-                self.stdout.write(
-                f"DEBUG CONFIG | property={prop.name} | "
-                f"type={c['type']} | price={c['price']!r} | "
-                f"square_footage={c['square_footage']!r} | "
-                f"airtable_id={c['airtable_id']}"
-                )
-                obj, created = PropertyConfiguration.objects.get_or_create(
-                    airtable_id=c["airtable_id"], defaults=fields
-                )
-                if not created:
-                    changed = False
-                    for k, v in fields.items():
-                        if k == "property":
-                            continue
-                        if getattr(obj, k) != v:
-                            setattr(obj, k, v)
-                            changed = True
-                    if changed:
+                with transaction.atomic():  # savepoint: one bad record must not abort the whole sync
+                    self.stdout.write(
+                    f"DEBUG CONFIG | property={prop.name} | "
+                    f"type={c['type']} | price={c['price']!r} | "
+                    f"square_footage={c['square_footage']!r} | "
+                    f"airtable_id={c['airtable_id']}"
+                    )
+                    obj, created = PropertyConfiguration.objects.get_or_create(
+                        airtable_id=c["airtable_id"], defaults=fields
+                    )
+                    if not created:
+                        changed = False
+                        for k, v in fields.items():
+                            if k == "property":
+                                continue
+                            if getattr(obj, k) != v:
+                                setattr(obj, k, v)
+                                changed = True
+                        if changed:
+                            obj.last_synced_at = timezone.now()
+                            obj.save()
+                            self.stdout.write(f"🔄 Updated config: {prop.name} - {obj.type}")
+                        else:
+                            self.stdout.write(f"✅ No changes: {prop.name} - {obj.type}")
+                    else:
                         obj.last_synced_at = timezone.now()
                         obj.save()
-                        self.stdout.write(f"🔄 Updated config: {prop.name} - {obj.type}")
-                    else:
-                        self.stdout.write(f"✅ No changes: {prop.name} - {obj.type}")
-                else:
-                    obj.last_synced_at = timezone.now()
-                    obj.save()
-                    self.stdout.write(f"✅ Created config: {prop.name} - {obj.type}")
+                        self.stdout.write(f"✅ Created config: {prop.name} - {obj.type}")
             except IntegrityError:
                 # unique_together on (property, type); fallback to update by that pair
                 obj = PropertyConfiguration.objects.filter(property=prop, type=c["type"]).first()
@@ -662,7 +692,8 @@ class Command(BaseCommand):
                 else:
                     self.stderr.write(f"❌ Failed to upsert config for {prop.name} - {c['type']}")
 
-    def _sync_images(self, imgs: List[Dict[str, Any]], *, dry_run: bool, no_files: bool):
+    def _sync_images(self, imgs: List[Dict[str, Any]], *, dry_run: bool, no_files: bool,
+                     fetched_record_ids: Optional[Set[str]] = None):
         import hashlib as _hash
 
         self.stdout.write(f"Syncing {len(imgs)} images ...")
@@ -676,7 +707,8 @@ class Command(BaseCommand):
                 continue
 
             url = im.get("image_url")
-            url_hash = _hash.sha256(url.encode()).hexdigest() if url else ""
+            key = im.get("image_key") or url
+            url_hash = _hash.sha256(key.encode()).hexdigest() if key else ""
 
             defaults = {
                 "property": prop,
@@ -740,6 +772,23 @@ class Command(BaseCommand):
             elif not no_files and not needs_download:
                 self.stdout.write(f"✅ Image unchanged: {prop.name} (order {obj.order}) - skipping download")
 
+        # Reconcile attachments *within* the Airtable records fetched this run. One
+        # record fans out to rows keyed "<record>" or "<record>_<n>", so removing or
+        # replacing a picture inside a record leaves rows this loop never touches —
+        # the old picture kept showing until the next prune. Works for incremental
+        # runs too, since it is scoped to records we actually re-fetched.
+        if fetched_record_ids and not dry_run:
+            present = {im["airtable_id"] for im in imgs}
+            stale = PropertyImage.objects.filter(original_record_id__in=fetched_record_ids).exclude(
+                airtable_id__in=present
+            )
+            stale_count = stale.count()
+            if stale_count:
+                self.stdout.write(self.style.WARNING(
+                    f"🗑️ Removing {stale_count} image(s) no longer attached to their Airtable record"
+                ))
+                stale.delete()
+
     def _sync_amenities(self, ams: List[Dict[str, Any]], *, dry_run: bool):
         self.stdout.write(f"Syncing {len(ams)} amenities ...")
         for a in ams:
@@ -750,9 +799,15 @@ class Command(BaseCommand):
             if dry_run:
                 self.stdout.write(f"🔍 Would upsert amenity: {prop.name} - {a['name']}")
                 continue
-            obj, created = PropertyAmenity.objects.get_or_create(
-                airtable_id=a["airtable_id"], property=prop, defaults={"name": a["name"]}
-            )
+            try:
+                with transaction.atomic():  # savepoint
+                    obj, created = PropertyAmenity.objects.get_or_create(
+                        airtable_id=a["airtable_id"], property=prop, defaults={"name": a["name"]}
+                    )
+            except IntegrityError:
+                # Same amenity name already recorded for this property under another id.
+                self.stdout.write(f"↪︎ Amenity already present: {prop.name} - {a['name']}")
+                continue
             if created:
                 obj.last_synced_at = timezone.now()
                 obj.save()
@@ -795,37 +850,39 @@ class Command(BaseCommand):
                 continue
 
             try:
-                obj, created = PropertyProgress.objects.get_or_create(
-                    airtable_id=prog["airtable_id"],
-                    defaults=fields
-                )
+                with transaction.atomic():  # savepoint: one bad record must not abort the whole sync
+                    obj, created = PropertyProgress.objects.get_or_create(
+                        airtable_id=prog["airtable_id"],
+                        defaults=fields
+                    )
 
-                if not created:
-                    changed = False
-                    for k, v in fields.items():
-                        if k == "property":
-                            continue
-                        if getattr(obj, k) != v:
-                            setattr(obj, k, v)
-                            changed = True
-                    if changed:
+                    if not created:
+                        changed = False
+                        for k, v in fields.items():
+                            if k == "property":
+                                continue
+                            if getattr(obj, k) != v:
+                                setattr(obj, k, v)
+                                changed = True
+                        if changed:
+                            obj.last_synced_at = timezone.now()
+                            obj.save()
+                            self.stdout.write(
+                                f"🔄 Updated progress: {prop.name} - {obj.get_stage_display()} ({obj.progress_percentage}%)"
+                            )
+                        else:
+                            self.stdout.write(f"✅ No changes: {prop.name} - {obj.get_stage_display()}")
+                    else:
                         obj.last_synced_at = timezone.now()
                         obj.save()
                         self.stdout.write(
-                            f"🔄 Updated progress: {prop.name} - {obj.get_stage_display()} ({obj.progress_percentage}%)"
+                            f"✅ Created progress: {prop.name} - {obj.get_stage_display()} ({obj.progress_percentage}%)"
                         )
-                    else:
-                        self.stdout.write(f"✅ No changes: {prop.name} - {obj.get_stage_display()}")
-                else:
-                    obj.last_synced_at = timezone.now()
-                    obj.save()
-                    self.stdout.write(
-                        f"✅ Created progress: {prop.name} - {obj.get_stage_display()} ({obj.progress_percentage}%)"
-                    )
 
-                # Download and sync progress images
-                if not no_files and prog["images_data"]:
-                    self._sync_progress_images(obj, prog["images_data"], sess, headers, dry_run)
+                    # Download and sync progress images
+                    # Called even with no images, so photos removed in Airtable are cleared here too.
+                    if not no_files:
+                        self._sync_progress_images(obj, prog["images_data"], sess, headers, dry_run)
 
             except Exception as e:
                 self.stderr.write(f"❌ Progress sync error ({prop.name}): {e}")
@@ -834,13 +891,15 @@ class Command(BaseCommand):
         """Download and sync images for a progress update"""
         import hashlib as _hash
 
+        present_ids = set()
         for idx, img_data in enumerate(images_data):
             url = img_data.get("url")
             if not url:
                 continue
 
-            url_hash = _hash.sha256(url.encode()).hexdigest()
+            url_hash = _hash.sha256((img_data.get("id") or url).encode()).hexdigest()
             unique_id = f"{progress_obj.airtable_id}_{idx}"
+            present_ids.add(unique_id)
 
             defaults = {
                 "progress_update": progress_obj,
@@ -883,10 +942,19 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"✅ Progress image unchanged ({idx + 1}) - skipping download")
 
+        # Drop synced photos that are no longer on the Airtable record (rows added by
+        # hand in the admin have no "<record>_<n>" id and are left alone).
+        PropertyProgressImage.objects.filter(
+            progress_update=progress_obj,
+            airtable_id__startswith=f"{progress_obj.airtable_id}_",
+        ).exclude(airtable_id__in=present_ids).delete()
+
     # ------------------------ Pruning (perfect mirroring) ---------------
 
     def _prune_missing_properties(self, airtable_ids: Set[str]):
-        qs = Property.objects.exclude(airtable_id__in=airtable_ids)
+        # Only rows that came from Airtable are candidates: a property created by hand
+        # in the admin has no airtable_id and must survive the prune.
+        qs = Property.objects.filter(airtable_id__isnull=False).exclude(airtable_id__in=airtable_ids)
         count = qs.count()
         if count:
             self.stdout.write(self.style.WARNING(f"🗑️ Deleting {count} properties missing from Airtable"))
@@ -981,7 +1049,7 @@ class Command(BaseCommand):
         # Property prune
         self.stdout.write("\n🧹 PRUNE (dry-run):")
         all_prop_ids = set(prop_map.keys())
-        prop_delete_count = Property.objects.exclude(airtable_id__in=all_prop_ids).count()
+        prop_delete_count = Property.objects.filter(airtable_id__isnull=False).exclude(airtable_id__in=all_prop_ids).count()
         self.stdout.write(f"  Properties to delete: {prop_delete_count}")
 
         # Configurations prune (scoped to synced properties)

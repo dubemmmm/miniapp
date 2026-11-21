@@ -1,0 +1,66 @@
+{% extends "crm/base_crm.html" %}
+
+{% block page_title %}{{ client.get_full_name|default:client.username }}{% endblock %}
+{% block page_subtitle %}{{ client.email }} · joined {{ client.date_joined|date:"j M Y" }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'crm:client_activity' %}" class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition border border-slate-200 rounded-lg px-3 py-1.5 hover:border-slate-300">
+  <i class="fas fa-arrow-left text-xs"></i><span class="hidden sm:inline ml-1">All clients</span>
+</a>
+{% endblock %}
+
+{% block crm_content %}
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+  <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900 text-sm">Activity</h2>
+      <p class="text-xs text-slate-400 mt-0.5">{{ total_events }} event{{ total_events|pluralize }}, newest first (times in UTC)</p>
+    </div>
+    <ul class="divide-y divide-slate-50">
+      {% for event in events %}
+      <li class="px-5 py-3 flex items-start gap-3">
+        <span class="mt-0.5 w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0 text-xs">
+          <i class="fas {% if event.event == 'PROPERTY_VIEW' %}fa-eye{% elif event.event == 'FAVORITE' %}fa-heart{% elif event.event == 'ENQUIRY' %}fa-envelope{% elif event.event == 'REPORT_DOWNLOAD' %}fa-file-arrow-down{% else %}fa-right-to-bracket{% endif %}"></i>
+        </span>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-slate-800">
+            {{ event.get_event_display }}{% if event.related_property %}:
+            <a href="{% url 'property_detail' property_pk=event.related_property.pk %}" class="font-medium hover:text-rose-600">{{ event.related_property.name }}</a>{% elif event.detail %}: <span class="font-medium">{{ event.detail }}</span>{% endif %}
+          </p>
+          <p class="text-xs text-slate-400">{{ event.created_at|date:"j M Y, H:i" }}</p>
+        </div>
+      </li>
+      {% empty %}
+      <li class="px-5 py-10 text-center text-sm text-slate-400">Nothing recorded for this client yet.</li>
+      {% endfor %}
+    </ul>
+    {% if events.has_other_pages %}
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+      <span>Page {{ events.number }} of {{ events.paginator.num_pages }}</span>
+      <span class="flex gap-3">
+        {% if events.has_previous %}<a class="hover:text-slate-900" href="?page={{ events.previous_page_number }}">Newer</a>{% endif %}
+        {% if events.has_next %}<a class="hover:text-slate-900" href="?page={{ events.next_page_number }}">Older</a>{% endif %}
+      </span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden self-start">
+    <div class="px-5 py-4 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900 text-sm">Leads from this email</h2>
+    </div>
+    <ul class="divide-y divide-slate-50">
+      {% for lead in leads %}
+      <li class="px-5 py-3">
+        <a href="{% url 'crm:lead_detail' pk=lead.pk %}" class="text-sm text-slate-800 hover:text-rose-600">{{ lead.property_title_snapshot|default:"Enquiry" }}</a>
+        <p class="text-xs text-slate-400">{{ lead.get_lead_status_display }} · {{ lead.created_at|date:"j M Y" }}</p>
+      </li>
+      {% empty %}
+      <li class="px-5 py-10 text-center text-sm text-slate-400">No leads yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

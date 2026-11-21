@@ -22,6 +22,11 @@ urlpatterns = [
     path('agents/', views.AgentWorkloadView.as_view(), name='agent_workload'),
     path('settings/', views.CRMSettingsView.as_view(), name='settings'),
 
+    # Client activity (tracking endpoint for the app + admin-only pages)
+    path('track/', views.track_property_view, name='track_property_view'),
+    path('activity/', views.ClientActivityView.as_view(), name='client_activity'),
+    path('activity/<int:user_id>/', views.ClientActivityDetailView.as_view(), name='client_activity_detail'),
+
     # Agent self-service
     path('toggle-availability/', views.ToggleAvailabilityView.as_view(), name='toggle_availability'),
 ]

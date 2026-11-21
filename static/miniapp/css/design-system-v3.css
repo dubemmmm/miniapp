@@ -1002,8 +1002,9 @@ button.cw-district { width: 100%; border: none; padding: 0; text-align: left; cu
 .cw-district-img { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform .8s cubic-bezier(.16,1,.3,1); }
 .cw-district:hover .cw-district-img { transform: scale(1.06); }
 .cw-district-fallback { background: linear-gradient(135deg, #0B1330, var(--cw-navy)); }
-.cw-district-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,14,36,0) 45%, rgba(9,14,36,0.55) 100%); }
-.cw-district-info { position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 14px 16px; background: rgba(14,22,54,0.36); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3); border: 1px solid rgba(255,255,255,0.26); border-radius: 18px; }
+.cw-district-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,14,36,0) 38%, rgba(9,14,36,0.5) 68%, rgba(9,14,36,0.86) 100%); }
+/* No panel behind the text: the scrim above carries legibility on its own. */
+.cw-district-info { position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 14px 16px; text-shadow: 0 1px 10px rgba(9,14,36,0.55); }
 .cw-district-name { font-size: 21px; font-weight: 500; letter-spacing: -0.01em; }
 .cw-district-count { font-size: 13px; opacity: 0.8; margin-top: 2px; }
 .cw-tag { display: block; margin-top: 10px; font-size: 16px; font-weight: 500; color: var(--cw-sand-soft); font-variant-numeric: tabular-nums; }
@@ -1032,6 +1033,7 @@ button.cw-district { width: 100%; border: none; padding: 0; text-align: left; cu
 .cw-card-body { padding: 10px 4px 0; }
 .cw-card-loc { font-size: 13.5px; color: var(--cw-muted); }
 .cw-card-name { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; margin: 2px 0 6px; }
+.cw-card-reason { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--cw-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .cw-card-price { display: flex; justify-content: space-between; align-items: baseline; font-size: 13.5px; color: var(--cw-ink); padding-top: 8px; border-top: 1px solid var(--cw-line); }
 .cw-card-psqm { color: var(--cw-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .cw-card-agent-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--cw-line); }
@@ -1119,6 +1121,27 @@ button.cw-district { width: 100%; border: none; padding: 0; text-align: left; cu
 .cw-footer-cols a { color: #3A3D4A; text-decoration: none; font-size: 14.5px; }
 .cw-footer-cols a:hover { color: var(--cw-navy); }
 .cw-footer-legal { font-size: 12.5px; color: var(--cw-muted); padding-top: 22px; border-top: 1px solid var(--cw-line); line-height: 1.6; }
+.cw-footer-developers { padding: 28px 0; border-top: 1px solid var(--cw-line); }
+.cw-footer-developers-row { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; margin-top: 16px; }
+.cw-footer-dev-logo { display: inline-flex; align-items: center; height: 84px; }
+.cw-footer-dev-logo img { height: 100%; width: auto; max-width: 280px; object-fit: contain; filter: grayscale(100%); opacity: 0.55; transition: filter .2s, opacity .2s; }
+.cw-footer-dev-logo:hover img { filter: grayscale(0%); opacity: 1; }
+@media (max-width: 640px) {
+  .cw-footer-developers-row { gap: 18px 22px; }
+  .cw-footer-dev-logo { height: 52px; }
+  .cw-footer-dev-logo img { max-width: 150px; }
+}
+
+/* ——— Reports page ——— */
+.cw-report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 28px 24px; }
+.cw-report { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--cw-line); border-radius: 24px; overflow: hidden; }
+.cw-report-cover { aspect-ratio: 16 / 10; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5); font-family: "Instrument Serif", serif; font-size: 44px; }
+.cw-report-body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px 24px 26px; flex: 1; }
+.cw-report-title { font-family: var(--cw-font); font-weight: 500; font-size: 20px; line-height: 1.25; letter-spacing: -0.01em; margin: 0; }
+.cw-report-summary { font-size: 15px; margin: 0 0 8px; flex: 1; }
+.cw-report-ready { margin-bottom: 28px; }
+.cw-report-ready a { font-weight: 600; color: var(--cw-navy); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 640px) { .cw-report-grid { grid-template-columns: 1fr; } }
 
 /* ——— Inner pages: neighbourhood + comparison ——— */
 .cw-subhero { position: relative; margin: 12px 12px 0; border-radius: 28px; min-height: 54vh; display: flex; align-items: flex-end; color: #fff; overflow: hidden; }

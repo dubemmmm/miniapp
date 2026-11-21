@@ -65,6 +65,16 @@ window.ChatWidgetConfig = window.ChatWidgetConfig || {};
 window.ChatWidgetConfig.webhook = window.ChatWidgetConfig.webhook || {};
 // window.ChatWidgetConfig.webhook.url will be set by template
 
+// In-page views (property modal, "View all") push a history entry tagged with
+// one of these, so Back/Forward step through them like real pages.
+const cwHistoryState = () => (history.state && history.state.cw) || null;
+
+window.addEventListener('popstate', () => {
+    const state = cwHistoryState();
+    if (state !== 'modal' && selectedProperty) hidePropertyModal();
+    if (state === null && locationViewState.active) hideLocationViewAll();
+});
+
 const getCookie = (name) => {
     if (!document.cookie) return null;
     const cookie = document.cookie.split('; ').find(row => row.startsWith(`${name}=`));
@@ -221,6 +231,21 @@ const badgePalette = {
     non_luxurious: "from-sky-500/80 via-sky-400/70 to-cyan-400/70"
 };
 
+// The Where / Type / Beds pills in the search bar summarise what the panel
+// below is currently filtering on (they used to read "Any" permanently).
+const updateSegPills = () => {
+    const set = (key, text) => {
+        const el = document.querySelector(`.seg-value[data-seg="${key}"]`);
+        if (el) el.textContent = text;
+    };
+    const where = filters.neighborhood !== 'all' ? filters.neighborhood
+        : (filters.location !== 'all' ? filters.location : 'Any');
+    set('where', where);
+    set('type', filters.luxury === 'all' ? 'Any' : (filters.luxury === 'luxurious' ? 'Luxury' : 'Standard'));
+    const beds = filters.bedrooms;
+    set('beds', beds === 'all' ? 'Any' : (beds === '0' ? 'Studio' : beds));
+};
+
 const updateActiveFilterCount = () => {
     let count = 0;
     if (filters.search) count++;
@@ -235,6 +260,8 @@ const updateActiveFilterCount = () => {
     if (filters.priceRange[0] !== filterRanges.min_price || filters.priceRange[1] !== filterRanges.max_price) count++;
     // Only count sqft filter if it's different from the initial range
     if (filters.sqftRange[0] !== (filterRanges.min_sqft || 0) || filters.sqftRange[1] !== (filterRanges.max_sqft || 10000)) count++;
+
+    updateSegPills();
 
     const badge = document.getElementById('activeFilterCount');
     if (count > 0) {
@@ -293,27 +320,37 @@ const updateStats = (properties) => {
     }
 };
 
-const getFilteredProperties = () => {
-    const normalizedSearch = filters.search.toLowerCase().trim();
+// Splits the search box into plain words plus an optional bedroom count, so
+// "eko atlantic 2 bed" means "Eko Atlantic" AND a 2-bedroom unit rather than
+// a literal phrase that matches nothing.
+const parseSearch = (raw) => {
+    let beds = null;
+    const text = (raw || '').toLowerCase().replace(
+        /(\d+)\s*\+?\s*-?\s*(?:bed(?:room)?s?|br)\b/g,
+        (_, n) => { beds = parseInt(n, 10); return ' '; }
+    );
+    return { tokens: text.split(/[\s,]+/).filter(Boolean), beds };
+};
 
-    // Debug: Track filtered out properties
-    const filteredOut = [];
+const bedroomsMatch = (config, wanted) => {
+    if (wanted === null || wanted === 'all') return true;
+    if (wanted === '5+') return config.bedrooms >= 5;
+    const n = parseInt(wanted, 10);
+    return n >= 5 ? config.bedrooms >= 5 : config.bedrooms === n;
+};
+
+const getFilteredProperties = () => {
+    const search = parseSearch(filters.search);
 
     let filtered = properties.filter((property) => {
-        const matchesSearch = normalizedSearch ?
-            `${property.name} ${property.address}`.toLowerCase().includes(normalizedSearch) : true;
+        const haystack = `${property.name} ${property.address} ${property.location || ''} ${property.neighborhood || ''}`.toLowerCase();
+        const matchesSearch = search.tokens.every(token => haystack.includes(token));
 
         const matchesLocation = filters.location === 'all' || property.location === filters.location;
 
         const matchesNeighborhood = filters.neighborhood === 'all' || property.neighborhood === filters.neighborhood;
 
         const matchesWaterfront = !filters.waterfrontOnly || property.isWaterfront;
-
-        const matchesBedrooms = filters.bedrooms === 'all' ||
-            property.configurations.some(c => {
-                if (filters.bedrooms === '5+') return c.bedrooms >= 5;
-                return c.bedrooms === parseInt(filters.bedrooms);
-            });
 
         const matchesCompletion = () => {
             if (!property.completion_date) return true;
@@ -323,11 +360,8 @@ const getFilteredProperties = () => {
             const year = completionDate.getFullYear();
             const propQuarter = Math.floor((month - 1) / 3) + 1;
 
-            // Check quarter filter
             const matchesQuarter = filters.completionQuarter === 'all' ||
                                   parseInt(filters.completionQuarter) === propQuarter;
-
-            // Check year filter
             const matchesYear = filters.completionYear === 'all' ||
                                parseInt(filters.completionYear) === year;
 
@@ -336,54 +370,20 @@ const getFilteredProperties = () => {
 
         const matchesLuxury = filters.luxury === 'all' || property.luxury_status === filters.luxury;
 
-        const matchesPrice = property.configurations.some(c =>
-            c.price === 0 || (c.price >= filters.priceRange[0] && c.price <= filters.priceRange[1])
-        );
-
-        const matchesSqft = property.configurations.some(c =>
+        // Bedrooms, price and size must all hold for the SAME unit. Testing
+        // each against "any unit" let a development through when, say, its
+        // 2-bed was out of budget but its 4-bed was in range.
+        // (price === 0 means "Price on Request" and always passes the price test.)
+        const matchesUnit = property.configurations.some(c =>
+            bedroomsMatch(c, filters.bedrooms) &&
+            bedroomsMatch(c, search.beds) &&
+            (c.price === 0 || (c.price >= filters.priceRange[0] && c.price <= filters.priceRange[1])) &&
             c.square_footage >= filters.sqftRange[0] && c.square_footage <= filters.sqftRange[1]
         );
 
-        const passes = matchesSearch && matchesLocation && matchesNeighborhood && matchesWaterfront && matchesBedrooms && matchesCompletion() && matchesLuxury && matchesPrice && matchesSqft;
-
-        // Debug: Log properties that don't pass
-        if (!passes) {
-            const reasons = [];
-            if (!matchesSearch) reasons.push('search');
-            if (!matchesLocation) reasons.push('location');
-            if (!matchesNeighborhood) reasons.push('neighborhood');
-            if (!matchesWaterfront) reasons.push('waterfront');
-            if (!matchesBedrooms) reasons.push('bedrooms');
-            if (!matchesCompletion()) reasons.push('completion');
-            if (!matchesLuxury) reasons.push('luxury');
-            if (!matchesPrice) reasons.push(`price (configs: ${JSON.stringify(property.configurations.map(c => c.price))} vs range: ${filters.priceRange}, note: price=0 means "Price on Request" and should pass)`);
-            if (!matchesSqft) reasons.push(`sqft (configs: ${JSON.stringify(property.configurations.map(c => c.square_footage))} vs range: ${filters.sqftRange})`);
-
-            filteredOut.push({
-                id: property.id,
-                name: property.name,
-                reasons: reasons,
-                configurations: property.configurations
-            });
-        }
-
-        return passes;
+        return matchesSearch && matchesLocation && matchesNeighborhood && matchesWaterfront &&
+            matchesCompletion() && matchesLuxury && matchesUnit;
     });
-
-    // Debug: Log filtered out properties
-    if (filteredOut.length > 0) {
-        console.log('=== FILTERED OUT PROPERTIES ===');
-        console.log(`Total properties: ${properties.length}`);
-        console.log(`Filtered properties: ${filtered.length}`);
-        console.log(`Filtered OUT: ${filteredOut.length}`);
-        console.log('Current filters:', filters);
-        filteredOut.forEach(prop => {
-            console.log(`\nProperty ID ${prop.id}: "${prop.name}"`);
-            console.log(`  Reasons: ${prop.reasons.join(', ')}`);
-            console.log(`  Configurations:`, prop.configurations);
-        });
-        console.log('================================');
-    }
 
     // Apply sorting
     switch (filters.sortBy) {
@@ -446,8 +446,13 @@ const propertyType = (property) => {
 // "For Sale" (placeholder). Wire to real data once a listing_type field exists.
 const LISTING_DEFAULT = 'For Sale';
 
+// Sold-out listings swap the "For Sale" badge; Top Pick / Fast-selling add one.
 const badgePills = (property) => `
-    <span class="badge gold"><span class="dot"></span>${LISTING_DEFAULT}</span>
+    ${property.is_sold_out
+        ? '<span class="badge navy"><span class="dot"></span>Sold Out</span>'
+        : `<span class="badge gold"><span class="dot"></span>${LISTING_DEFAULT}</span>`}
+    ${property.is_top_pick ? '<span class="badge gold"><span class="dot"></span>CW Top Pick</span>' : ''}
+    ${property.is_fast_selling ? '<span class="badge green"><span class="dot"></span>Selling Fast</span>' : ''}
     <span class="badge type"><span class="dot"></span>${propertyType(property)}</span>`;
 
 const WA_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.8c2.17 0 4.21.85 5.75 2.38a8.06 8.06 0 0 1 2.38 5.73c0 4.48-3.65 8.12-8.13 8.12a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.07.8.82-3-.19-.31a8.06 8.06 0 0 1-1.24-4.3c0-4.48 3.65-8.12 8.12-8.12zm4.7 10.18c-.26-.13-1.52-.75-1.75-.83-.24-.09-.41-.13-.58.13-.17.26-.67.83-.82 1-.15.17-.3.19-.56.06-.26-.13-1.08-.4-2.06-1.27-.76-.68-1.28-1.52-1.43-1.78-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.46.13-.15.17-.26.26-.43.09-.17.04-.32-.02-.45-.06-.13-.58-1.4-.8-1.92-.21-.5-.42-.43-.58-.44l-.5-.01c-.17 0-.45.06-.68.32-.24.26-.9.88-.9 2.15s.92 2.5 1.05 2.66c.13.17 1.8 2.76 4.38 3.87.61.26 1.09.42 1.46.54.61.2 1.17.17 1.61.1.49-.07 1.52-.62 1.73-1.22.21-.6.21-1.11.15-1.22-.06-.11-.24-.17-.5-.3z"/></svg>';
@@ -558,6 +563,12 @@ const createPropertyCard = (property, opts = {}) => {
     return card;
 };
 
+const CURATED_RAILS = [
+    { flag: 'is_top_pick', title: 'CW Top Picks', note: 'rated most highly by our advisers' },
+    { flag: 'is_fast_selling', title: 'Fast-Selling', note: 'units being taken up quickly' },
+    { flag: 'is_sold_out', title: 'Sold Out', note: 'ask about secondary-market units' },
+];
+
 const renderCards = () => {
     const filteredProperties = getFilteredProperties();
     const locationSections = document.getElementById("locationSections");
@@ -572,6 +583,32 @@ const renderCards = () => {
         renderActiveLocationView();
         return;
     }
+
+    // Curated rails (flags synced from Airtable) sit above the location rails
+    // and respect the active filters like everything else on the page.
+    CURATED_RAILS.forEach(({ flag, title, note }) => {
+        const picks = filteredProperties.filter(prop => prop[flag]);
+        if (!picks.length) return;
+        const section = document.createElement("div");
+        section.className = "space-y-4";
+        const header = document.createElement("div");
+        header.style.marginBottom = "14px";
+        header.innerHTML = `
+            <div class="eyebrow ink" style="font-size: 11.5px;">${title}</div>
+            <div style="font-size: 13px; color: var(--slate-500); margin-top: 2px;">${picks.length} ${picks.length === 1 ? 'listing' : 'listings'} · ${note}</div>`;
+        const rail = document.createElement("div");
+        rail.className = "flex gap-3 sm:gap-4 overflow-x-auto pb-4 no-scroll";
+        rail.style.padding = "4px 0 4px";
+        rail.style.maxWidth = "100%";
+        picks.forEach(prop => {
+            const card = createPropertyCard(prop, { variant: 'split', rail: true });
+            card.classList.add("snap-start");
+            rail.appendChild(card);
+        });
+        section.appendChild(header);
+        section.appendChild(rail);
+        locationSections.appendChild(section);
+    });
 
     // Group properties by location
     const byLocation = {};
@@ -765,7 +802,18 @@ const renderViewAllGrid = (properties) => {
     });
 };
 
+const hideLocationViewAll = () => {
+    document.getElementById("locationViewAll").classList.add("hidden");
+    document.getElementById("locationSections").classList.remove("hidden");
+    locationViewState = { active: false, location: null, propertyIds: [] };
+};
+
 const showLocationViewAll = (location, properties) => {
+    // Give "View all" its own history entry so the browser Back button returns
+    // to the rails instead of leaving the portfolio altogether.
+    if (!locationViewState.active && cwHistoryState() !== 'viewall') {
+        history.pushState({ cw: 'viewall' }, '');
+    }
     locationViewState = {
         active: true,
         location,
@@ -781,9 +829,8 @@ const showLocationViewAll = (location, properties) => {
 };
 
 document.getElementById("backToLocations").addEventListener("click", () => {
-    document.getElementById("locationViewAll").classList.add("hidden");
-    document.getElementById("locationSections").classList.remove("hidden");
-    locationViewState = { active: false, location: null, propertyIds: [] };
+    if (cwHistoryState() === 'viewall') { history.back(); return; }  // popstate hides it
+    hideLocationViewAll();
 });
 
 // Re-render the view-all grid when the "Group by" criterion changes.
@@ -794,7 +841,11 @@ document.getElementById("viewAllGroupBy")?.addEventListener("change", (e) => {
 
 const renderActiveLocationView = () => {
     if (!locationViewState.active) return;
-    const activeProperties = properties.filter(prop => locationViewState.propertyIds.includes(prop.id));
+    // Re-derive from the filtered set (not the full list), so filters keep
+    // applying while a location's "View all" grid is open.
+    const activeProperties = getFilteredProperties().filter(
+        prop => (prop.location || 'Other Locations') === locationViewState.location
+    );
     if (!activeProperties.length) {
         locationViewState = { active: false, location: null, propertyIds: [] };
         document.getElementById("locationViewAll").classList.add("hidden");
@@ -1131,9 +1182,27 @@ const openModal = (property) => {
     modal.classList.add("flex", "modal-open");
     // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
+    if (cwHistoryState() !== 'modal') history.pushState({ cw: 'modal' }, '');
+    logPropertyView(property.id);
+};
+
+// Tell the CRM a client opened this listing (staff views aren't recorded).
+const logPropertyView = (propertyId) => {
+    if (window.isInternalUser) return;
+    fetch('/crm/track/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ property_id: propertyId }),
+        keepalive: true,
+    }).catch(() => {});
 };
 
 const closeModal = () => {
+    if (cwHistoryState() === 'modal') { history.back(); return; }  // popstate hides it
+    hidePropertyModal();
+};
+
+const hidePropertyModal = () => {
     selectedProperty = null;
     const modal = document.getElementById("propertyModal");
     modal.classList.add("hidden");
@@ -1438,6 +1507,7 @@ document.getElementById('enquiryForm').addEventListener('submit', function(e) {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
+            if (window.cwTrack) window.cwTrack('enquiry', { property_id: selectedProperty && selectedProperty.id });
             document.getElementById('enquiryForm').classList.add('hidden');
             document.getElementById('enquirySuccess').classList.remove('hidden');
         } else if (data.errors) {

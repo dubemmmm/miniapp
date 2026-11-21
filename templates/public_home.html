@@ -16,6 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
+    {% include "partials/tracking_head.html" %}
 </head>
 <body class="cw-page">
 
@@ -146,6 +147,8 @@
         </div>
     </section>
 
+    {% include "partials/curated_sections.html" %}
+
     {% if launches %}
     <section class="cw-section" id="launches">
         <div class="cw-container">
@@ -236,7 +239,7 @@
                     <div class="cw-district-scrim"></div>
                     <div class="cw-district-info">
                         <div class="cw-district-name">{{ item.display_name }}</div>
-                        <div class="cw-district-count">{{ item.profile.get_role_display|default:"Specialist" }}{% if item.property_count %} · {{ item.property_count }} listing{{ item.property_count|pluralize }}{% endif %}</div>
+                        <div class="cw-district-count">{{ item.profile.job_title|default:"Off-plan Specialist" }}{% if item.property_count %} · {{ item.property_count }} listing{{ item.property_count|pluralize }}{% endif %}</div>
                     </div>
                 </a>
                 {% endfor %}

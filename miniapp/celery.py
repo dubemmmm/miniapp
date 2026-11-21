@@ -20,12 +20,13 @@ app.conf.beat_schedule = {
         "task": "properties.tasks.run_sync_airtable_incremental",
         "schedule": crontab(minute=0),  # top of every hour
     },
-    # Airtable sync: daily full pull + prune-missing (catches misconfigured
-    # "Last Modified" fields and reconciles deletions the incremental job can't see).
-    # Matches the cadence of the old sync_airtable.sh cron job it replaces.
-    "run-sync-airtable-full-daily": {
+    # Airtable sync: full pull + prune-missing every 6 hours (catches misconfigured
+    # "Last Modified" fields and reconciles deletions the incremental job can't see,
+    # so a record deleted in Airtable leaves the site within hours, not a day).
+    # Runs at :30 so it never starts alongside the hourly incremental job.
+    "run-sync-airtable-full": {
         "task": "properties.tasks.run_sync_airtable_full",
-        "schedule": crontab(hour=19, minute=0),  # daily 19:00 UTC
+        "schedule": crontab(hour="1,7,13,19", minute=30),
     },
     # CRM: mark overdue leads every 30 minutes
     "crm-sweep-overdue-leads": {

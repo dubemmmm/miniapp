@@ -1,0 +1,36 @@
+{# Analytics tags for every page <head>. IDs come from properties.context_processors.tracking, which leaves them empty in DEBUG and for staff, so the team's own browsing never pollutes the numbers. window.cwTrack() is always defined, so callers never need to check whether tracking is on. #}
+{% if ga4_measurement_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ ga4_measurement_id }}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '{{ ga4_measurement_id|escapejs }}'{% if tracking_user_id %}, { user_id: '{{ tracking_user_id|escapejs }}' }{% endif %});
+</script>
+{% endif %}
+{% if meta_pixel_id %}
+<script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '{{ meta_pixel_id|escapejs }}');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id={{ meta_pixel_id }}&ev=PageView&noscript=1"></noscript>
+{% endif %}
+<script>
+  // One call site for conversions: cwTrack('enquiry' | 'access_request' |
+  // 'shortlist_request' | 'guide_download' | 'report_download' | 'email_signup').
+  // Sends a GA4 event of that name and the matching Meta standard event.
+  window.cwTrack = function (name, params) {
+    try {
+      if (typeof window.gtag === 'function') window.gtag('event', name, params || {});
+      if (typeof window.fbq === 'function') {
+        var metaEvent = name === 'email_signup' ? 'Subscribe' : 'Lead';
+        window.fbq('track', metaEvent, Object.assign({ content_name: name }, params || {}));
+      }
+    } catch (_) {}
+  };
+</script>

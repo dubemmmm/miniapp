@@ -242,7 +242,7 @@
         <!-- ENQUIRY FORM -->
         <div id="enquire" class="price-card-v2" style="scroll-margin-top: 24px;">
           <div class="eyebrow" style="margin-bottom: 4px;">Register your interest</div>
-          <p style="font-size: 12px; color: var(--slate-400); margin-bottom: 16px;">An agent will contact you within 2 business days.</p>
+          <p style="font-size: 12px; color: var(--slate-400); margin-bottom: 16px;">An agent will contact you within 2 business hours.</p>
 
           <!-- Success state -->
           <div id="enquirySuccess" class="hidden text-center py-6">
@@ -345,6 +345,24 @@ document.getElementById('detailNext')?.addEventListener('click', () => showImage
 renderDots();
 {% endif %}
 
+// ——— Back link ———
+// The link's href is only a fallback (agent profile / portfolio / market).
+// When the visitor arrived from another page on this site, go back to *that*
+// page instead; the CW logo remains the way home.
+(() => {
+  const backLink = document.querySelector('nav.chrome-header > a');
+  if (!backLink) return;
+  let sameOrigin = false;
+  try { sameOrigin = !!document.referrer && new URL(document.referrer).origin === window.location.origin; } catch (_) {}
+  if (!sameOrigin || window.history.length < 2) return;
+  const label = Array.from(backLink.childNodes).reverse().find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+  if (label) label.textContent = ' Back ';
+  backLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    window.history.back();
+  });
+})();
+
 // ——— Favourite toggle ———
 const getCookie = (name) => {
   if (!document.cookie) return null;
@@ -403,6 +421,7 @@ document.getElementById('enquiryForm').addEventListener('submit', function(e) {
   .then(r => r.json())
   .then(data => {
     if (data.success) {
+      if (window.cwTrack) window.cwTrack('enquiry', { property_id: {{ property.pk }} });
       document.getElementById('enquiryForm').classList.add('hidden');
       document.getElementById('enquirySuccess').classList.remove('hidden');
     } else if (data.errors) {

@@ -1,8 +1,9 @@
-{# Public lead form for neighbourhood pages. Expects: intent ('shortlist', 'guide' or 'access'), submit_label, and market (shortlist/guide) or markets (access). Posted by homepage.js. #}
+{# Public lead form. Expects: intent ('shortlist', 'guide', 'access' or 'report'), submit_label, and market (shortlist/guide), markets (access) or report_slug (report). Posted by homepage.js. #}
 <form class="cw-form" data-lead-form data-intent="{{ intent }}" action="{% url 'crm:request_shortlist' %}" method="post" novalidate>
     {% csrf_token %}
     <input type="hidden" name="intent" value="{{ intent }}">
-    {% if intent != 'access' %}<input type="hidden" name="market" value="{{ market.slug }}">{% endif %}
+    {% if intent == 'shortlist' or intent == 'guide' %}<input type="hidden" name="market" value="{{ market.slug }}">{% endif %}
+    {% if intent == 'report' %}<input type="hidden" name="report" value="{{ report_slug }}">{% endif %}
     <div class="cw-hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
     <div class="cw-form-grid">
         <label>First name<input type="text" name="first_name" autocomplete="given-name" required></label>

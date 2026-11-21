@@ -18,6 +18,7 @@
 
     <link rel="stylesheet" href="{% static 'miniapp/css/design-system-v3.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {% include "partials/tracking_head.html" %}
 </head>
 <body class="cw-page">
 
@@ -30,7 +31,7 @@
             <div class="cw-agent-hero">
                 <div class="cw-agent-photo" style="background-image:url('{{ profile.photo.url }}');"></div>
                 <div class="cw-agent-info">
-                    <div class="eyebrow coral" style="margin-bottom:10px;">{{ profile.get_role_display|default:"Specialist" }}</div>
+                    <div class="eyebrow coral" style="margin-bottom:10px;">{{ profile.job_title|default:"Off-plan Specialist" }}</div>
                     <h1 class="cw-pagehead-title" style="font-size:clamp(30px,4.4vw,52px); margin-bottom:16px;">{{ display_name }}</h1>
                     <div class="cw-agent-bio">{{ profile.bio|default:"Brings local market insight and a client-first approach to every property decision."|linebreaks }}</div>
                     <div style="display:flex; gap:12px; flex-wrap:wrap;">

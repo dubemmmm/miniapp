@@ -32,6 +32,7 @@
     </style>
     <link rel="stylesheet" href="{% static 'miniapp/css/tailwind.css' %}">
     <script src="{% static 'miniapp/js/chat-widget.js' %}"></script>
+    {% include "partials/tracking_head.html" %}
 </head>
 <body class="antialiased" style="background: var(--bg-gradient); min-height: 100vh; font-family: var(--font-sans); color: var(--ink);">
 
@@ -96,16 +97,16 @@
                             <input id="searchInput" type="text" placeholder="Search address, project or name…" />
                         </div>
                         <span class="seg-divider"></span>
-                        <span class="seg-pill"><span class="seg-label">Where</span> <span class="seg-value">Any</span>
+                        <span class="seg-pill"><span class="seg-label">Where</span> <span class="seg-value" data-seg="where">Any</span>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                         </span>
                         <span class="seg-pill"><span class="seg-label">Listing</span> <span class="seg-value">For Sale</span>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                         </span>
-                        <span class="seg-pill"><span class="seg-label">Type</span> <span class="seg-value">Any</span>
+                        <span class="seg-pill"><span class="seg-label">Type</span> <span class="seg-value" data-seg="type">Any</span>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                         </span>
-                        <span class="seg-pill"><span class="seg-label">Beds</span> <span class="seg-value">Any</span>
+                        <span class="seg-pill"><span class="seg-label">Beds</span> <span class="seg-value" data-seg="beds">Any</span>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                         </span>
                         <button id="toggleFilters" class="filters-btn">
@@ -432,7 +433,7 @@
                                 <i class="fas fa-check" style="color: var(--green);"></i>
                             </div>
                             <p class="font-semibold text-sm" style="color: var(--ink);">Enquiry sent!</p>
-                            <p class="text-xs mt-1" style="color: var(--slate-500);">An agent will contact you within 2 business days.</p>
+                            <p class="text-xs mt-1" style="color: var(--slate-500);">An agent will contact you within 2 business hours.</p>
                         </div>
 
                         <form id="enquiryForm" class="space-y-2.5" novalidate>

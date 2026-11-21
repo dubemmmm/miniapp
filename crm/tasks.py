@@ -55,8 +55,11 @@ def send_visitor_confirmation(self, lead_id):
     lead = _get_lead(lead_id)
     agent_user = _get_current_agent(lead)
 
-    is_access = getattr(lead.source, 'slug', '') == 'access-request'
-    template_name = 'access_confirmation' if is_access else 'visitor_confirmation'
+    source_slug = getattr(lead.source, 'slug', '')
+    is_access = source_slug == 'access-request'
+    is_report = source_slug == 'report-download'
+    template_name = ('access_confirmation' if is_access
+                     else 'report_confirmation' if is_report else 'visitor_confirmation')
     idempotency_key = f"{lead_id}:visitor_confirmation:{lead.email}"
     email_log, created = EmailLog.objects.get_or_create(
         idempotency_key=idempotency_key,
@@ -66,6 +69,7 @@ def send_visitor_confirmation(self, lead_id):
             'recipient_type': EmailLog.RecipientType.VISITOR,
             'template_name': template_name,
             'subject': ("We've received your request for access to CW Offplan Real Estate" if is_access
+                        else "Your CW Offplan Real Estate report" if is_report
                         else f"Your enquiry for {lead.property_title_snapshot} has been received"),
             'status': EmailLog.Status.PENDING,
         }
@@ -89,9 +93,17 @@ def send_visitor_confirmation(self, lead_id):
         agent_whatsapp = ''
         agent_email = settings.DEFAULT_FROM_EMAIL
 
+    # Promise the visitor the same window agents are actually held to, so the
+    # copy can't drift from the SLA setting again.
+    from crm.models import SLAConfig
+    sla_hours = SLAConfig.get().first_contact_hours
+    response_window = f"{sla_hours} business hour{'' if sla_hours == 1 else 's'}"
+
     context = {
         'first_name': lead.first_name,
+        'response_window': response_window,
         'property_title': lead.property_title_snapshot,
+        'report_title': lead.property_title_snapshot.replace('the report: ', '', 1),
         'property_location': lead.property_location_snapshot,
         'property_link': lead.property_url_snapshot,
         'agent_name': agent_name,
@@ -118,6 +130,7 @@ def send_visitor_confirmation(self, lead_id):
         recipient_email=lead.email,
         subject=subject,
         body_text=body_text,
+        bcc=settings.EMAIL_BCC_ARCHIVE,
     )
 
     if success:
@@ -218,6 +231,7 @@ def send_invitation_code(self, lead_id):
         recipient_email=lead.email,
         subject=subject,
         body_text=body_text,
+        bcc=settings.EMAIL_BCC_ARCHIVE,
     )
 
     if success:
@@ -321,6 +335,7 @@ def send_agent_notification(self, lead_id):
             recipient_email=recipient.email,
             subject=subject,
             body_text=body_text,
+            bcc=settings.EMAIL_BCC_ARCHIVE,
         )
 
         if success:
