@@ -130,7 +130,8 @@ def send_visitor_confirmation(self, lead_id):
         recipient_email=lead.email,
         subject=subject,
         body_text=body_text,
-        bcc=settings.EMAIL_BCC_ARCHIVE,
+        # The assigned agent sees exactly what the client was sent.
+        bcc=[agent_user.email if agent_user else '', settings.EMAIL_BCC_ARCHIVE],
     )
 
     if success:

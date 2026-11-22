@@ -117,6 +117,7 @@ class Lead(models.Model):
 
 class LeadAssignment(models.Model):
     class Reason(models.TextChoices):
+        PROPERTY_CONTACT = 'PROPERTY_CONTACT', 'Property Contact'
         SCORE_BASED = 'SCORE_BASED', 'Score Based'
         ROUND_ROBIN = 'ROUND_ROBIN', 'Round Robin'
         MANUAL = 'MANUAL', 'Manual'

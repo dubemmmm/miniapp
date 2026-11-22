@@ -1,5 +1,11 @@
 """
-Weighted Least-Load agent assignment algorithm.
+Lead assignment.
+
+1. A lead for a property goes to that property's contact person
+   (Property.contact_name, synced from Airtable's "Contact Name"), when that
+   name matches an active, available agent.
+2. Otherwise (no property, no contact name, no matching agent, or the agent is
+   unavailable / on leave) fall back to the Weighted Least-Load algorithm:
 
 Score(agent) = w1*(norm_open_leads) + w2*(norm_overdue_leads)
              - w3*(response_score) - w4*(location_match) - w5*(specialty_match)
@@ -11,8 +17,63 @@ Called inside a transaction.atomic() block with select_for_update() on UserProfi
 to prevent concurrent double-assignments.
 """
 from datetime import datetime, timezone as dt_timezone
+from difflib import SequenceMatcher
 from django.utils import timezone
 from properties.models import UserProfile
+
+# How close a contact name must be to an agent's name to count as the same
+# person when there is no exact match (Airtable has "Ifunaya" / "Ifuanya" for
+# the account "Ifunanya").
+_CONTACT_FUZZY_THRESHOLD = 0.8
+
+
+def _norm(value):
+    return ' '.join((value or '').lower().split())
+
+
+def match_contact_agent(contact_name, agents):
+    """
+    Return the agent (UserProfile) in `agents` that `contact_name` refers to, or None.
+
+    Tries, in order: exact match on full name / first name / username, then the
+    contact's first word against the same, then a close-spelling match. Returns
+    None when nothing matches or when two agents match equally well.
+    """
+    contact = _norm(contact_name)
+    if not contact:
+        return None
+    contact_first = contact.split()[0]
+
+    def names(agent):
+        user = agent.user
+        full = _norm(user.get_full_name())
+        out = {full, _norm(user.first_name), _norm(user.username)}
+        if full:
+            out.add(full.split()[0])
+        out.discard('')
+        return out
+
+    agent_names = [(agent, names(agent)) for agent in agents]
+
+    for probe in (contact, contact_first):
+        hits = [agent for agent, ns in agent_names if probe in ns]
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            return None  # ambiguous (two agents share the name) — don't guess
+
+    scored = sorted(
+        (
+            (max(SequenceMatcher(None, contact_first, n).ratio() for n in ns), agent)
+            for agent, ns in agent_names if ns
+        ),
+        key=lambda x: -x[0],
+    )
+    if not scored or scored[0][0] < _CONTACT_FUZZY_THRESHOLD:
+        return None
+    if len(scored) > 1 and scored[1][0] == scored[0][0]:
+        return None
+    return scored[0][1]
 
 
 def assign_agent(lead):
@@ -42,6 +103,22 @@ def assign_agent(lead):
 
     if not eligible:
         return None, {}, 'FALLBACK'
+
+    # --- The property's own contact person takes the lead, if we can find them ---
+    contact_name = ''
+    if lead.related_property_id:
+        try:
+            contact_name = lead.related_property.contact_name or ''
+        except Exception:
+            contact_name = ''
+    contact_agent = match_contact_agent(contact_name, eligible)
+    if contact_agent:
+        return contact_agent, {
+            'method': 'property_contact',
+            'contact_name': contact_name.strip(),
+            'winner_agent_id': contact_agent.user.id,
+            'winner_agent_name': contact_agent.user.get_full_name() or contact_agent.user.username,
+        }, 'PROPERTY_CONTACT'
 
     # --- Load the property's location + category for matching ---
     property_location = ''
@@ -139,6 +216,8 @@ def assign_agent(lead):
         ],
         'winner_agent_id': winner.user.id,
         'winner_score': winner_entry['score'],
+        # Why the property's contact didn't get it (blank = property has none).
+        'unmatched_contact_name': contact_name.strip(),
     }
 
     return winner, snapshot, 'SCORE_BASED'

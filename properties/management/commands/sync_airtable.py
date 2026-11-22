@@ -533,7 +533,17 @@ class Command(BaseCommand):
         sess = requests.Session() if not no_files else None
         headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"} if sess else None
 
+        # Staff a "Contact Name" can refer to. The matched person becomes the
+        # property's linked agent (their public profile's listings, and who the
+        # property's leads are assigned to — see crm/assignment.py).
+        from crm.assignment import match_contact_agent
+        from properties.models import UserProfile
+        staff = list(
+            UserProfile.objects.filter(is_employee=True, user__is_active=True).select_related("user")
+        )
+
         for rid, p in prop_map.items():
+            contact_agent = match_contact_agent(p["contact_name"], staff)
             fields = {
                 "name": p["name"],
                 "slug": p["slug"],
@@ -560,6 +570,10 @@ class Command(BaseCommand):
                 "brochure_url_hash": p["brochure_url_hash"],
                 "thumbnail_url_hash": p["thumbnail_url_hash"],
             }
+            # Follow the Airtable contact when it names someone with an account;
+            # otherwise leave whatever agent was linked by hand in admin.
+            if contact_agent:
+                fields["agent_id"] = contact_agent.pk
 
             if dry_run:
                 self.stdout.write(f"🔍 Would upsert property: {fields['name']}")
